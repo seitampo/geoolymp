@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum SubmissionStatus {
+  PENDING
+  REVIEWED
+}
+
+enum MaterialType {
+  PDF
+  DOCX
+  PPTX
+  IMAGE
+  LINK
+  ZIP
+}
+
+enum TaskType {
+  TEXT
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  IMAGE_UPLOAD
+  FILE_UPLOAD
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  name        String
+  email       String       @unique
+  password    String
+  role        Role
+  groups      Group[]      @relation("TeacherGroups")
+  memberships Membership[]
+  submissions Submission[]
+}
+
+model Group {
+  id          Int          @id @default(autoincrement())
+  name        String
+  description String
+  inviteCode  String       @unique
+  teacherId   Int
+  teacher     User         @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  materials   Material[]
+  tasks       Task[]
+}
+
+model Membership {
+  id      Int   @id @default(autoincrement())
+  userId  Int
+  groupId Int
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model Material {
+  id               Int          @id @default(autoincrement())
+  groupId          Int
+  title            String
+  description      String
+  type             MaterialType @default(LINK)
+  url              String?
+  filePath         String?
+  originalFileName String?
+  uploadedAt       DateTime     @default(now())
+  group            Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id                Int          @id @default(autoincrement())
+  groupId           Int
+  title             String
+  description       String
+  maxScore          Int
+  type              TaskType     @default(TEXT)
+  options           String?
+  correctAnswer     String?
+  imagePath         String?
+  originalImageName String?
+  group             Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  submissions       Submission[]
+}
+
+model Submission {
+  id               Int              @id @default(autoincrement())
+  taskId           Int
+  studentId        Int
+  answer           String
+  filePath         String?
+  originalFileName String?
+  status           SubmissionStatus @default(PENDING)
+  task             Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  student          User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  review           Review?
+
+  @@unique([taskId, studentId])
+}
+
+model Review {
+  id           Int        @id @default(autoincrement())
+  submissionId Int       @unique
+  score        Int
+  feedback     String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
