@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import {
   getAbsoluteMaterialPath,
   isAllowedFileName,
@@ -10,6 +11,7 @@ import {
   validateMaterialType,
 } from "@/lib/materials";
 import { prisma } from "@/lib/prisma";
+import { isUploadTooLarge, maxUploadLabel } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
+  const backTo = `/groups/${material.groupId}?tab=materials`;
   const formData = await request.formData();
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -35,12 +38,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const file = formData.get("file");
 
   if (!title || !description || !type) {
-    return NextResponse.json({ error: "Заполните название, описание и тип материала." }, { status: 400 });
+    return redirectWithError(request, backTo, "Заполните название, описание и тип материала.");
   }
 
   if (!isFileMaterial(type)) {
     if (!url) {
-      return NextResponse.json({ error: "Добавьте ссылку на внешний ресурс." }, { status: 400 });
+      return redirectWithError(request, backTo, "Добавьте ссылку на внешний ресурс.");
     }
 
     await prisma.material.update({
@@ -52,17 +55,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       await unlink(getAbsoluteMaterialPath(material.filePath)).catch(() => undefined);
     }
 
-    return NextResponse.redirect(new URL(`/groups/${material.groupId}?tab=materials`, request.url), 303);
+    return redirectAfterPost(request, backTo);
   }
 
   const newFileSelected = file instanceof File && file.size > 0;
 
   if (!newFileSelected && (!material.filePath || material.type !== type)) {
-    return NextResponse.json({ error: "Загрузите файл для выбранного типа материала." }, { status: 400 });
+    return redirectWithError(request, backTo, "Загрузите файл для выбранного типа материала.");
+  }
+
+  if (newFileSelected && isUploadTooLarge(file.size)) {
+    return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
   }
 
   if (newFileSelected && !isAllowedFileName(type, file.name)) {
-    return NextResponse.json({ error: "Файл не соответствует выбранному типу материала." }, { status: 400 });
+    return redirectWithError(request, backTo, "Файл не соответствует выбранному типу материала.");
   }
 
   const savedFile = newFileSelected ? await saveMaterialFile(file) : null;
@@ -84,5 +91,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await unlink(getAbsoluteMaterialPath(material.filePath)).catch(() => undefined);
   }
 
-  return NextResponse.redirect(new URL(`/groups/${material.groupId}?tab=materials`, request.url), 303);
+  return redirectAfterPost(request, backTo);
 }

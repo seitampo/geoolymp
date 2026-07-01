@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,12 +22,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Решение не найдено." }, { status: 404 });
   }
 
+  const backTo = `/groups/${submission.task.groupId}?tab=submissions`;
   const formData = await request.formData();
   const score = Number(formData.get("score"));
   const feedback = String(formData.get("feedback") ?? "").trim();
 
   if (!Number.isInteger(score) || score < 0 || score > submission.task.maxScore) {
-    return NextResponse.json({ error: "Балл должен быть в пределах максимального балла." }, { status: 400 });
+    return redirectWithError(request, backTo, `Балл должен быть целым числом от 0 до ${submission.task.maxScore}.`);
   }
 
   await prisma.submission.update({
@@ -42,5 +44,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     },
   });
 
-  return NextResponse.redirect(new URL(`/groups/${submission.task.groupId}?tab=submissions`, request.url), 303);
+  return redirectAfterPost(request, backTo);
 }

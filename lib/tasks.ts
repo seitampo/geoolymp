@@ -16,6 +16,10 @@ export function validateTaskType(value: string): TaskType | null {
   return taskTypes.some((item) => item.value === value) ? (value as TaskType) : null;
 }
 
+export function requiresOptions(type: TaskType) {
+  return type === TaskType.SINGLE_CHOICE || type === TaskType.MULTIPLE_CHOICE;
+}
+
 export function parseTaskOptions(options: string | null) {
   if (!options) {
     return [];

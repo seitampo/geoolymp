@@ -1,9 +1,10 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { prisma } from "@/lib/prisma";
-import { validateTaskType } from "@/lib/tasks";
-import { saveUploadedFile } from "@/lib/uploads";
+import { parseTaskOptions, requiresOptions, validateTaskType } from "@/lib/tasks";
+import { isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Группа не найдена." }, { status: 404 });
   }
 
+  const backTo = `/groups/${groupId}?tab=tasks`;
   const formData = await request.formData();
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -31,7 +33,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const image = formData.get("image");
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
-    return NextResponse.json({ error: "Заполните название, условие, тип и максимальный балл." }, { status: 400 });
+    return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
+  }
+
+  if (requiresOptions(type) && parseTaskOptions(options).length < 2) {
+    return redirectWithError(request, backTo, "Для задачи с вариантами укажите минимум два варианта ответа (каждый с новой строки).");
+  }
+
+  if (image instanceof File && isUploadTooLarge(image.size)) {
+    return redirectWithError(request, backTo, `Изображение слишком большое. Максимум — ${maxUploadLabel()}.`);
   }
 
   const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;
@@ -50,5 +60,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     },
   });
 
-  return NextResponse.redirect(new URL(`/groups/${groupId}?tab=tasks`, request.url), 303);
+  return redirectAfterPost(request, backTo);
 }

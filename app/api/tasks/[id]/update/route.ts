@@ -2,9 +2,10 @@ import { Role } from "@prisma/client";
 import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { prisma } from "@/lib/prisma";
-import { validateTaskType } from "@/lib/tasks";
-import { getAbsoluteUploadPath, saveUploadedFile } from "@/lib/uploads";
+import { parseTaskOptions, requiresOptions, validateTaskType } from "@/lib/tasks";
+import { getAbsoluteUploadPath, isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
+  const backTo = `/groups/${task.groupId}?tab=tasks`;
   const formData = await request.formData();
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -34,14 +36,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const options = String(formData.get("options") ?? "").trim();
   const correctAnswer = String(formData.get("correctAnswer") ?? "").trim();
   const image = formData.get("image");
-  const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
-    return NextResponse.json(
-      { error: "Заполните название, условие, тип и максимальный балл." },
-      { status: 400 },
-    );
+    return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
   }
+
+  if (requiresOptions(type) && parseTaskOptions(options).length < 2) {
+    return redirectWithError(request, backTo, "Для задачи с вариантами укажите минимум два варианта ответа (каждый с новой строки).");
+  }
+
+  if (image instanceof File && isUploadTooLarge(image.size)) {
+    return redirectWithError(request, backTo, `Изображение слишком большое. Максимум — ${maxUploadLabel()}.`);
+  }
+
+  const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;
 
   await prisma.task.update({
     where: { id: taskId },
@@ -61,5 +69,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await unlink(getAbsoluteUploadPath(task.imagePath)).catch(() => undefined);
   }
 
-  return NextResponse.redirect(new URL(`/groups/${task.groupId}?tab=tasks`, request.url), 303);
+  return redirectAfterPost(request, backTo);
 }

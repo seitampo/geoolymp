@@ -1,16 +1,16 @@
 import { prisma } from "./prisma";
 
 export async function canOpenGroup(userId: number, groupId: number) {
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
-    include: { memberships: true },
+  // Точечный запрос: не тянем все memberships группы, а проверяем доступ прямо в WHERE.
+  const group = await prisma.group.findFirst({
+    where: {
+      id: groupId,
+      OR: [{ teacherId: userId }, { memberships: { some: { userId } } }],
+    },
+    select: { id: true },
   });
 
-  if (!group) {
-    return false;
-  }
-
-  return group.teacherId === userId || group.memberships.some((member) => member.userId === userId);
+  return group !== null;
 }
 
 export function createInviteCode() {

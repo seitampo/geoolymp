@@ -2,10 +2,11 @@ import { Role } from "@prisma/client";
 import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { normalizeMultipleChoiceAnswer } from "@/lib/tasks";
-import { getAbsoluteUploadPath, saveUploadedFile } from "@/lib/uploads";
+import { getAbsoluteUploadPath, isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
+  const backTo = `/groups/${task.groupId}?tab=tasks`;
   const formData = await request.formData();
   const selectedAnswers = formData.getAll("answer").map((value) => String(value));
   const answer =
@@ -30,13 +32,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ? normalizeMultipleChoiceAnswer(selectedAnswers)
       : String(formData.get("answer") ?? "").trim();
   const file = formData.get("file");
+
+  if (file instanceof File && isUploadTooLarge(file.size)) {
+    return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
+  }
+
   const savedFile = file instanceof File && file.size > 0 ? await saveUploadedFile(file, "submissions") : null;
   const oldSubmission = await prisma.submission.findUnique({
     where: { taskId_studentId: { taskId, studentId: user.id } },
   });
 
   if (!answer && !savedFile && !oldSubmission?.filePath) {
-    return NextResponse.json({ error: "Добавьте ответ или файл." }, { status: 400 });
+    return redirectWithError(request, backTo, "Добавьте ответ или файл.");
   }
 
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
@@ -67,5 +74,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   });
 
-  return NextResponse.redirect(new URL(`/groups/${task.groupId}?tab=tasks`, request.url), 303);
+  return redirectAfterPost(request, backTo);
 }
