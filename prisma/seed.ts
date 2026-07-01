@@ -6,6 +6,8 @@ import { hashPassword } from "../lib/password";
 const prisma = new PrismaClient();
 
 async function main() {
+  // Чистим данные в порядке, безопасном для внешних ключей. Счётчики id (SERIAL)
+  // в PostgreSQL не сбрасываем — для демо-данных конкретные значения id не важны.
   await prisma.review.deleteMany();
   await prisma.submission.deleteMany();
   await prisma.task.deleteMany();
@@ -13,9 +15,6 @@ async function main() {
   await prisma.membership.deleteMany();
   await prisma.group.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.$executeRawUnsafe(
-    'DELETE FROM sqlite_sequence WHERE name IN ("User", "Group", "Membership", "Material", "Task", "Submission", "Review")',
-  );
 
   const files = await createSeedFiles();
 
