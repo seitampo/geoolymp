@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(image, {
     headers: {
       "Content-Type": getImageContentType(task.originalImageName ?? ""),
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

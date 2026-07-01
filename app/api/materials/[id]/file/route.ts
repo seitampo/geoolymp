@@ -35,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     headers: {
       "Content-Type": getContentType(material.originalFileName ?? ""),
       "Content-Disposition": `inline; filename="${encodeURIComponent(material.originalFileName ?? "material")}"`,
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

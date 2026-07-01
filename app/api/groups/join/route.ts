@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -12,10 +13,15 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData();
   const inviteCode = String(formData.get("inviteCode") ?? "").trim().toUpperCase();
+
+  if (!inviteCode) {
+    return redirectWithError(request, "/dashboard", "Введите код приглашения.");
+  }
+
   const group = await prisma.group.findUnique({ where: { inviteCode } });
 
   if (!group) {
-    return NextResponse.json({ error: "Группа не найдена." }, { status: 404 });
+    return redirectWithError(request, "/dashboard", "Группа с таким кодом не найдена.");
   }
 
   await prisma.membership.upsert({
@@ -24,5 +30,5 @@ export async function POST(request: NextRequest) {
     create: { userId: user.id, groupId: group.id },
   });
 
-  return NextResponse.redirect(new URL(`/groups/${group.id}`, request.url), 303);
+  return redirectAfterPost(request, `/groups/${group.id}`);
 }

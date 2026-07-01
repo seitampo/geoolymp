@@ -2,6 +2,7 @@ import { Material, Membership, Review, Submission, Task, User } from "@prisma/cl
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Header } from "@/components/Header";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { TextArea, TextInput } from "@/components/FormFields";
 import { getCurrentUser } from "@/lib/auth";
 import { getMaterialTypeLabel, isPreviewableMaterial, materialTypes } from "@/lib/materials";
@@ -43,7 +44,7 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; error?: string }>;
 }) {
   const user = await getCurrentUser();
 
@@ -52,7 +53,7 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, error } = await searchParams;
   const groupId = Number(id);
 
   if (!Number.isInteger(groupId) || !(await canOpenGroup(user.id, groupId))) {
@@ -92,16 +93,21 @@ export default async function GroupPage({
     notFound();
   }
 
-  const allSubmissions = await prisma.submission.findMany({
-    where: { task: { groupId } },
-    include: { student: true, task: true, review: true },
-    orderBy: { id: "desc" },
-  });
+  // Полный список решений нужен только учителю (вкладка «Решения»). Ученику его не грузим.
+  const allSubmissions =
+    user.role === "TEACHER"
+      ? await prisma.submission.findMany({
+          where: { task: { groupId } },
+          include: { student: true, task: true, review: true },
+          orderBy: { id: "desc" },
+        })
+      : [];
 
   return (
     <>
       <Header user={user} />
       <main className="mx-auto max-w-5xl px-6 py-8">
+        <ErrorBanner message={error} />
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <Link className="mb-3 inline-block text-gray-600 underline" href="/dashboard">
@@ -135,7 +141,7 @@ export default async function GroupPage({
           <SubmissionsTab submissions={allSubmissions} />
         )}
         {activeTab === "members" && (
-          <MembersTab groupId={group.id} memberships={group.memberships} isTeacher={user.role === "TEACHER"} />
+          <MembersTab memberships={group.memberships} isTeacher={user.role === "TEACHER"} />
         )}
       </main>
     </>
@@ -565,7 +571,6 @@ function MembersTab({
   memberships,
   isTeacher,
 }: {
-  groupId: number;
   memberships: GroupForPage["memberships"];
   isTeacher: boolean;
 }) {

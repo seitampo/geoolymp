@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { setSession } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
@@ -11,10 +12,10 @@ export async function POST(request: NextRequest) {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !(await verifyPassword(password, user.password))) {
-    return NextResponse.json({ error: "Неверный email или пароль." }, { status: 401 });
+    return redirectWithError(request, "/login", "Неверный email или пароль.");
   }
 
-  const response = NextResponse.redirect(new URL("/dashboard", request.url), 303);
+  const response = redirectAfterPost(request, "/dashboard");
   setSession(response, user.id);
   return response;
 }

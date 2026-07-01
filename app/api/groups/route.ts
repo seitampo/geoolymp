@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { createInviteCode } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   const description = String(formData.get("description") ?? "").trim();
 
   if (!name || !description) {
-    return NextResponse.json({ error: "Заполните все поля." }, { status: 400 });
+    return redirectWithError(request, "/dashboard", "Заполните название и описание группы.");
   }
 
   const group = await prisma.group.create({
@@ -28,5 +29,5 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.redirect(new URL(`/groups/${group.id}`, request.url), 303);
+  return redirectAfterPost(request, `/groups/${group.id}`);
 }

@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { TextArea, TextInput } from "@/components/FormFields";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
+
+  const { error } = await searchParams;
 
   const groups =
     user.role === "TEACHER"
@@ -25,6 +32,7 @@ export default async function DashboardPage() {
       <Header user={user} />
       <main className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="mb-6 text-2xl font-semibold">Мои группы</h1>
+        <ErrorBanner message={error} />
 
         {user.role === "TEACHER" ? (
           <section className="mb-8 border border-gray-200 p-4">

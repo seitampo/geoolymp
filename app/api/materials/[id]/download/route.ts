@@ -35,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     headers: {
       "Content-Type": "application/octet-stream",
       "Content-Disposition": `attachment; filename="${encodeURIComponent(material.originalFileName ?? "material")}"`,
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

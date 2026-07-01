@@ -1,18 +1,26 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { TextInput } from "@/components/FormFields";
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await getCurrentUser();
 
   if (user) {
     redirect("/dashboard");
   }
 
+  const { error } = await searchParams;
+
   return (
     <main className="mx-auto max-w-sm px-6 py-12">
       <h1 className="mb-6 text-2xl font-semibold">Регистрация</h1>
+      <ErrorBanner message={error} />
       <form className="space-y-4" action="/api/auth/register" method="post">
         <TextInput label="Имя" name="name" />
         <TextInput label="Email" name="email" type="email" />
