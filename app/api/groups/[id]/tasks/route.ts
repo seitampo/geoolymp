@@ -4,7 +4,12 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { parseTaskOptions, requiresOptions, validateTaskType } from "@/lib/tasks";
+import {
+  parseTaskOptions,
+  requiresOptions,
+  validateChoiceCorrectAnswer,
+  validateTaskType,
+} from "@/lib/tasks";
 import { isAllowedImageFileName, isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -41,8 +46,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
   }
 
-  if (requiresOptions(type) && parseTaskOptions(options).length < 2) {
+  const parsedOptions = parseTaskOptions(options);
+
+  if (requiresOptions(type) && parsedOptions.length < 2) {
     return redirectWithError(request, backTo, "Для задачи с вариантами укажите минимум два варианта ответа (каждый с новой строки).");
+  }
+
+  const correctAnswerError = validateChoiceCorrectAnswer(type, parsedOptions, correctAnswer);
+  if (correctAnswerError) {
+    return redirectWithError(request, backTo, correctAnswerError);
   }
 
   if (image instanceof File && isUploadTooLarge(image.size)) {

@@ -6,7 +6,12 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { normalizeMultipleChoiceAnswer } from "@/lib/tasks";
+import {
+  isAnswerCorrect,
+  isAutoGradedTask,
+  normalizeMultipleChoiceAnswer,
+  parseTaskOptions,
+} from "@/lib/tasks";
 import {
   getAbsoluteUploadPath,
   isAllowedImageFileName,
@@ -44,6 +49,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       : String(formData.get("answer") ?? "").trim();
   const file = formData.get("file");
 
+  // Для задач с вариантами принимаем только ответы из списка — иначе прямой POST
+  // мог бы записать произвольную строку и сломать автопроверку.
+  if (isAutoGradedTask(task.type)) {
+    const options = parseTaskOptions(task.options);
+    const givenAnswers =
+      task.type === "MULTIPLE_CHOICE"
+        ? selectedAnswers.map((value) => value.trim()).filter(Boolean)
+        : answer
+          ? [answer]
+          : [];
+
+    if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
+      return redirectWithError(request, backTo, "Выберите вариант ответа из списка.");
+    }
+  }
+
   if (file instanceof File && isUploadTooLarge(file.size)) {
     return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
   }
@@ -66,17 +87,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, "Добавьте ответ или файл.");
   }
 
+  // Автопроверка задач с вариантами: балл выставляется сразу при отправке,
+  // учителю такие решения вручную проверять не нужно. Частичного балла нет:
+  // полное совпадение — maxScore, иначе 0.
+  const autoReview =
+    isAutoGradedTask(task.type) && task.correctAnswer
+      ? isAnswerCorrect(task.type, answer, task.correctAnswer)
+        ? { score: task.maxScore, feedback: "Автопроверка: ответ верный." }
+        : { score: 0, feedback: "Автопроверка: ответ неверный." }
+      : null;
+
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
   await prisma.$transaction(async (transaction) => {
     if (oldSubmission) {
       await transaction.review.deleteMany({ where: { submissionId: oldSubmission.id } });
     }
 
-    await transaction.submission.upsert({
+    const submission = await transaction.submission.upsert({
       where: { taskId_studentId: { taskId, studentId: user.id } },
       update: {
         answer,
-        status: "PENDING",
+        status: autoReview ? "REVIEWED" : "PENDING",
         filePath: savedFile?.filePath ?? oldSubmission?.filePath,
         originalFileName: savedFile?.originalFileName ?? oldSubmission?.originalFileName,
       },
@@ -84,10 +115,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         taskId,
         studentId: user.id,
         answer,
+        status: autoReview ? "REVIEWED" : "PENDING",
         filePath: savedFile?.filePath,
         originalFileName: savedFile?.originalFileName,
       },
     });
+
+    if (autoReview) {
+      await transaction.review.create({
+        data: { submissionId: submission.id, ...autoReview },
+      });
+    }
 
     if (savedFile && oldSubmission?.filePath) {
       await unlink(getAbsoluteUploadPath(oldSubmission.filePath)).catch(() => undefined);

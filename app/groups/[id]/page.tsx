@@ -1,7 +1,7 @@
 import { Material, Membership, Review, Role, Submission, Task, User } from "@prisma/client";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Badge, SubmissionStatusBadge } from "@/components/Badge";
+import { Badge, SubmissionStatusBadge, TaskStatusBadge } from "@/components/Badge";
 import { AnchorButton, Button } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
@@ -17,7 +17,7 @@ import {
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { getTaskTypeLabel, parseTaskOptions, taskTypes } from "@/lib/tasks";
+import { getTaskTypeLabel, isAutoGradedTask, parseTaskOptions, taskTypes } from "@/lib/tasks";
 import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "submissions" | "members";
@@ -366,7 +366,12 @@ function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolea
             required={false}
             placeholder="Каждый вариант с новой строки"
           />
-          <TextInput label="Правильный ответ" name="correctAnswer" required={false} />
+          <TextInput
+            label="Правильный ответ"
+            name="correctAnswer"
+            required={false}
+            placeholder="Для вариантов — точный текст; несколько ответов через «;»"
+          />
           <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} />
           <FileInput
             label="Изображение к условию"
@@ -413,6 +418,7 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-semibold text-gray-900">{task.title}</h3>
         <div className="flex flex-wrap gap-1.5">
+          {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} />}
           <Badge>{getTaskTypeLabel(task.type)}</Badge>
           <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
         </div>
@@ -458,6 +464,7 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
               name="correctAnswer"
               required={false}
               defaultValue={task.correctAnswer ?? ""}
+              placeholder="Для вариантов — точный текст; несколько ответов через «;»"
             />
             <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
             <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
@@ -628,32 +635,12 @@ function SubmissionsTab({ submissions }: { submissions: SubmissionForTeacher[] }
 
   return (
     <section className="space-y-4">
-      {submissions.map((submission) => (
-        <article className={cardClasses} key={submission.id}>
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="font-semibold text-gray-900">{submission.task.title}</h3>
-              <p className="mt-0.5 text-sm text-gray-600">
-                {submission.student.name} · {getTaskTypeLabel(submission.task.type)}
-              </p>
-            </div>
-            <SubmissionStatusBadge status={submission.status} />
-          </div>
-          {submission.answer && (
-            <p className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
-              {submission.answer}
-            </p>
-          )}
-          {submission.originalFileName && (
-            <a
-              className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-              href={`/api/submissions/${submission.id}/file`}
-            >
-              Скачать файл: {submission.originalFileName}
-            </a>
-          )}
+      {submissions.map((submission) => {
+        const isAutoGraded = isAutoGradedTask(submission.task.type);
+
+        const reviewForm = (
           <form
-            className="mt-4 grid gap-3 border-t border-gray-100 pt-4"
+            className="mt-4 grid gap-3"
             action={`/api/submissions/${submission.id}/review`}
             method="post"
           >
@@ -668,8 +655,55 @@ function SubmissionsTab({ submissions }: { submissions: SubmissionForTeacher[] }
             <TextArea label="Комментарий" name="feedback" defaultValue={submission.review?.feedback} />
             <Button className="w-fit">Сохранить проверку</Button>
           </form>
-        </article>
-      ))}
+        );
+
+        return (
+          <article className={cardClasses} key={submission.id}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900">{submission.task.title}</h3>
+                <p className="mt-0.5 text-sm text-gray-600">
+                  {submission.student.name} · {getTaskTypeLabel(submission.task.type)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {isAutoGraded && <Badge tone="emerald">Автопроверка</Badge>}
+                {submission.review && (
+                  <Badge tone="emerald">
+                    {submission.review.score} из {submission.task.maxScore}
+                  </Badge>
+                )}
+                <SubmissionStatusBadge status={submission.status} />
+              </div>
+            </div>
+            {submission.answer && (
+              <p className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                {submission.answer}
+              </p>
+            )}
+            {submission.originalFileName && (
+              <a
+                className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                href={`/api/submissions/${submission.id}/file`}
+              >
+                Скачать файл: {submission.originalFileName}
+              </a>
+            )}
+            {isAutoGraded ? (
+              // Балл уже выставлен автоматически — ручная форма спрятана,
+              // но остаётся доступной, если учитель хочет скорректировать оценку.
+              <details className="mt-4 border-t border-gray-100 pt-3">
+                <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+                  Изменить оценку вручную
+                </summary>
+                {reviewForm}
+              </details>
+            ) : (
+              <div className="mt-4 border-t border-gray-100 pt-1">{reviewForm}</div>
+            )}
+          </article>
+        );
+      })}
     </section>
   );
 }

@@ -28,3 +28,19 @@ export function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) 
     <Badge tone="amber">На проверке</Badge>
   );
 }
+
+/**
+ * Статус задачи для ученика на карточке задачи. «Просрочено» появится вместе
+ * с дедлайнами (часть 3) — без дедлайна такой статус не показываем.
+ */
+export function TaskStatusBadge({ status }: { status: SubmissionStatus | null }) {
+  if (status === SubmissionStatus.REVIEWED) {
+    return <Badge tone="green">Решено</Badge>;
+  }
+
+  if (status === SubmissionStatus.PENDING) {
+    return <Badge tone="amber">Проверяется</Badge>;
+  }
+
+  return <Badge tone="gray">Не отправлено</Badge>;
+}
