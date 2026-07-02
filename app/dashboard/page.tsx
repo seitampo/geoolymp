@@ -31,6 +31,18 @@ export default async function DashboardPage({
           orderBy: { id: "desc" },
         });
 
+  // Группы с непросмотренными результатами проверки — для пометки «Новый результат».
+  const groupsWithNewResults = new Set(
+    user.role === "STUDENT"
+      ? (
+          await prisma.review.findMany({
+            where: { seenByStudentAt: null, submission: { studentId: user.id } },
+            select: { submission: { select: { task: { select: { groupId: true } } } } },
+          })
+        ).map((review) => review.submission.task.groupId)
+      : [],
+  );
+
   return (
     <>
       <Header user={user} />
@@ -70,7 +82,10 @@ export default async function DashboardPage({
                 href={`/groups/${group.id}`}
                 key={group.id}
               >
-                <h2 className="font-semibold text-gray-900">{group.name}</h2>
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="font-semibold text-gray-900">{group.name}</h2>
+                  {groupsWithNewResults.has(group.id) && <Badge tone="emerald">Новый результат</Badge>}
+                </div>
                 <p className="mt-1 text-sm text-gray-600">{group.description}</p>
                 {user.role === "TEACHER" && (
                   <div className="mt-3">

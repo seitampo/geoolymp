@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { notifyStudentAboutReview } from "@/lib/notifications";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    include: { task: { include: { group: true } } },
+    include: { task: { include: { group: true } }, student: true },
   });
 
   if (!submission || submission.task.group.teacherId !== user.id) {
@@ -42,11 +43,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       status: "REVIEWED",
       review: {
         upsert: {
-          update: { score, feedback },
+          // Сброс seenByStudentAt: изменённая оценка снова помечается «Новый результат».
+          update: { score, feedback, seenByStudentAt: null },
           create: { score, feedback },
         },
       },
     },
+  });
+
+  await notifyStudentAboutReview({
+    studentEmail: submission.student.email,
+    studentName: submission.student.name,
+    taskTitle: submission.task.title,
+    score,
+    maxScore: submission.task.maxScore,
   });
 
   return redirectAfterPost(request, backTo);

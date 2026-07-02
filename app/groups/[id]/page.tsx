@@ -2,11 +2,11 @@ import { Material, Membership, Review, Role, Submission, Task, User } from "@pri
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge, SubmissionStatusBadge, TaskStatusBadge } from "@/components/Badge";
-import { AnchorButton, Button } from "@/components/Button";
+import { AnchorButton, Button, LinkButton } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
+import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
 import { ProgressBar } from "@/components/ProgressBar";
 import { getCurrentUser } from "@/lib/auth";
@@ -31,6 +31,17 @@ import {
 import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "submissions" | "members";
+
+type StudentTaskStatus = "not-submitted" | "pending" | "solved" | "overdue";
+type TaskFilter = "all" | StudentTaskStatus;
+
+const taskFilters: { value: TaskFilter; label: string }[] = [
+  { value: "all", label: "Все" },
+  { value: "not-submitted", label: "Не отправлено" },
+  { value: "pending", label: "Проверяется" },
+  { value: "solved", label: "Решено" },
+  { value: "overdue", label: "Просрочено" },
+];
 
 type TaskWithStudentSubmission = Task & {
   submissions: (Submission & {
@@ -64,7 +75,7 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; error?: string }>;
+  searchParams: Promise<{ tab?: string; error?: string; q?: string; status?: string }>;
 }) {
   const user = await getCurrentUser();
 
@@ -73,7 +84,9 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab, error } = await searchParams;
+  const { tab, error, q, status } = await searchParams;
+  const searchQuery = (q ?? "").trim();
+  const statusFilter = getStatusFilter(status);
   const groupId = parseEntityId(id);
 
   if (groupId === null || !(await canOpenGroup(user.id, groupId))) {
@@ -137,6 +150,23 @@ export default async function GroupPage({
         ).map((view) => view.materialId),
   );
 
+  // Непросмотренные результаты проверки — пометки «Новый результат» и точка на вкладке.
+  const hasUnseenResults =
+    !isTeacher &&
+    group.tasks.some((task) => {
+      const review = task.submissions[0]?.review;
+      return review != null && review.seenByStudentAt === null;
+    });
+
+  if (!isTeacher && activeTab === "tasks" && hasUnseenResults) {
+    // Ученик открыл вкладку задач: снимаем пометку. Данные для рендера уже загружены,
+    // поэтому в этом ответе бейджи ещё видны, а при следующем открытии исчезнут.
+    await prisma.review.updateMany({
+      where: { seenByStudentAt: null, submission: { studentId: user.id, task: { groupId } } },
+      data: { seenByStudentAt: new Date() },
+    });
+  }
+
   return (
     <>
       <Header user={user} />
@@ -176,7 +206,13 @@ export default async function GroupPage({
 
         <nav className="mb-6 flex gap-2 overflow-x-auto pb-1" aria-label="Разделы группы">
           <TabLink groupId={group.id} tab="materials" activeTab={activeTab} label="Материалы" />
-          <TabLink groupId={group.id} tab="tasks" activeTab={activeTab} label="Задачи" />
+          <TabLink
+            groupId={group.id}
+            tab="tasks"
+            activeTab={activeTab}
+            label="Задачи"
+            showDot={hasUnseenResults && activeTab !== "tasks"}
+          />
           {isTeacher && (
             <TabLink groupId={group.id} tab="submissions" activeTab={activeTab} label="Решения" />
           )}
@@ -184,9 +220,21 @@ export default async function GroupPage({
         </nav>
 
         {activeTab === "materials" && (
-          <MaterialsTab group={group} isTeacher={isTeacher} viewedMaterialIds={viewedMaterialIds} />
+          <MaterialsTab
+            group={group}
+            isTeacher={isTeacher}
+            viewedMaterialIds={viewedMaterialIds}
+            searchQuery={searchQuery}
+          />
         )}
-        {activeTab === "tasks" && <TasksTab group={group} isTeacher={isTeacher} />}
+        {activeTab === "tasks" && (
+          <TasksTab
+            group={group}
+            isTeacher={isTeacher}
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+          />
+        )}
         {activeTab === "submissions" && isTeacher && <SubmissionsTab submissions={allSubmissions} />}
         {activeTab === "members" && <MembersTab memberships={group.memberships} isTeacher={isTeacher} />}
       </main>
@@ -269,22 +317,136 @@ function getActiveTab(tab: string | undefined, role: Role): Tab {
   return "materials";
 }
 
+function getStatusFilter(value: string | undefined): TaskFilter {
+  return taskFilters.some((filter) => filter.value === value) ? (value as TaskFilter) : "all";
+}
+
+/** Статус задачи глазами ученика — тот же порядок приоритетов, что у TaskStatusBadge. */
+function getStudentTaskStatus(task: TaskWithStudentSubmission): StudentTaskStatus {
+  const submission = task.submissions[0];
+
+  if (submission?.status === "REVIEWED") {
+    return "solved";
+  }
+
+  if (submission?.status === "PENDING") {
+    return "pending";
+  }
+
+  return isTaskOverdue(task) ? "overdue" : "not-submitted";
+}
+
+function matchesSearch(item: { title: string; description: string }, normalizedQuery: string) {
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return (
+    item.title.toLowerCase().includes(normalizedQuery) ||
+    item.description.toLowerCase().includes(normalizedQuery)
+  );
+}
+
+function SearchForm({
+  groupId,
+  tab,
+  query,
+  statusFilter,
+  placeholder,
+}: {
+  groupId: number;
+  tab: Tab;
+  query: string;
+  statusFilter?: TaskFilter;
+  placeholder: string;
+}) {
+  const keepStatus = statusFilter && statusFilter !== "all" ? statusFilter : null;
+  const resetHref = `/groups/${groupId}?tab=${tab}${keepStatus ? `&status=${keepStatus}` : ""}`;
+
+  return (
+    <form className="flex flex-col gap-2 sm:flex-row" method="get" action={`/groups/${groupId}`} role="search">
+      <input type="hidden" name="tab" value={tab} />
+      {keepStatus && <input type="hidden" name="status" value={keepStatus} />}
+      <input
+        className={`sm:max-w-xs ${inputClasses}`}
+        type="search"
+        name="q"
+        defaultValue={query}
+        placeholder={placeholder}
+        aria-label={placeholder}
+      />
+      <div className="flex gap-2">
+        <Button variant="secondary" className="shrink-0">
+          Найти
+        </Button>
+        {query && (
+          <LinkButton href={resetHref} variant="secondary" className="shrink-0">
+            Сбросить
+          </LinkButton>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function TaskFilterChips({
+  groupId,
+  active,
+  query,
+}: {
+  groupId: number;
+  active: TaskFilter;
+  query: string;
+}) {
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Фильтр задач по статусу">
+      {taskFilters.map((filter) => {
+        const isActive = filter.value === active;
+        const params = new URLSearchParams({ tab: "tasks" });
+        if (filter.value !== "all") {
+          params.set("status", filter.value);
+        }
+        if (query) {
+          params.set("q", query);
+        }
+
+        return (
+          <Link
+            key={filter.value}
+            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              isActive
+                ? "border-emerald-700 bg-emerald-700 text-white"
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+            }`}
+            href={`/groups/${groupId}?${params.toString()}`}
+            aria-current={isActive ? "true" : undefined}
+          >
+            {filter.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function TabLink({
   groupId,
   tab,
   activeTab,
   label,
+  showDot = false,
 }: {
   groupId: number;
   tab: Tab;
   activeTab: Tab;
   label: string;
+  showDot?: boolean;
 }) {
   const isActive = tab === activeTab;
 
   return (
     <Link
-      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+      className={`inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         isActive
           ? "bg-emerald-700 text-white"
           : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
@@ -293,6 +455,12 @@ function TabLink({
       aria-current={isActive ? "page" : undefined}
     >
       {label}
+      {showDot && (
+        <span
+          className="ml-1.5 inline-block h-2 w-2 rounded-full bg-emerald-600"
+          title="Есть новый результат"
+        />
+      )}
     </Link>
   );
 }
@@ -301,13 +469,26 @@ function MaterialsTab({
   group,
   isTeacher,
   viewedMaterialIds,
+  searchQuery,
 }: {
   group: GroupForPage;
   isTeacher: boolean;
   viewedMaterialIds: Set<number>;
+  searchQuery: string;
 }) {
+  const normalizedQuery = searchQuery.toLowerCase();
+  const visibleMaterials = group.materials.filter((material) => matchesSearch(material, normalizedQuery));
+
   return (
     <section className="space-y-5">
+      {group.materials.length > 0 && (
+        <SearchForm
+          groupId={group.id}
+          tab="materials"
+          query={searchQuery}
+          placeholder="Поиск по материалам"
+        />
+      )}
       {isTeacher && (
         <form
           className={`${cardClasses} grid gap-4`}
@@ -335,18 +516,7 @@ function MaterialsTab({
         </form>
       )}
 
-      {group.materials.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {group.materials.map((material) => (
-            <MaterialCard
-              key={material.id}
-              material={material}
-              isTeacher={isTeacher}
-              viewed={viewedMaterialIds.has(material.id)}
-            />
-          ))}
-        </div>
-      ) : (
+      {group.materials.length === 0 ? (
         <EmptyState
           title="Материалов пока нет"
           description={
@@ -355,6 +525,22 @@ function MaterialsTab({
               : "Учитель ещё не добавил материалы в эту группу."
           }
         />
+      ) : visibleMaterials.length === 0 ? (
+        <EmptyState
+          title="Ничего не найдено"
+          description={`По запросу «${searchQuery}» материалов нет. Попробуйте изменить запрос.`}
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {visibleMaterials.map((material) => (
+            <MaterialCard
+              key={material.id}
+              material={material}
+              isTeacher={isTeacher}
+              viewed={viewedMaterialIds.has(material.id)}
+            />
+          ))}
+        </div>
       )}
     </section>
   );
@@ -468,9 +654,41 @@ function MaterialTypeSelect({ defaultValue }: { defaultValue?: string }) {
   );
 }
 
-function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean }) {
+function TasksTab({
+  group,
+  isTeacher,
+  searchQuery,
+  statusFilter,
+}: {
+  group: GroupForPage;
+  isTeacher: boolean;
+  searchQuery: string;
+  statusFilter: TaskFilter;
+}) {
+  const normalizedQuery = searchQuery.toLowerCase();
+  const visibleTasks = group.tasks.filter((task) => {
+    const matchesStatus =
+      isTeacher || statusFilter === "all" || getStudentTaskStatus(task) === statusFilter;
+    return matchesStatus && matchesSearch(task, normalizedQuery);
+  });
+  const hasActiveFilter = Boolean(searchQuery) || (!isTeacher && statusFilter !== "all");
+
   return (
     <section className="space-y-5">
+      {group.tasks.length > 0 && (
+        <div className="space-y-3">
+          <SearchForm
+            groupId={group.id}
+            tab="tasks"
+            query={searchQuery}
+            statusFilter={isTeacher ? undefined : statusFilter}
+            placeholder="Поиск по задачам"
+          />
+          {!isTeacher && (
+            <TaskFilterChips groupId={group.id} active={statusFilter} query={searchQuery} />
+          )}
+        </div>
+      )}
       {isTeacher && (
         <form
           className={`${cardClasses} grid gap-4`}
@@ -509,13 +727,7 @@ function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolea
         </form>
       )}
 
-      {group.tasks.length > 0 ? (
-        <div className="space-y-4">
-          {group.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} isTeacher={isTeacher} />
-          ))}
-        </div>
-      ) : (
+      {group.tasks.length === 0 ? (
         <EmptyState
           title="Задач пока нет"
           description={
@@ -524,6 +736,21 @@ function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolea
               : "Учитель ещё не добавил задачи в эту группу."
           }
         />
+      ) : visibleTasks.length === 0 ? (
+        <EmptyState
+          title="Ничего не найдено"
+          description={
+            hasActiveFilter
+              ? "Попробуйте изменить поисковый запрос или фильтр по статусу."
+              : "Задачи не найдены."
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {visibleTasks.map((task) => (
+            <TaskCard key={task.id} task={task} isTeacher={isTeacher} />
+          ))}
+        </div>
       )}
     </section>
   );
@@ -540,12 +767,14 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
   const options = parseTaskOptions(task.options);
   const notYetOpen = isTaskNotYetOpen(task);
   const overdue = isTaskOverdue(task);
+  const hasNewResult = !isTeacher && submission?.review != null && submission.review.seenByStudentAt === null;
 
   return (
     <article className={cardClasses}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-semibold text-gray-900">{task.title}</h3>
         <div className="flex flex-wrap gap-1.5">
+          {hasNewResult && <Badge tone="emerald">Новый результат</Badge>}
           {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
           <Badge>{getTaskTypeLabel(task.type)}</Badge>
           <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
