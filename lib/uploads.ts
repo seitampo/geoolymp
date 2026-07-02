@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
+import { copyFile, mkdir, writeFile } from "fs/promises";
 import path from "path";
 
 /** Максимальный размер одного загружаемого файла (10 МБ). */
@@ -41,6 +41,30 @@ export async function saveUploadedFile(file: File, folder: "materials" | "tasks"
 
 export function getAbsoluteUploadPath(filePath: string) {
   return path.join(process.cwd(), filePath);
+}
+
+/**
+ * Физическая копия загруженного файла под новым именем — для дублирования
+ * материалов и задач: у копии свой файл, удаление оригинала её не ломает.
+ * Возвращает null, если исходного файла нет на диске.
+ */
+export async function copyUploadedFile(
+  sourceFilePath: string,
+  folder: "materials" | "tasks",
+): Promise<string | null> {
+  const uploadsDirectory = path.join(process.cwd(), "uploads", folder);
+  await mkdir(uploadsDirectory, { recursive: true });
+
+  const extension = path.extname(sourceFilePath).toLowerCase();
+  const storedFileName = `${randomUUID()}${extension}`;
+
+  try {
+    await copyFile(getAbsoluteUploadPath(sourceFilePath), path.join(uploadsDirectory, storedFileName));
+  } catch {
+    return null;
+  }
+
+  return ["uploads", folder, storedFileName].join("/");
 }
 
 export function sanitizeFileName(fileName: string) {

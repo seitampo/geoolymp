@@ -39,6 +39,18 @@ export function normalizeMultipleChoiceAnswer(values: string[]) {
     .join("; ");
 }
 
+/**
+ * Видна ли задача ученикам: опубликована вручную либо наступило запланированное
+ * время публикации. Время проверяется на сервере при каждой отдаче — черновик
+ * с датой публикации становится доступен автоматически, без фоновых задач.
+ */
+export function isTaskVisibleToStudents(
+  task: { isPublished: boolean; publishAt: Date | null },
+  now = new Date(),
+) {
+  return task.isPublished || (task.publishAt !== null && task.publishAt <= now);
+}
+
 /** Задача ещё не открыта: видна, но отправка решений недоступна. */
 export function isTaskNotYetOpen(task: { opensAt: Date | null }, now = new Date()) {
   return task.opensAt !== null && now < task.opensAt;

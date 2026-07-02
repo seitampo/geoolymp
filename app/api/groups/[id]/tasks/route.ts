@@ -44,6 +44,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const image = formData.get("image");
   const opensAt = parseOptionalDeadline(String(formData.get("opensAt") ?? ""));
   const dueAt = parseOptionalDeadline(String(formData.get("dueAt") ?? ""));
+  // Черновик может иметь запланированную дату публикации; у опубликованной задачи она не нужна.
+  const isPublished = String(formData.get("published") ?? "published") !== "draft";
+  const publishAt = isPublished ? null : parseOptionalDeadline(String(formData.get("publishAt") ?? ""));
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
     return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
@@ -62,6 +65,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (opensAt === undefined || dueAt === undefined) {
     return redirectWithError(request, backTo, "Неверный формат даты открытия или срока сдачи.");
+  }
+
+  if (publishAt === undefined) {
+    return redirectWithError(request, backTo, "Неверный формат даты публикации.");
   }
 
   if (opensAt && dueAt && opensAt >= dueAt) {
@@ -93,6 +100,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       originalImageName: savedImage?.originalFileName,
       opensAt,
       dueAt,
+      isPublished,
+      publishAt,
     },
   });
 

@@ -115,6 +115,10 @@ model Task {
   originalImageName String?
   opensAt           DateTime?
   dueAt             DateTime?
+  // Черновики: ученики видят задачу, только когда isPublished = true либо
+  // наступило запланированное время публикации publishAt (проверка на сервере).
+  isPublished       Boolean      @default(true)
+  publishAt         DateTime?
   group             Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions       Submission[]
 

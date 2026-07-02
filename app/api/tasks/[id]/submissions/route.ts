@@ -12,6 +12,7 @@ import {
   isAutoGradedTask,
   isTaskNotYetOpen,
   isTaskOverdue,
+  isTaskVisibleToStudents,
   normalizeMultipleChoiceAnswer,
   parseTaskOptions,
 } from "@/lib/tasks";
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const task = await prisma.task.findUnique({ where: { id: taskId } });
-  if (!task || !(await canOpenGroup(user.id, task.groupId))) {
+  // Черновик для ученика не существует — как и задача из чужой группы.
+  if (!task || !isTaskVisibleToStudents(task) || !(await canOpenGroup(user.id, task.groupId))) {
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 

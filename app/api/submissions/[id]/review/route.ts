@@ -28,8 +28,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Решение не найдено." }, { status: 404 });
   }
 
-  const backTo = `/groups/${submission.task.groupId}?tab=submissions`;
   const formData = await request.formData();
+  // Из режима очереди возвращаемся в очередь: после сохранения проверенное решение
+  // исчезает из неё, и учитель сразу видит следующее непроверенное.
+  const fromQueue = String(formData.get("filter") ?? "") === "pending";
+  const backTo = `/groups/${submission.task.groupId}?tab=submissions${fromQueue ? "&filter=pending" : ""}`;
   const score = Number(formData.get("score"));
   const feedback = String(formData.get("feedback") ?? "").trim();
 

@@ -24,6 +24,7 @@ import {
   isAutoGradedTask,
   isTaskNotYetOpen,
   isTaskOverdue,
+  isTaskVisibleToStudents,
   parseTaskOptions,
   taskTypes,
   toDateTimeLocalValue,
@@ -34,6 +35,8 @@ type Tab = "materials" | "tasks" | "submissions" | "members";
 
 type StudentTaskStatus = "not-submitted" | "pending" | "solved" | "overdue";
 type TaskFilter = "all" | StudentTaskStatus;
+type ReviewFilter = "all" | "pending";
+type TeacherGroupOption = { id: number; name: string };
 
 const taskFilters: { value: TaskFilter; label: string }[] = [
   { value: "all", label: "Все" },
@@ -75,7 +78,14 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; error?: string; q?: string; status?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    error?: string;
+    q?: string;
+    status?: string;
+    filter?: string;
+    after?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
 
@@ -84,9 +94,11 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab, error, q, status } = await searchParams;
+  const { tab, error, q, status, filter, after } = await searchParams;
   const searchQuery = (q ?? "").trim();
   const statusFilter = getStatusFilter(status);
+  const reviewFilter: ReviewFilter = filter === "pending" ? "pending" : "all";
+  const afterId = after ? parseEntityId(after) : null;
   const groupId = parseEntityId(id);
 
   if (groupId === null || !(await canOpenGroup(user.id, groupId))) {
@@ -100,6 +112,11 @@ export default async function GroupPage({
       materials: { orderBy: { uploadedAt: "desc" } },
       tasks: {
         orderBy: { id: "asc" },
+        // Черновики видит только учитель; условие повторяет isTaskVisibleToStudents.
+        where:
+          user.role === "STUDENT"
+            ? { OR: [{ isPublished: true }, { publishAt: { lte: new Date() } }] }
+            : undefined,
         include: {
           submissions: {
             where: user.role === "STUDENT" ? { studentId: user.id } : undefined,
@@ -137,6 +154,15 @@ export default async function GroupPage({
       : [];
 
   const isTeacher = user.role === "TEACHER";
+
+  // Все группы учителя — для выбора, куда копировать задачу или материал.
+  const teacherGroups: TeacherGroupOption[] = isTeacher
+    ? await prisma.group.findMany({
+        where: { teacherId: user.id },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   // Изученные материалы ученика — для полосок прогресса и отметок «Изучено».
   const viewedMaterialIds = new Set(
@@ -225,6 +251,7 @@ export default async function GroupPage({
             isTeacher={isTeacher}
             viewedMaterialIds={viewedMaterialIds}
             searchQuery={searchQuery}
+            teacherGroups={teacherGroups}
           />
         )}
         {activeTab === "tasks" && (
@@ -233,10 +260,20 @@ export default async function GroupPage({
             isTeacher={isTeacher}
             searchQuery={searchQuery}
             statusFilter={statusFilter}
+            teacherGroups={teacherGroups}
           />
         )}
-        {activeTab === "submissions" && isTeacher && <SubmissionsTab submissions={allSubmissions} />}
-        {activeTab === "members" && <MembersTab memberships={group.memberships} isTeacher={isTeacher} />}
+        {activeTab === "submissions" && isTeacher && (
+          <SubmissionsTab
+            submissions={allSubmissions}
+            groupId={group.id}
+            reviewFilter={reviewFilter}
+            afterId={afterId}
+          />
+        )}
+        {activeTab === "members" && (
+          <MembersTab memberships={group.memberships} isTeacher={isTeacher} groupId={group.id} />
+        )}
       </main>
     </>
   );
@@ -465,16 +502,48 @@ function TabLink({
   );
 }
 
+/** Форма «Копировать в группу…» — общая для материалов и задач. */
+function CopyForm({
+  action,
+  teacherGroups,
+  currentGroupId,
+}: {
+  action: string;
+  teacherGroups: TeacherGroupOption[];
+  currentGroupId: number;
+}) {
+  return (
+    <form className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-end" action={action} method="post">
+      <div className="flex-1">
+        <SelectField
+          label="Копировать в группу"
+          name="targetGroupId"
+          defaultValue={String(currentGroupId)}
+          options={teacherGroups.map((option) => ({
+            value: String(option.id),
+            label: option.id === currentGroupId ? `${option.name} (эта группа)` : option.name,
+          }))}
+        />
+      </div>
+      <Button variant="secondary" className="shrink-0">
+        Копировать
+      </Button>
+    </form>
+  );
+}
+
 function MaterialsTab({
   group,
   isTeacher,
   viewedMaterialIds,
   searchQuery,
+  teacherGroups,
 }: {
   group: GroupForPage;
   isTeacher: boolean;
   viewedMaterialIds: Set<number>;
   searchQuery: string;
+  teacherGroups: TeacherGroupOption[];
 }) {
   const normalizedQuery = searchQuery.toLowerCase();
   const visibleMaterials = group.materials.filter((material) => matchesSearch(material, normalizedQuery));
@@ -538,6 +607,7 @@ function MaterialsTab({
               material={material}
               isTeacher={isTeacher}
               viewed={viewedMaterialIds.has(material.id)}
+              teacherGroups={teacherGroups}
             />
           ))}
         </div>
@@ -550,10 +620,12 @@ function MaterialCard({
   material,
   isTeacher,
   viewed,
+  teacherGroups,
 }: {
   material: Material;
   isTeacher: boolean;
   viewed: boolean;
+  teacherGroups: TeacherGroupOption[];
 }) {
   // Открытие и скачивание идут через API даже для ссылок (роут редиректит на url):
   // так фиксируется отметка «изучено» для прогресса ученика.
@@ -637,6 +709,11 @@ function MaterialCard({
               Удалить
             </Button>
           </form>
+          <CopyForm
+            action={`/api/materials/${material.id}/copy`}
+            teacherGroups={teacherGroups}
+            currentGroupId={material.groupId}
+          />
         </details>
       )}
     </article>
@@ -659,11 +736,13 @@ function TasksTab({
   isTeacher,
   searchQuery,
   statusFilter,
+  teacherGroups,
 }: {
   group: GroupForPage;
   isTeacher: boolean;
   searchQuery: string;
   statusFilter: TaskFilter;
+  teacherGroups: TeacherGroupOption[];
 }) {
   const normalizedQuery = searchQuery.toLowerCase();
   const visibleTasks = group.tasks.filter((task) => {
@@ -717,6 +796,15 @@ function TasksTab({
             <TextInput label="Дата открытия (необязательно)" name="opensAt" type="datetime-local" required={false} />
             <TextInput label="Срок сдачи (необязательно)" name="dueAt" type="datetime-local" required={false} />
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PublishSelect />
+            <TextInput
+              label="Дата публикации (для черновика)"
+              name="publishAt"
+              type="datetime-local"
+              required={false}
+            />
+          </div>
           <FileInput
             label="Изображение к условию"
             name="image"
@@ -748,7 +836,13 @@ function TasksTab({
       ) : (
         <div className="space-y-4">
           {visibleTasks.map((task) => (
-            <TaskCard key={task.id} task={task} isTeacher={isTeacher} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              isTeacher={isTeacher}
+              teacherGroups={teacherGroups}
+              membersCount={group.memberships.length}
+            />
           ))}
         </div>
       )}
@@ -762,12 +856,107 @@ function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
   );
 }
 
-function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeacher: boolean }) {
+function PublishSelect({ defaultValue }: { defaultValue?: string }) {
+  return (
+    <SelectField
+      label="Статус публикации"
+      name="published"
+      defaultValue={defaultValue ?? "published"}
+      options={[
+        { value: "published", label: "Опубликована" },
+        { value: "draft", label: "Черновик (виден только вам)" },
+      ]}
+    />
+  );
+}
+
+/** Статистика по задаче для учителя: сдачи, средний балл, частота вариантов. */
+function TaskStats({
+  task,
+  options,
+  membersCount,
+}: {
+  task: TaskWithStudentSubmission;
+  options: string[];
+  membersCount: number;
+}) {
+  const submitted = task.submissions.length;
+  const reviewed = task.submissions.filter((submission) => submission.review);
+  const averageScore =
+    reviewed.length > 0
+      ? reviewed.reduce((sum, submission) => sum + (submission.review?.score ?? 0), 0) / reviewed.length
+      : null;
+
+  const optionStats = isAutoGradedTask(task.type)
+    ? options.map((option) => ({
+        option,
+        isCorrect:
+          task.correctAnswer
+            ?.split(";")
+            .map((value) => value.trim())
+            .includes(option) ?? false,
+        count: task.submissions.filter((submission) =>
+          submission.answer
+            .split(";")
+            .map((value) => value.trim())
+            .includes(option),
+        ).length,
+      }))
+    : [];
+
+  return (
+    <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
+      <p className="text-gray-700">
+        Сдали: <span className="font-semibold text-gray-900">{submitted} из {membersCount}</span>
+        {" · "}Средний балл:{" "}
+        <span className="font-semibold text-gray-900">
+          {averageScore === null ? "—" : `${formatScore(averageScore)} из ${task.maxScore}`}
+        </span>
+      </p>
+      {optionStats.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {optionStats.map(({ option, count, isCorrect }) => (
+            <div className="flex items-center gap-2" key={option}>
+              <span className={`w-40 shrink-0 truncate text-xs ${isCorrect ? "font-medium text-emerald-800" : "text-gray-600"}`}>
+                {isCorrect ? "✓ " : ""}
+                {option}
+              </span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className={`h-full rounded-full ${isCorrect ? "bg-emerald-600" : "bg-gray-400"}`}
+                  style={{ width: submitted > 0 ? `${(count / submitted) * 100}%` : "0%" }}
+                />
+              </div>
+              <span className="w-8 shrink-0 text-right text-xs text-gray-600">{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatScore(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function TaskCard({
+  task,
+  isTeacher,
+  teacherGroups,
+  membersCount,
+}: {
+  task: TaskWithStudentSubmission;
+  isTeacher: boolean;
+  teacherGroups: TeacherGroupOption[];
+  membersCount: number;
+}) {
   const submission = task.submissions[0];
   const options = parseTaskOptions(task.options);
   const notYetOpen = isTaskNotYetOpen(task);
   const overdue = isTaskOverdue(task);
   const hasNewResult = !isTeacher && submission?.review != null && submission.review.seenByStudentAt === null;
+  const visibleToStudents = isTaskVisibleToStudents(task);
 
   return (
     <article className={cardClasses}>
@@ -776,6 +965,12 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
         <div className="flex flex-wrap gap-1.5">
           {hasNewResult && <Badge tone="emerald">Новый результат</Badge>}
           {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
+          {isTeacher && !visibleToStudents &&
+            (task.publishAt ? (
+              <Badge tone="amber">Публикация: {formatDateTime(task.publishAt)}</Badge>
+            ) : (
+              <Badge tone="amber">Черновик</Badge>
+            ))}
           <Badge>{getTaskTypeLabel(task.type)}</Badge>
           <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
         </div>
@@ -801,6 +996,8 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
           Правильный ответ: {task.correctAnswer}
         </p>
       )}
+
+      {isTeacher && <TaskStats task={task} options={options} membersCount={membersCount} />}
 
       {isTeacher && (
         <details className="mt-4 border-t border-gray-100 pt-3">
@@ -847,6 +1044,16 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
                 defaultValue={toDateTimeLocalValue(task.dueAt)}
               />
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <PublishSelect defaultValue={task.isPublished ? "published" : "draft"} />
+              <TextInput
+                label="Дата публикации (для черновика)"
+                name="publishAt"
+                type="datetime-local"
+                required={false}
+                defaultValue={toDateTimeLocalValue(task.publishAt)}
+              />
+            </div>
             <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
             <Button className="w-fit">Сохранить</Button>
           </form>
@@ -855,6 +1062,11 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
               Удалить задачу
             </Button>
           </form>
+          <CopyForm
+            action={`/api/tasks/${task.id}/copy`}
+            teacherGroups={teacherGroups}
+            currentGroupId={task.groupId}
+          />
         </details>
       )}
 
@@ -1022,7 +1234,17 @@ function SubmissionForm({
   );
 }
 
-function SubmissionsTab({ submissions }: { submissions: SubmissionForTeacher[] }) {
+function SubmissionsTab({
+  submissions,
+  groupId,
+  reviewFilter,
+  afterId,
+}: {
+  submissions: SubmissionForTeacher[];
+  groupId: number;
+  reviewFilter: ReviewFilter;
+  afterId: number | null;
+}) {
   if (submissions.length === 0) {
     return (
       <EmptyState
@@ -1032,8 +1254,44 @@ function SubmissionsTab({ submissions }: { submissions: SubmissionForTeacher[] }
     );
   }
 
+  const pendingCount = submissions.filter((submission) => submission.status === "PENDING").length;
+  const filterChips = (
+    <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Режим проверки">
+      {[
+        { value: "all" as const, label: `Все (${submissions.length})` },
+        { value: "pending" as const, label: `На проверке (${pendingCount})` },
+      ].map((chip) => {
+        const isActive = chip.value === reviewFilter;
+        return (
+          <Link
+            key={chip.value}
+            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              isActive
+                ? "border-emerald-700 bg-emerald-700 text-white"
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+            }`}
+            href={`/groups/${groupId}?tab=submissions${chip.value === "pending" ? "&filter=pending" : ""}`}
+            aria-current={isActive ? "true" : undefined}
+          >
+            {chip.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+
+  if (reviewFilter === "pending") {
+    return (
+      <section className="space-y-4">
+        {filterChips}
+        <ReviewQueue submissions={submissions} groupId={groupId} afterId={afterId} />
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-4">
+      {filterChips}
       {submissions.map((submission) => {
         const isAutoGraded = isAutoGradedTask(submission.task.type);
 
@@ -1107,12 +1365,117 @@ function SubmissionsTab({ submissions }: { submissions: SubmissionForTeacher[] }
   );
 }
 
+/**
+ * Очередь проверки: показывает по одному непроверенному решению (старые сначала).
+ * После сохранения проверки страница возвращается в очередь, и следующее
+ * непроверенное оказывается сверху; «Пропустить» листает без оценки.
+ */
+function ReviewQueue({
+  submissions,
+  groupId,
+  afterId,
+}: {
+  submissions: SubmissionForTeacher[];
+  groupId: number;
+  afterId: number | null;
+}) {
+  const pending = submissions
+    .filter((submission) => submission.status === "PENDING")
+    .sort((a, b) => a.id - b.id);
+
+  if (pending.length === 0) {
+    return (
+      <EmptyState
+        title="Всё проверено"
+        description="Непроверенных решений не осталось — отличная работа!"
+      />
+    );
+  }
+
+  const queue = afterId === null ? pending : pending.filter((submission) => submission.id > afterId);
+  const current = queue[0];
+
+  if (!current) {
+    return (
+      <div className="space-y-4">
+        <EmptyState
+          title="Конец очереди"
+          description={`Остались только пропущенные решения (${pending.length}). Начните сначала, чтобы вернуться к ним.`}
+        />
+        <div className="text-center">
+          <LinkButton href={`/groups/${groupId}?tab=submissions&filter=pending`} variant="primary">
+            Начать сначала
+          </LinkButton>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600">
+        Осталось в очереди: <span className="font-semibold text-gray-900">{queue.length}</span>
+      </p>
+      <article className={cardClasses}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900">{current.task.title}</h3>
+            <p className="mt-0.5 text-sm text-gray-600">
+              {current.student.name} · {getTaskTypeLabel(current.task.type)}
+            </p>
+          </div>
+          <SubmissionStatusBadge status={current.status} />
+        </div>
+        {current.answer && (
+          <p className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {current.answer}
+          </p>
+        )}
+        {current.originalFileName && (
+          <a
+            className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            href={`/api/submissions/${current.id}/file`}
+          >
+            Скачать файл: {current.originalFileName}
+          </a>
+        )}
+        <form
+          className="mt-4 grid gap-3 border-t border-gray-100 pt-4"
+          action={`/api/submissions/${current.id}/review`}
+          method="post"
+        >
+          <input type="hidden" name="filter" value="pending" />
+          <TextInput
+            label={`Балл из ${current.task.maxScore}`}
+            name="score"
+            type="number"
+            min={0}
+            max={current.task.maxScore}
+          />
+          <TextArea label="Комментарий" name="feedback" />
+          <div className="flex flex-wrap gap-2">
+            <Button className="w-fit">Сохранить и дальше</Button>
+            <LinkButton
+              href={`/groups/${groupId}?tab=submissions&filter=pending&after=${current.id}`}
+              variant="secondary"
+            >
+              Пропустить
+            </LinkButton>
+          </div>
+        </form>
+      </article>
+    </div>
+  );
+}
+
 function MembersTab({
   memberships,
   isTeacher,
+  groupId,
 }: {
   memberships: GroupForPage["memberships"];
   isTeacher: boolean;
+  groupId: number;
 }) {
   if (memberships.length === 0) {
     return (
@@ -1124,7 +1487,15 @@ function MembersTab({
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <section className="space-y-4">
+      {isTeacher && (
+        <div className="flex justify-end">
+          <AnchorButton href={`/api/groups/${groupId}/export`} variant="secondary" size="sm">
+            Экспорт результатов в CSV
+          </AnchorButton>
+        </div>
+      )}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[480px] text-sm">
           <thead>
@@ -1162,6 +1533,7 @@ function MembersTab({
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );

@@ -4,6 +4,7 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isTaskVisibleToStudents } from "@/lib/tasks";
 import { getAbsoluteUploadPath } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -21,8 +22,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
   }
 
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  const task = await prisma.task.findUnique({ where: { id: taskId }, include: { group: true } });
   if (!task || !task.imagePath || !(await canOpenGroup(user.id, task.groupId))) {
+    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+  }
+
+  // Изображение черновика доступно только учителю группы.
+  if (task.group.teacherId !== user.id && !isTaskVisibleToStudents(task)) {
     return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
   }
 
