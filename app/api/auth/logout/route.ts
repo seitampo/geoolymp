@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { clearSession } from "@/lib/auth";
+import { redirectAfterPost } from "@/lib/formResponse";
 
 export async function POST(request: NextRequest) {
-  const response = NextResponse.redirect(new URL("/", request.url), 303);
+  const response = redirectAfterPost(request, "/");
   clearSession(response);
   return response;
 }

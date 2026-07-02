@@ -1,14 +1,24 @@
-import { Material, Membership, Review, Submission, Task, User } from "@prisma/client";
+import { Material, Membership, Review, Role, Submission, Task, User } from "@prisma/client";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Header } from "@/components/Header";
+import { Badge, SubmissionStatusBadge } from "@/components/Badge";
+import { AnchorButton, Button } from "@/components/Button";
+import { cardClasses } from "@/components/Card";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { TextArea, TextInput } from "@/components/FormFields";
+import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
+import { Header } from "@/components/Header";
 import { getCurrentUser } from "@/lib/auth";
-import { getMaterialTypeLabel, isPreviewableMaterial, materialTypes } from "@/lib/materials";
+import {
+  getMaterialTypeBadgeLabel,
+  isPreviewableMaterial,
+  materialTypes,
+} from "@/lib/materials";
+import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getTaskTypeLabel, parseTaskOptions, taskTypes } from "@/lib/tasks";
+import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "submissions" | "members";
 
@@ -54,9 +64,9 @@ export default async function GroupPage({
 
   const { id } = await params;
   const { tab, error } = await searchParams;
-  const groupId = Number(id);
+  const groupId = parseEntityId(id);
 
-  if (!Number.isInteger(groupId) || !(await canOpenGroup(user.id, groupId))) {
+  if (groupId === null || !(await canOpenGroup(user.id, groupId))) {
     notFound();
   }
 
@@ -93,9 +103,9 @@ export default async function GroupPage({
     notFound();
   }
 
-  // Полный список решений нужен только учителю (вкладка «Решения»). Ученику его не грузим.
+  // Полный список решений нужен только на вкладке «Решения» у учителя — не грузим его зря.
   const allSubmissions =
-    user.role === "TEACHER"
+    user.role === "TEACHER" && activeTab === "submissions"
       ? await prisma.submission.findMany({
           where: { task: { groupId } },
           include: { student: true, task: true, review: true },
@@ -103,52 +113,62 @@ export default async function GroupPage({
         })
       : [];
 
+  const isTeacher = user.role === "TEACHER";
+
   return (
     <>
       <Header user={user} />
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <ErrorBanner message={error} />
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <Link className="mb-3 inline-block text-gray-600 underline" href="/dashboard">
-              Назад к группам
-            </Link>
-            <h1 className="text-2xl font-semibold">{group.name}</h1>
-            <p className="mt-2 text-gray-700">{group.description}</p>
-            {user.role === "TEACHER" && <p className="mt-2 text-gray-600">Код: {group.inviteCode}</p>}
+
+        <div className="mb-6">
+          <Link
+            className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+            href="/dashboard"
+          >
+            <span aria-hidden="true">←</span> Назад к группам
+          </Link>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">{group.name}</h1>
+              <p className="mt-1 text-sm text-gray-600">{group.description}</p>
+              {isTeacher && (
+                <div className="mt-3">
+                  <Badge tone="emerald">
+                    Код приглашения: <span className="font-mono">{group.inviteCode}</span>
+                  </Badge>
+                </div>
+              )}
+            </div>
+            {isTeacher && (
+              <form className="shrink-0" action={`/api/groups/${group.id}/delete`} method="post">
+                <Button variant="danger" size="sm">
+                  Удалить группу
+                </Button>
+              </form>
+            )}
           </div>
-          {user.role === "TEACHER" && (
-            <form action={`/api/groups/${group.id}/delete`} method="post">
-              <button className="border border-gray-300 px-3 py-2" type="submit">
-                Удалить группу
-              </button>
-            </form>
-          )}
         </div>
 
-        <nav className="mb-6 flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+        <nav className="mb-6 flex gap-2 overflow-x-auto pb-1" aria-label="Разделы группы">
           <TabLink groupId={group.id} tab="materials" activeTab={activeTab} label="Материалы" />
           <TabLink groupId={group.id} tab="tasks" activeTab={activeTab} label="Задачи" />
-          {user.role === "TEACHER" && (
+          {isTeacher && (
             <TabLink groupId={group.id} tab="submissions" activeTab={activeTab} label="Решения" />
           )}
           <TabLink groupId={group.id} tab="members" activeTab={activeTab} label="Участники" />
         </nav>
 
-        {activeTab === "materials" && <MaterialsTab group={group} isTeacher={user.role === "TEACHER"} />}
-        {activeTab === "tasks" && <TasksTab group={group} isTeacher={user.role === "TEACHER"} />}
-        {activeTab === "submissions" && user.role === "TEACHER" && (
-          <SubmissionsTab submissions={allSubmissions} />
-        )}
-        {activeTab === "members" && (
-          <MembersTab memberships={group.memberships} isTeacher={user.role === "TEACHER"} />
-        )}
+        {activeTab === "materials" && <MaterialsTab group={group} isTeacher={isTeacher} />}
+        {activeTab === "tasks" && <TasksTab group={group} isTeacher={isTeacher} />}
+        {activeTab === "submissions" && isTeacher && <SubmissionsTab submissions={allSubmissions} />}
+        {activeTab === "members" && <MembersTab memberships={group.memberships} isTeacher={isTeacher} />}
       </main>
     </>
   );
 }
 
-function getActiveTab(tab: string | undefined, role: string): Tab {
+function getActiveTab(tab: string | undefined, role: Role): Tab {
   if (tab === "tasks" || tab === "members" || tab === "materials") {
     return tab;
   }
@@ -175,8 +195,13 @@ function TabLink({
 
   return (
     <Link
-      className={`border border-gray-300 px-3 py-2 ${isActive ? "bg-gray-100" : "bg-white"}`}
+      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+        isActive
+          ? "bg-emerald-700 text-white"
+          : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+      }`}
       href={`/groups/${groupId}?tab=${tab}`}
+      aria-current={isActive ? "page" : undefined}
     >
       {label}
     </Link>
@@ -188,33 +213,37 @@ function MaterialsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: bo
     <section className="space-y-5">
       {isTeacher && (
         <form
-          className="grid gap-4 border border-gray-200 p-4"
+          className={`${cardClasses} grid gap-4`}
           action={`/api/groups/${group.id}/materials`}
           method="post"
           encType="multipart/form-data"
         >
-          <h2 className="text-lg font-medium">Добавить материал</h2>
+          <h2 className="text-base font-semibold text-gray-900">Добавить материал</h2>
           <TextInput label="Название" name="title" />
           <TextArea label="Описание" name="description" />
           <MaterialTypeSelect />
           <TextInput label="Ссылка на внешний ресурс" name="url" type="url" required={false} />
-          <label className="block">
-            <span className="mb-1 block text-gray-700">Файл</span>
-            <input className="w-full border border-gray-300 px-3 py-2" name="file" type="file" />
-          </label>
-          <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-            Добавить
-          </button>
+          <FileInput label="Файл" name="file" hint={`Для файловых материалов, до ${maxUploadLabel()}`} />
+          <Button className="w-fit">Добавить</Button>
         </form>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {group.materials.map((material) => (
-          <MaterialCard key={material.id} material={material} isTeacher={isTeacher} />
-        ))}
-      </div>
-
-      {group.materials.length === 0 && <p className="text-gray-700">Материалов пока нет.</p>}
+      {group.materials.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {group.materials.map((material) => (
+            <MaterialCard key={material.id} material={material} isTeacher={isTeacher} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="Материалов пока нет"
+          description={
+            isTeacher
+              ? "Добавьте первый материал: файл или ссылку на внешний ресурс."
+              : "Учитель ещё не добавил материалы в эту группу."
+          }
+        />
+      )}
     </section>
   );
 }
@@ -224,34 +253,43 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
   const downloadHref = material.url ?? `/api/materials/${material.id}/download`;
 
   return (
-    <article className="border border-gray-200 p-4">
+    <article className={cardClasses}>
       {isPreviewableMaterial(material.type) && material.filePath && (
-        <div className="mb-3 h-44 overflow-hidden border border-gray-200 bg-gray-50">
+        <div className="mb-4 h-44 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
           {material.type === "IMAGE" ? (
-            <img className="h-full w-full object-cover" src={`/api/materials/${material.id}/file`} alt={material.title} />
+            <img
+              className="h-full w-full object-cover"
+              src={`/api/materials/${material.id}/file`}
+              alt={material.title}
+              loading="lazy"
+            />
           ) : (
             <iframe className="h-full w-full" src={`/api/materials/${material.id}/file`} title={material.title} />
           )}
         </div>
       )}
-      <h3 className="font-medium">{material.title}</h3>
-      <p className="mt-1 text-gray-700">{material.description}</p>
-      <div className="mt-3 space-y-1 text-gray-600">
-        <p>Тип: {getMaterialTypeLabel(material.type)}</p>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-semibold text-gray-900">{material.title}</h3>
+        <Badge>{getMaterialTypeBadgeLabel(material.type)}</Badge>
+      </div>
+      <p className="mt-1 text-sm text-gray-600">{material.description}</p>
+      <div className="mt-3 space-y-0.5 text-xs text-gray-500">
         <p>Дата загрузки: {formatDate(material.uploadedAt)}</p>
-        {material.originalFileName && <p>Файл: {material.originalFileName}</p>}
+        {material.originalFileName && <p className="break-all">Файл: {material.originalFileName}</p>}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <a className="border border-gray-300 px-3 py-1" href={openHref} target="_blank">
+        <AnchorButton href={openHref} variant="primary" size="sm" newTab>
           Открыть
-        </a>
-        <a className="border border-gray-300 px-3 py-1" href={downloadHref}>
+        </AnchorButton>
+        <AnchorButton href={downloadHref} variant="secondary" size="sm">
           Скачать
-        </a>
+        </AnchorButton>
       </div>
       {isTeacher && (
-        <details className="mt-4 border-t border-gray-200 pt-4">
-          <summary className="cursor-pointer">Редактировать</summary>
+        <details className="mt-4 border-t border-gray-100 pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+            Редактировать
+          </summary>
           <form
             className="mt-4 grid gap-3"
             action={`/api/materials/${material.id}/update`}
@@ -261,19 +299,20 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
             <TextInput label="Название" name="title" defaultValue={material.title} />
             <TextArea label="Описание" name="description" defaultValue={material.description} />
             <MaterialTypeSelect defaultValue={material.type} />
-            <TextInput label="Ссылка на внешний ресурс" name="url" type="url" required={false} defaultValue={material.url ?? ""} />
-            <label className="block">
-              <span className="mb-1 block text-gray-700">Новый файл</span>
-              <input className="w-full border border-gray-300 px-3 py-2" name="file" type="file" />
-            </label>
-            <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-              Сохранить
-            </button>
+            <TextInput
+              label="Ссылка на внешний ресурс"
+              name="url"
+              type="url"
+              required={false}
+              defaultValue={material.url ?? ""}
+            />
+            <FileInput label="Новый файл" name="file" />
+            <Button className="w-fit">Сохранить</Button>
           </form>
           <form className="mt-3" action={`/api/materials/${material.id}/delete`} method="post">
-            <button className="border border-gray-300 px-3 py-1" type="submit">
+            <Button variant="danger" size="sm">
               Удалить
-            </button>
+            </Button>
           </form>
         </details>
       )}
@@ -283,16 +322,12 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
 
 function MaterialTypeSelect({ defaultValue }: { defaultValue?: string }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-gray-700">Тип материала</span>
-      <select className="w-full border border-gray-300 px-3 py-2" name="type" defaultValue={defaultValue ?? "LINK"}>
-        {materialTypes.map((type) => (
-          <option key={type.value} value={type.value}>
-            {type.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectField
+      label="Тип материала"
+      name="type"
+      defaultValue={defaultValue ?? "LINK"}
+      options={materialTypes}
+    />
   );
 }
 
@@ -301,12 +336,12 @@ function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolea
     <section className="space-y-5">
       {isTeacher && (
         <form
-          className="grid gap-4 border border-gray-200 p-4"
+          className={`${cardClasses} grid gap-4`}
           action={`/api/groups/${group.id}/tasks`}
           method="post"
           encType="multipart/form-data"
         >
-          <h2 className="text-lg font-medium">Создать задачу</h2>
+          <h2 className="text-base font-semibold text-gray-900">Создать задачу</h2>
           <TextInput label="Название" name="title" />
           <TextArea label="Условие" name="description" />
           <TaskTypeSelect />
@@ -317,39 +352,40 @@ function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolea
             placeholder="Каждый вариант с новой строки"
           />
           <TextInput label="Правильный ответ" name="correctAnswer" required={false} />
-          <TextInput label="Максимальный балл" name="maxScore" type="number" />
-          <label className="block">
-            <span className="mb-1 block text-gray-700">Изображение к условию</span>
-            <input className="w-full border border-gray-300 px-3 py-2" name="image" type="file" accept="image/*" />
-          </label>
-          <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-            Создать
-          </button>
+          <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} />
+          <FileInput
+            label="Изображение к условию"
+            name="image"
+            accept="image/*"
+            hint={`JPG, PNG или WebP, до ${maxUploadLabel()}`}
+          />
+          <Button className="w-fit">Создать</Button>
         </form>
       )}
 
-      <div className="space-y-3">
-        {group.tasks.map((task) => (
-          <TaskCard key={task.id} task={task} isTeacher={isTeacher} />
-        ))}
-        {group.tasks.length === 0 && <p className="text-gray-700">Задач пока нет.</p>}
-      </div>
+      {group.tasks.length > 0 ? (
+        <div className="space-y-4">
+          {group.tasks.map((task) => (
+            <TaskCard key={task.id} task={task} isTeacher={isTeacher} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="Задач пока нет"
+          description={
+            isTeacher
+              ? "Создайте первую задачу — ученики увидят её на этой вкладке."
+              : "Учитель ещё не добавил задачи в эту группу."
+          }
+        />
+      )}
     </section>
   );
 }
 
 function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-gray-700">Тип задачи</span>
-      <select className="w-full border border-gray-300 px-3 py-2" name="type" defaultValue={defaultValue ?? "TEXT"}>
-        {taskTypes.map((type) => (
-          <option key={type.value} value={type.value}>
-            {type.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectField label="Тип задачи" name="type" defaultValue={defaultValue ?? "TEXT"} options={taskTypes} />
   );
 }
 
@@ -358,19 +394,34 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
   const options = parseTaskOptions(task.options);
 
   return (
-    <article className="border border-gray-200 p-4">
-      <h3 className="font-medium">{task.title}</h3>
-      <p className="mt-1 whitespace-pre-wrap text-gray-700">{task.description}</p>
+    <article className={cardClasses}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="font-semibold text-gray-900">{task.title}</h3>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge>{getTaskTypeLabel(task.type)}</Badge>
+          <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
+        </div>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
       {task.imagePath && (
-        <img className="mt-3 max-h-80 border border-gray-200 object-contain" src={`/api/tasks/${task.id}/image`} alt={task.title} />
+        <img
+          className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
+          src={`/api/tasks/${task.id}/image`}
+          alt={task.title}
+          loading="lazy"
+        />
       )}
-      <p className="mt-2 text-gray-600">Тип: {getTaskTypeLabel(task.type)}</p>
-      <p className="text-gray-600">Максимум: {task.maxScore}</p>
-      {isTeacher && task.correctAnswer && <p className="mt-2 text-gray-700">Правильный ответ: {task.correctAnswer}</p>}
+      {isTeacher && task.correctAnswer && (
+        <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          Правильный ответ: {task.correctAnswer}
+        </p>
+      )}
 
       {isTeacher && (
-        <details className="mt-4 border-t border-gray-200 pt-4">
-          <summary className="cursor-pointer">Редактировать задачу</summary>
+        <details className="mt-4 border-t border-gray-100 pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+            Редактировать задачу
+          </summary>
           <form
             className="mt-4 grid gap-3"
             action={`/api/tasks/${task.id}/update`}
@@ -393,19 +444,14 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
               required={false}
               defaultValue={task.correctAnswer ?? ""}
             />
-            <TextInput label="Максимальный балл" name="maxScore" type="number" defaultValue={task.maxScore} />
-            <label className="block">
-              <span className="mb-1 block text-gray-700">Новое изображение к условию</span>
-              <input className="w-full border border-gray-300 px-3 py-2" name="image" type="file" accept="image/*" />
-            </label>
-            <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-              Сохранить
-            </button>
+            <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
+            <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
+            <Button className="w-fit">Сохранить</Button>
           </form>
           <form className="mt-3" action={`/api/tasks/${task.id}/delete`} method="post">
-            <button className="border border-gray-300 px-3 py-1" type="submit">
+            <Button variant="danger" size="sm">
               Удалить задачу
-            </button>
+            </Button>
           </form>
         </details>
       )}
@@ -436,33 +482,43 @@ function StudentSubmissionBlock({
 
   return (
     <div className="space-y-3">
-      <div className="border border-gray-200 p-3">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-medium">Ваш ответ</p>
-          <span className="border border-gray-300 px-2 py-1 text-xs">
-            {isReviewed ? "Проверено" : "На проверке"}
-          </span>
+          <p className="text-sm font-semibold text-gray-900">Ваш ответ</p>
+          <SubmissionStatusBadge status={submission.status} />
         </div>
 
-        {submission.answer && <p className="mt-2 whitespace-pre-wrap">{submission.answer}</p>}
+        {submission.answer && (
+          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{submission.answer}</p>
+        )}
         {submission.originalFileName && (
-          <a className="mt-2 inline-block underline" href={`/api/submissions/${submission.id}/file`}>
+          <a
+            className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            href={`/api/submissions/${submission.id}/file`}
+          >
             {submission.originalFileName}
           </a>
         )}
 
         {isReviewed ? (
-          <div className="mt-3 border-t border-gray-200 pt-3">
-            <p>Балл: {submission.review?.score ?? "нет"}</p>
+          <div className="mt-3 space-y-1 border-t border-gray-200 pt-3 text-sm text-gray-700">
+            <p>
+              Балл:{" "}
+              <span className="font-semibold text-gray-900">
+                {submission.review?.score ?? "нет"} из {task.maxScore}
+              </span>
+            </p>
             <p>Комментарий: {submission.review?.feedback || "нет"}</p>
           </div>
         ) : (
-          <p className="mt-3 text-gray-700">Учитель ещё не проверил решение.</p>
+          <p className="mt-3 text-sm text-gray-500">Учитель ещё не проверил решение.</p>
         )}
       </div>
 
-      <details className="border border-gray-200 p-3">
-        <summary className="cursor-pointer">Изменить ответ и отправить заново</summary>
+      <details className="rounded-lg border border-gray-200 p-4">
+        <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+          Изменить ответ и отправить заново
+        </summary>
         <div className="mt-3">
           <SubmissionForm task={task} options={options} submission={submission} />
         </div>
@@ -485,13 +541,21 @@ function SubmissionForm({
     : [];
 
   return (
-    <form className="grid gap-3" action={`/api/tasks/${task.id}/submissions`} method="post" encType="multipart/form-data">
+    <form
+      className="grid gap-3"
+      action={`/api/tasks/${task.id}/submissions`}
+      method="post"
+      encType="multipart/form-data"
+    >
       {task.type === "TEXT" && <TextArea label="Ответ" name="answer" defaultValue={submission?.answer ?? ""} />}
       {task.type === "SINGLE_CHOICE" &&
         options.map((option) => (
-          <label className="block" key={option}>
+          <label
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
+            key={option}
+          >
             <input
-              className="mr-2"
+              className="h-4 w-4 accent-emerald-700"
               name="answer"
               type="radio"
               value={option}
@@ -503,66 +567,94 @@ function SubmissionForm({
         ))}
       {task.type === "MULTIPLE_CHOICE" &&
         options.map((option) => (
-          <label className="block" key={option}>
-            <input className="mr-2" name="answer" type="checkbox" value={option} defaultChecked={selectedAnswers.includes(option)} />
+          <label
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
+            key={option}
+          >
+            <input
+              className="h-4 w-4 accent-emerald-700"
+              name="answer"
+              type="checkbox"
+              value={option}
+              defaultChecked={selectedAnswers.includes(option)}
+            />
             {option}
           </label>
         ))}
       {task.type === "IMAGE_UPLOAD" && (
-        <label className="block">
-          <span className="mb-1 block text-gray-700">Изображение</span>
-          <input
-            className="w-full border border-gray-300 px-3 py-2"
-            name="file"
-            type="file"
-            accept="image/*"
-            required={!submission?.filePath}
-          />
-        </label>
+        <FileInput
+          label="Изображение"
+          name="file"
+          accept="image/*"
+          required={!submission?.filePath}
+          hint={`JPG, PNG или WebP, до ${maxUploadLabel()}`}
+        />
       )}
       {task.type === "FILE_UPLOAD" && (
-        <label className="block">
-          <span className="mb-1 block text-gray-700">Файл</span>
-          <input className="w-full border border-gray-300 px-3 py-2" name="file" type="file" required={!submission?.filePath} />
-        </label>
+        <FileInput label="Файл" name="file" required={!submission?.filePath} hint={`До ${maxUploadLabel()}`} />
       )}
       {(task.type === "IMAGE_UPLOAD" || task.type === "FILE_UPLOAD") && (
         <TextArea label="Комментарий к файлу" name="answer" required={false} defaultValue={submission?.answer ?? ""} />
       )}
-      <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-        Отправить
-      </button>
+      <Button className="w-fit">Отправить</Button>
     </form>
   );
 }
 
 function SubmissionsTab({ submissions }: { submissions: SubmissionForTeacher[] }) {
+  if (submissions.length === 0) {
+    return (
+      <EmptyState
+        title="Решений пока нет"
+        description="Здесь появятся ответы учеников на задачи группы."
+      />
+    );
+  }
+
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       {submissions.map((submission) => (
-        <article className="border border-gray-200 p-4" key={submission.id}>
-          <h3 className="font-medium">{submission.task.title}</h3>
-          <p className="mt-1 text-gray-700">Ученик: {submission.student.name}</p>
-          <p className="mt-1 text-gray-700">Тип задачи: {getTaskTypeLabel(submission.task.type)}</p>
-          {submission.answer && <p className="mt-2 whitespace-pre-wrap">{submission.answer}</p>}
+        <article className={cardClasses} key={submission.id}>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-900">{submission.task.title}</h3>
+              <p className="mt-0.5 text-sm text-gray-600">
+                {submission.student.name} · {getTaskTypeLabel(submission.task.type)}
+              </p>
+            </div>
+            <SubmissionStatusBadge status={submission.status} />
+          </div>
+          {submission.answer && (
+            <p className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
+              {submission.answer}
+            </p>
+          )}
           {submission.originalFileName && (
-            <a className="mt-2 inline-block underline" href={`/api/submissions/${submission.id}/file`}>
+            <a
+              className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+              href={`/api/submissions/${submission.id}/file`}
+            >
               Скачать файл: {submission.originalFileName}
             </a>
           )}
-          <p className="mt-2 text-gray-700">
-            Статус: {submission.status === "REVIEWED" ? "Проверено" : "На проверке"}
-          </p>
-          <form className="mt-4 grid gap-3" action={`/api/submissions/${submission.id}/review`} method="post">
-            <TextInput label={`Балл из ${submission.task.maxScore}`} name="score" type="number" />
-            <TextArea label="Комментарий" name="feedback" />
-            <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-              Сохранить проверку
-            </button>
+          <form
+            className="mt-4 grid gap-3 border-t border-gray-100 pt-4"
+            action={`/api/submissions/${submission.id}/review`}
+            method="post"
+          >
+            <TextInput
+              label={`Балл из ${submission.task.maxScore}`}
+              name="score"
+              type="number"
+              min={0}
+              max={submission.task.maxScore}
+              defaultValue={submission.review?.score}
+            />
+            <TextArea label="Комментарий" name="feedback" defaultValue={submission.review?.feedback} />
+            <Button className="w-fit">Сохранить проверку</Button>
           </form>
         </article>
       ))}
-      {submissions.length === 0 && <p className="text-gray-700">Решений пока нет.</p>}
     </section>
   );
 }
@@ -574,42 +666,55 @@ function MembersTab({
   memberships: GroupForPage["memberships"];
   isTeacher: boolean;
 }) {
-  return (
-    <section>
-      <table className="w-full border-collapse border border-gray-200">
-        <thead>
-          <tr className="bg-gray-50">
-            <th className="border border-gray-200 px-3 py-2 text-left">Ученик</th>
-            <th className="border border-gray-200 px-3 py-2 text-left">Проверено задач</th>
-            <th className="border border-gray-200 px-3 py-2 text-left">Сумма баллов</th>
-            {isTeacher && <th className="border border-gray-200 px-3 py-2 text-left">Действия</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {memberships.map((membership) => {
-            const reviewed = membership.user.submissions.filter((submission) => submission.review);
-            const totalScore = reviewed.reduce((sum, submission) => sum + (submission.review?.score ?? 0), 0);
+  if (memberships.length === 0) {
+    return (
+      <EmptyState
+        title="Участников пока нет"
+        description={isTeacher ? "Отправьте ученикам код приглашения группы." : undefined}
+      />
+    );
+  }
 
-            return (
-              <tr key={membership.user.id}>
-                <td className="border border-gray-200 px-3 py-2">{membership.user.name}</td>
-                <td className="border border-gray-200 px-3 py-2">{reviewed.length}</td>
-                <td className="border border-gray-200 px-3 py-2">{totalScore}</td>
-                {isTeacher && (
-                  <td className="border border-gray-200 px-3 py-2">
-                    <form action={`/api/memberships/${membership.id}/delete`} method="post">
-                      <button className="border border-gray-300 px-3 py-1" type="submit">
-                        Удалить из группы
-                      </button>
-                    </form>
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {memberships.length === 0 && <p className="mt-4 text-gray-700">Участников пока нет.</p>}
+  return (
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+              <th className="px-4 py-3">Ученик</th>
+              <th className="px-4 py-3">Проверено задач</th>
+              <th className="px-4 py-3">Сумма баллов</th>
+              {isTeacher && <th className="px-4 py-3">Действия</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {memberships.map((membership) => {
+              const reviewed = membership.user.submissions.filter((submission) => submission.review);
+              const totalScore = reviewed.reduce(
+                (sum, submission) => sum + (submission.review?.score ?? 0),
+                0,
+              );
+
+              return (
+                <tr key={membership.user.id}>
+                  <td className="px-4 py-3 font-medium text-gray-900">{membership.user.name}</td>
+                  <td className="px-4 py-3 text-gray-700">{reviewed.length}</td>
+                  <td className="px-4 py-3 text-gray-700">{totalScore}</td>
+                  {isTeacher && (
+                    <td className="px-4 py-3">
+                      <form action={`/api/memberships/${membership.id}/delete`} method="post">
+                        <Button variant="danger" size="sm">
+                          Удалить из группы
+                        </Button>
+                      </form>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

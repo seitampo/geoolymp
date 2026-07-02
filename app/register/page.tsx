@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { TextInput } from "@/components/FormFields";
+import { SelectField, TextInput } from "@/components/FormFields";
 
 export default async function RegisterPage({
   searchParams,
@@ -18,27 +20,32 @@ export default async function RegisterPage({
   const { error } = await searchParams;
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-12">
-      <h1 className="mb-6 text-2xl font-semibold">Регистрация</h1>
-      <ErrorBanner message={error} />
-      <form className="space-y-4" action="/api/auth/register" method="post">
-        <TextInput label="Имя" name="name" />
-        <TextInput label="Email" name="email" type="email" />
-        <TextInput label="Пароль" name="password" type="password" />
-        <label className="block">
-          <span className="mb-1 block text-gray-700">Роль</span>
-          <select className="w-full border border-gray-300 px-3 py-2" name="role" required>
-            <option value="TEACHER">Учитель</option>
-            <option value="STUDENT">Ученик</option>
-          </select>
-        </label>
-        <button className="w-full border border-gray-300 px-4 py-2" type="submit">
-          Создать аккаунт
-        </button>
-      </form>
-      <p className="mt-4 text-gray-700">
+    <main className="mx-auto w-full max-w-sm px-4 py-12 sm:px-0 sm:py-16">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Регистрация</h1>
+        <p className="mt-1 text-sm text-gray-500">Создайте аккаунт учителя или ученика</p>
+      </div>
+      <Card>
+        <ErrorBanner message={error} />
+        <form className="space-y-4" action="/api/auth/register" method="post">
+          <TextInput label="Имя" name="name" placeholder="Как к вам обращаться" />
+          <TextInput label="Email" name="email" type="email" placeholder="you@example.com" />
+          <TextInput label="Пароль" name="password" type="password" placeholder="Минимум 6 символов" />
+          <SelectField
+            label="Роль"
+            name="role"
+            required
+            options={[
+              { value: "TEACHER", label: "Учитель" },
+              { value: "STUDENT", label: "Ученик" },
+            ]}
+          />
+          <Button className="w-full">Создать аккаунт</Button>
+        </form>
+      </Card>
+      <p className="mt-4 text-center text-sm text-gray-600">
         Уже есть аккаунт?{" "}
-        <Link className="underline" href="/login">
+        <Link className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline" href="/login">
           Войти
         </Link>
       </p>

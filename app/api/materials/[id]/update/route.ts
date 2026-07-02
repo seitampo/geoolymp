@@ -7,9 +7,11 @@ import {
   getAbsoluteMaterialPath,
   isAllowedFileName,
   isFileMaterial,
+  isValidExternalUrl,
   saveMaterialFile,
   validateMaterialType,
 } from "@/lib/materials";
+import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { isUploadTooLarge, maxUploadLabel } from "@/lib/uploads";
 
@@ -18,10 +20,14 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const materialId = Number(id);
+  const materialId = parseEntityId(id);
 
   if (!user || user.role !== Role.TEACHER) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (materialId === null) {
+    return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
   const material = await prisma.material.findUnique({ where: { id: materialId }, include: { group: true } });
@@ -42,8 +48,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (!isFileMaterial(type)) {
-    if (!url) {
-      return redirectWithError(request, backTo, "Добавьте ссылку на внешний ресурс.");
+    if (!url || !isValidExternalUrl(url)) {
+      return redirectWithError(request, backTo, "Добавьте корректную ссылку (http:// или https://).");
     }
 
     await prisma.material.update({

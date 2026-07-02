@@ -3,19 +3,30 @@ import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { parseTaskOptions, requiresOptions, validateTaskType } from "@/lib/tasks";
-import { getAbsoluteUploadPath, isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
+import {
+  getAbsoluteUploadPath,
+  isAllowedImageFileName,
+  isUploadTooLarge,
+  maxUploadLabel,
+  saveUploadedFile,
+} from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const taskId = Number(id);
+  const taskId = parseEntityId(id);
 
   if (!user || user.role !== Role.TEACHER) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (taskId === null) {
+    return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
   const task = await prisma.task.findUnique({
@@ -47,6 +58,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (image instanceof File && isUploadTooLarge(image.size)) {
     return redirectWithError(request, backTo, `Изображение слишком большое. Максимум — ${maxUploadLabel()}.`);
+  }
+
+  if (image instanceof File && image.size > 0 && !isAllowedImageFileName(image.name)) {
+    return redirectWithError(request, backTo, "Изображение должно быть в формате JPG, PNG или WebP.");
   }
 
   const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;

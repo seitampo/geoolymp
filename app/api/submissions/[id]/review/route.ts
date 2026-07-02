@@ -2,15 +2,20 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const submissionId = Number(id);
+  const submissionId = parseEntityId(id);
 
   if (!user || user.role !== Role.TEACHER) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (submissionId === null) {
+    return NextResponse.json({ error: "Решение не найдено." }, { status: 404 });
   }
 
   const submission = await prisma.submission.findUnique({

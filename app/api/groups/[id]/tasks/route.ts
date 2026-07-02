@@ -2,19 +2,24 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { parseTaskOptions, requiresOptions, validateTaskType } from "@/lib/tasks";
-import { isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
+import { isAllowedImageFileName, isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const groupId = Number(id);
+  const groupId = parseEntityId(id);
 
   if (!user || user.role !== Role.TEACHER) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (groupId === null) {
+    return NextResponse.json({ error: "Группа не найдена." }, { status: 404 });
   }
 
   const group = await prisma.group.findUnique({ where: { id: groupId } });
@@ -42,6 +47,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (image instanceof File && isUploadTooLarge(image.size)) {
     return redirectWithError(request, backTo, `Изображение слишком большое. Максимум — ${maxUploadLabel()}.`);
+  }
+
+  // accept="image/*" в форме — только клиентская подсказка; проверяем расширение на сервере,
+  // потому что файл отдаётся ученикам с image/* Content-Type.
+  if (image instanceof File && image.size > 0 && !isAllowedImageFileName(image.name)) {
+    return redirectWithError(request, backTo, "Изображение должно быть в формате JPG, PNG или WebP.");
   }
 
   const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;

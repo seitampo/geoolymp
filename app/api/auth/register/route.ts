@@ -6,6 +6,9 @@ import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
 const MIN_PASSWORD_LENGTH = 6;
+// Грубая проверка формата: атрибут type="email" работает только на клиенте,
+// прямой POST в API мог сохранить любую строку вместо email.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
@@ -16,6 +19,10 @@ export async function POST(request: NextRequest) {
 
   if (!name || !email || !password || (role !== Role.TEACHER && role !== Role.STUDENT)) {
     return redirectWithError(request, "/register", "Заполните все поля.");
+  }
+
+  if (!EMAIL_PATTERN.test(email)) {
+    return redirectWithError(request, "/register", "Введите корректный email.");
   }
 
   if (password.length < MIN_PASSWORD_LENGTH) {

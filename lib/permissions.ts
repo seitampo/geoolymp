@@ -1,3 +1,4 @@
+import { randomInt } from "crypto";
 import { prisma } from "./prisma";
 
 export async function canOpenGroup(userId: number, groupId: number) {
@@ -13,7 +14,16 @@ export async function canOpenGroup(userId: number, groupId: number) {
   return group !== null;
 }
 
+// Без похожих символов (O/0, I/1/L), чтобы код было легко диктовать и вводить.
+const INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const INVITE_LENGTH = 8;
+
 export function createInviteCode() {
-  const part = Math.random().toString(36).slice(2, 8).toUpperCase();
+  // crypto.randomInt вместо Math.random: код приглашения — это фактически пароль группы,
+  // предсказуемый генератор позволил бы перебирать коды через /api/groups/join.
+  let part = "";
+  for (let i = 0; i < INVITE_LENGTH; i += 1) {
+    part += INVITE_ALPHABET[randomInt(INVITE_ALPHABET.length)];
+  }
   return `GEO-${part}`;
 }

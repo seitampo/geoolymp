@@ -1,15 +1,21 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { redirectAfterPost } from "@/lib/formResponse";
+import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const membershipId = Number(id);
+  const membershipId = parseEntityId(id);
 
   if (!user || user.role !== Role.TEACHER) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (membershipId === null) {
+    return NextResponse.json({ error: "Участник не найден." }, { status: 404 });
   }
 
   const membership = await prisma.membership.findUnique({
@@ -43,5 +49,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await transaction.membership.delete({ where: { id: membership.id } });
   });
 
-  return NextResponse.redirect(new URL(`/groups/${membership.groupId}?tab=members`, request.url), 303);
+  return redirectAfterPost(request, `/groups/${membership.groupId}?tab=members`);
 }

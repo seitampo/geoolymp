@@ -2,7 +2,14 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
-import { isAllowedFileName, isFileMaterial, saveMaterialFile, validateMaterialType } from "@/lib/materials";
+import {
+  isAllowedFileName,
+  isFileMaterial,
+  isValidExternalUrl,
+  saveMaterialFile,
+  validateMaterialType,
+} from "@/lib/materials";
+import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { isUploadTooLarge, maxUploadLabel } from "@/lib/uploads";
 
@@ -11,10 +18,14 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const groupId = Number(id);
+  const groupId = parseEntityId(id);
 
   if (!user || user.role !== Role.TEACHER) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (groupId === null) {
+    return NextResponse.json({ error: "Группа не найдена." }, { status: 404 });
   }
 
   const group = await prisma.group.findUnique({ where: { id: groupId } });
@@ -60,8 +71,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     });
   } else {
-    if (!url) {
-      return redirectWithError(request, backTo, "Добавьте ссылку на внешний ресурс.");
+    if (!url || !isValidExternalUrl(url)) {
+      return redirectWithError(request, backTo, "Добавьте корректную ссылку (http:// или https://).");
     }
 
     await prisma.material.create({ data: { groupId, title, description, type, url } });

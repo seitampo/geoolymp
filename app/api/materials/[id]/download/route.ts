@@ -2,18 +2,24 @@ import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { getAbsoluteMaterialPath } from "@/lib/materials";
+import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { contentDisposition } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const materialId = Number(id);
+  const materialId = parseEntityId(id);
 
   if (!user) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (materialId === null) {
+    return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
   const material = await prisma.material.findUnique({ where: { id: materialId } });
@@ -34,7 +40,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(file, {
     headers: {
       "Content-Type": "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(material.originalFileName ?? "material")}"`,
+      "Content-Disposition": contentDisposition("attachment", material.originalFileName ?? "material"),
       "X-Content-Type-Options": "nosniff",
     },
   });

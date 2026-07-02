@@ -1,6 +1,6 @@
 import { MaterialType } from "@prisma/client";
 import path from "path";
-import { getAbsoluteUploadPath, saveUploadedFile } from "./uploads";
+import { allowedImageExtensions, getAbsoluteUploadPath, saveUploadedFile } from "./uploads";
 
 export const materialTypes = [
   { value: MaterialType.PDF, label: "PDF" },
@@ -15,13 +15,31 @@ const allowedExtensions: Record<MaterialType, string[]> = {
   PDF: [".pdf"],
   DOCX: [".docx"],
   PPTX: [".pptx"],
-  IMAGE: [".jpg", ".jpeg", ".png", ".webp"],
+  IMAGE: allowedImageExtensions,
   LINK: [],
   ZIP: [".zip"],
 };
 
 export function getMaterialTypeLabel(type: MaterialType) {
   return materialTypes.find((item) => item.value === type)?.label ?? type;
+}
+
+/** Короткая подпись для бейджа на карточке (полная — для выпадающего списка). */
+export function getMaterialTypeBadgeLabel(type: MaterialType) {
+  return type === MaterialType.LINK ? "Ссылка" : getMaterialTypeLabel(type);
+}
+
+/**
+ * Ссылки материалов сохраняются в href как есть, поэтому принимаем только http/https:
+ * без проверки можно сохранить javascript:-ссылку, которая выполнится по клику.
+ */
+export function isValidExternalUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export function isFileMaterial(type: MaterialType) {

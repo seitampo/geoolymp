@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Header } from "@/components/Header";
+import { Badge } from "@/components/Badge";
+import { Button } from "@/components/Button";
+import { cardClasses } from "@/components/Card";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { TextArea, TextInput } from "@/components/FormFields";
+import { Header } from "@/components/Header";
+import { inputClasses, TextArea, TextInput } from "@/components/FormFields";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -30,54 +34,64 @@ export default async function DashboardPage({
   return (
     <>
       <Header user={user} />
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">Мои группы</h1>
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <h1 className="mb-6 text-2xl font-bold tracking-tight text-gray-900">Мои группы</h1>
         <ErrorBanner message={error} />
 
         {user.role === "TEACHER" ? (
-          <section className="mb-8 border border-gray-200 p-4">
-            <h2 className="mb-4 text-lg font-medium">Создать группу</h2>
+          <section className={`${cardClasses} mb-8`}>
+            <h2 className="mb-4 text-base font-semibold text-gray-900">Создать группу</h2>
             <form className="grid gap-4" action="/api/groups" method="post">
-              <TextInput label="Название" name="name" />
-              <TextArea label="Описание" name="description" />
-              <button className="w-fit border border-gray-300 px-4 py-2" type="submit">
-                Создать
-              </button>
+              <TextInput label="Название" name="name" placeholder="Например: Сборная 9-х классов" />
+              <TextArea label="Описание" name="description" placeholder="Чем занимается группа" />
+              <Button className="w-fit">Создать группу</Button>
             </form>
           </section>
         ) : (
-          <section className="mb-8 border border-gray-200 p-4">
-            <h2 className="mb-4 text-lg font-medium">Вступить в группу</h2>
-            <form className="flex max-w-md gap-2" action="/api/groups/join" method="post">
+          <section className={`${cardClasses} mb-8`}>
+            <h2 className="mb-4 text-base font-semibold text-gray-900">Вступить в группу</h2>
+            <form className="flex max-w-md flex-col gap-2 sm:flex-row" action="/api/groups/join" method="post">
               <input
-                className="flex-1 border border-gray-300 px-3 py-2"
+                className={`flex-1 ${inputClasses}`}
                 name="inviteCode"
-                placeholder="Код приглашения"
+                placeholder="Код приглашения, например GEO-ABC12345"
                 required
               />
-              <button className="border border-gray-300 px-4 py-2" type="submit">
-                Вступить
-              </button>
+              <Button className="shrink-0">Вступить</Button>
             </form>
           </section>
         )}
 
-        <div className="space-y-3">
-          {groups.map((group) => (
-            <Link
-              className="block border border-gray-200 p-4 hover:bg-gray-50"
-              href={`/groups/${group.id}`}
-              key={group.id}
-            >
-              <h2 className="font-medium">{group.name}</h2>
-              <p className="mt-1 text-gray-700">{group.description}</p>
-              {user.role === "TEACHER" && (
-                <p className="mt-2 text-gray-600">Код: {group.inviteCode}</p>
-              )}
-            </Link>
-          ))}
-          {groups.length === 0 && <p className="text-gray-700">Групп пока нет.</p>}
-        </div>
+        {groups.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {groups.map((group) => (
+              <Link
+                className={`${cardClasses} block transition hover:border-emerald-300 hover:shadow-md`}
+                href={`/groups/${group.id}`}
+                key={group.id}
+              >
+                <h2 className="font-semibold text-gray-900">{group.name}</h2>
+                <p className="mt-1 text-sm text-gray-600">{group.description}</p>
+                {user.role === "TEACHER" && (
+                  <div className="mt-3">
+                    <Badge tone="emerald">
+                      Код: <span className="font-mono">{group.inviteCode}</span>
+                    </Badge>
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="Групп пока нет"
+            description={
+              user.role === "TEACHER"
+                ? "Создайте первую группу и отправьте ученикам код приглашения."
+                : "Попросите у учителя код приглашения и вступите в группу."
+            }
+          />
+        )}
       </main>
     </>
   );

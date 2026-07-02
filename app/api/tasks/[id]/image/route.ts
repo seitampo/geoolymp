@@ -1,6 +1,7 @@
 import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
+import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getAbsoluteUploadPath } from "@/lib/uploads";
@@ -10,10 +11,14 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
-  const taskId = Number(id);
+  const taskId = parseEntityId(id);
 
   if (!user) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  if (taskId === null) {
+    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
   }
 
   const task = await prisma.task.findUnique({ where: { id: taskId } });
