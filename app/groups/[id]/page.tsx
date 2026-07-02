@@ -1,7 +1,7 @@
-import { Material, Membership, Review, Role, Submission, Task, User } from "@prisma/client";
+import { Material, Membership, OlympiadLevel, Review, Role, Submission, Task, TaskSet, User } from "@prisma/client";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Badge, SubmissionStatusBadge, TaskStatusBadge } from "@/components/Badge";
+import { Badge, SubmissionStatusBadge } from "@/components/Badge";
 import { AnchorButton, Button, LinkButton } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
@@ -9,6 +9,16 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
 import { ProgressBar } from "@/components/ProgressBar";
+import {
+  CopyForm,
+  PublishSelect,
+  TaskCard,
+  TaskClassificationBadges,
+  TaskClassificationFields,
+  TaskTypeSelect,
+  type TaskWithStudentSubmission,
+  type TeacherGroupOption,
+} from "@/components/TaskCard";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getMaterialTypeBadgeLabel,
@@ -19,24 +29,23 @@ import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDateTime,
   getTaskTypeLabel,
   isAutoGradedTask,
-  isTaskNotYetOpen,
   isTaskOverdue,
-  isTaskVisibleToStudents,
-  parseTaskOptions,
-  taskTypes,
-  toDateTimeLocalValue,
+  olympiadLevels,
+  parseClassificationNumber,
+  taskDifficulties,
+  taskGrades,
+  validateOlympiadLevel,
 } from "@/lib/tasks";
 import { maxUploadLabel } from "@/lib/uploads";
 
-type Tab = "materials" | "tasks" | "submissions" | "members";
+type Tab = "materials" | "tasks" | "sets" | "submissions" | "members";
 
 type StudentTaskStatus = "not-submitted" | "pending" | "solved" | "overdue";
 type TaskFilter = "all" | StudentTaskStatus;
 type ReviewFilter = "all" | "pending";
-type TeacherGroupOption = { id: number; name: string };
+type LibraryTask = Task & { group: { name: string } };
 
 const taskFilters: { value: TaskFilter; label: string }[] = [
   { value: "all", label: "Все" },
@@ -46,13 +55,6 @@ const taskFilters: { value: TaskFilter; label: string }[] = [
   { value: "overdue", label: "Просрочено" },
 ];
 
-type TaskWithStudentSubmission = Task & {
-  submissions: (Submission & {
-    review: Review | null;
-    student: User;
-  })[];
-};
-
 type GroupForPage = {
   id: number;
   name: string;
@@ -60,11 +62,18 @@ type GroupForPage = {
   inviteCode: string;
   materials: Material[];
   tasks: TaskWithStudentSubmission[];
+  taskSets: (TaskSet & { _count: { items: number } })[];
   memberships: (Membership & {
     user: User & {
       submissions: (Submission & { review: Review | null })[];
     };
   })[];
+};
+
+type ClassificationFilters = {
+  grade: number | null;
+  level: OlympiadLevel | null;
+  difficulty: number | null;
 };
 
 type SubmissionForTeacher = Submission & {
@@ -85,6 +94,9 @@ export default async function GroupPage({
     status?: string;
     filter?: string;
     after?: string;
+    grade?: string;
+    level?: string;
+    difficulty?: string;
   }>;
 }) {
   const user = await getCurrentUser();
@@ -94,11 +106,17 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab, error, q, status, filter, after } = await searchParams;
+  const { tab, error, q, status, filter, after, grade, level, difficulty } = await searchParams;
   const searchQuery = (q ?? "").trim();
   const statusFilter = getStatusFilter(status);
   const reviewFilter: ReviewFilter = filter === "pending" ? "pending" : "all";
   const afterId = after ? parseEntityId(after) : null;
+  // Кривые значения фильтров из URL просто игнорируем (фильтр не применяется).
+  const classification: ClassificationFilters = {
+    grade: parseClassificationNumber(grade ?? "", taskGrades) ?? null,
+    level: validateOlympiadLevel(level ?? ""),
+    difficulty: parseClassificationNumber(difficulty ?? "", taskDifficulties) ?? null,
+  };
   const groupId = parseEntityId(id);
 
   if (groupId === null || !(await canOpenGroup(user.id, groupId))) {
@@ -123,6 +141,10 @@ export default async function GroupPage({
             include: { review: true, student: true },
           },
         },
+      },
+      taskSets: {
+        orderBy: { id: "asc" },
+        include: { _count: { select: { items: true } } },
       },
       memberships: {
         include: {
@@ -163,6 +185,16 @@ export default async function GroupPage({
         orderBy: { name: "asc" },
       })
     : [];
+
+  // Библиотека: задачи учителя из других его групп — для переиспользования копией.
+  const libraryTasks: LibraryTask[] =
+    isTeacher && activeTab === "tasks"
+      ? await prisma.task.findMany({
+          where: { group: { teacherId: user.id }, groupId: { not: groupId } },
+          include: { group: { select: { name: true } } },
+          orderBy: { id: "desc" },
+        })
+      : [];
 
   // Изученные материалы ученика — для полосок прогресса и отметок «Изучено».
   const viewedMaterialIds = new Set(
@@ -239,6 +271,7 @@ export default async function GroupPage({
             label="Задачи"
             showDot={hasUnseenResults && activeTab !== "tasks"}
           />
+          <TabLink groupId={group.id} tab="sets" activeTab={activeTab} label="Подборки" />
           {isTeacher && (
             <TabLink groupId={group.id} tab="submissions" activeTab={activeTab} label="Решения" />
           )}
@@ -260,9 +293,12 @@ export default async function GroupPage({
             isTeacher={isTeacher}
             searchQuery={searchQuery}
             statusFilter={statusFilter}
+            classification={classification}
             teacherGroups={teacherGroups}
+            libraryTasks={libraryTasks}
           />
         )}
+        {activeTab === "sets" && <SetsTab group={group} isTeacher={isTeacher} />}
         {activeTab === "submissions" && isTeacher && (
           <SubmissionsTab
             submissions={allSubmissions}
@@ -343,7 +379,7 @@ function StudentProgress({
 }
 
 function getActiveTab(tab: string | undefined, role: Role): Tab {
-  if (tab === "tasks" || tab === "members" || tab === "materials") {
+  if (tab === "tasks" || tab === "members" || tab === "materials" || tab === "sets") {
     return tab;
   }
 
@@ -426,14 +462,92 @@ function SearchForm({
   );
 }
 
+function setClassificationParams(params: URLSearchParams, classification: ClassificationFilters) {
+  if (classification.grade !== null) {
+    params.set("grade", String(classification.grade));
+  }
+  if (classification.level !== null) {
+    params.set("level", classification.level);
+  }
+  if (classification.difficulty !== null) {
+    params.set("difficulty", String(classification.difficulty));
+  }
+}
+
+/** Поиск + фильтры классификации на вкладке задач (одна GET-форма). */
+function TaskFiltersForm({
+  groupId,
+  query,
+  statusFilter,
+  classification,
+}: {
+  groupId: number;
+  query: string;
+  statusFilter?: TaskFilter;
+  classification: ClassificationFilters;
+}) {
+  const keepStatus = statusFilter && statusFilter !== "all" ? statusFilter : null;
+
+  return (
+    <form className="grid gap-3" method="get" action={`/groups/${groupId}`} role="search">
+      <input type="hidden" name="tab" value="tasks" />
+      {keepStatus && <input type="hidden" name="status" value={keepStatus} />}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <input
+          className={inputClasses}
+          type="search"
+          name="q"
+          defaultValue={query}
+          placeholder="Поиск по задачам"
+          aria-label="Поиск по задачам"
+        />
+        <SelectField
+          label=""
+          name="grade"
+          defaultValue={classification.grade === null ? "" : String(classification.grade)}
+          options={[
+            { value: "", label: "Класс: все" },
+            ...taskGrades.map((grade) => ({ value: String(grade), label: `${grade} класс` })),
+          ]}
+        />
+        <SelectField
+          label=""
+          name="level"
+          defaultValue={classification.level ?? ""}
+          options={[{ value: "", label: "Уровень: все" }, ...olympiadLevels]}
+        />
+        <SelectField
+          label=""
+          name="difficulty"
+          defaultValue={classification.difficulty === null ? "" : String(classification.difficulty)}
+          options={[
+            { value: "", label: "Сложность: любая" },
+            ...taskDifficulties.map((level) => ({ value: String(level), label: `Сложность ${level}/5` })),
+          ]}
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button variant="secondary" className="shrink-0">
+          Применить
+        </Button>
+        <LinkButton href={`/groups/${groupId}?tab=tasks`} variant="secondary" className="shrink-0">
+          Сбросить
+        </LinkButton>
+      </div>
+    </form>
+  );
+}
+
 function TaskFilterChips({
   groupId,
   active,
   query,
+  classification,
 }: {
   groupId: number;
   active: TaskFilter;
   query: string;
+  classification: ClassificationFilters;
 }) {
   return (
     <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Фильтр задач по статусу">
@@ -446,6 +560,7 @@ function TaskFilterChips({
         if (query) {
           params.set("q", query);
         }
+        setClassificationParams(params, classification);
 
         return (
           <Link
@@ -503,35 +618,6 @@ function TabLink({
 }
 
 /** Форма «Копировать в группу…» — общая для материалов и задач. */
-function CopyForm({
-  action,
-  teacherGroups,
-  currentGroupId,
-}: {
-  action: string;
-  teacherGroups: TeacherGroupOption[];
-  currentGroupId: number;
-}) {
-  return (
-    <form className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-end" action={action} method="post">
-      <div className="flex-1">
-        <SelectField
-          label="Копировать в группу"
-          name="targetGroupId"
-          defaultValue={String(currentGroupId)}
-          options={teacherGroups.map((option) => ({
-            value: String(option.id),
-            label: option.id === currentGroupId ? `${option.name} (эта группа)` : option.name,
-          }))}
-        />
-      </div>
-      <Button variant="secondary" className="shrink-0">
-        Копировать
-      </Button>
-    </form>
-  );
-}
-
 function MaterialsTab({
   group,
   isTeacher,
@@ -736,37 +822,89 @@ function TasksTab({
   isTeacher,
   searchQuery,
   statusFilter,
+  classification,
   teacherGroups,
+  libraryTasks,
 }: {
   group: GroupForPage;
   isTeacher: boolean;
   searchQuery: string;
   statusFilter: TaskFilter;
+  classification: ClassificationFilters;
   teacherGroups: TeacherGroupOption[];
+  libraryTasks: LibraryTask[];
 }) {
   const normalizedQuery = searchQuery.toLowerCase();
   const visibleTasks = group.tasks.filter((task) => {
     const matchesStatus =
       isTeacher || statusFilter === "all" || getStudentTaskStatus(task) === statusFilter;
-    return matchesStatus && matchesSearch(task, normalizedQuery);
+    const matchesClassification =
+      (classification.grade === null || task.grade === classification.grade) &&
+      (classification.level === null || task.olympiadLevel === classification.level) &&
+      (classification.difficulty === null || task.difficulty === classification.difficulty);
+    return matchesStatus && matchesClassification && matchesSearch(task, normalizedQuery);
   });
-  const hasActiveFilter = Boolean(searchQuery) || (!isTeacher && statusFilter !== "all");
+  const hasActiveFilter =
+    Boolean(searchQuery) ||
+    (!isTeacher && statusFilter !== "all") ||
+    classification.grade !== null ||
+    classification.level !== null ||
+    classification.difficulty !== null;
 
   return (
     <section className="space-y-5">
       {group.tasks.length > 0 && (
         <div className="space-y-3">
-          <SearchForm
+          <TaskFiltersForm
             groupId={group.id}
-            tab="tasks"
             query={searchQuery}
             statusFilter={isTeacher ? undefined : statusFilter}
-            placeholder="Поиск по задачам"
+            classification={classification}
           />
           {!isTeacher && (
-            <TaskFilterChips groupId={group.id} active={statusFilter} query={searchQuery} />
+            <TaskFilterChips
+              groupId={group.id}
+              active={statusFilter}
+              query={searchQuery}
+              classification={classification}
+            />
           )}
         </div>
+      )}
+      {isTeacher && (
+        <details className={cardClasses}>
+          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+            Библиотека задач ({libraryTasks.length})
+          </summary>
+          <p className="mt-2 text-xs text-gray-500">
+            Задачи из ваших других групп. «Добавить» создаёт независимую копию в этой группе.
+          </p>
+          {libraryTasks.length === 0 ? (
+            <p className="mt-3 text-sm text-gray-500">В других ваших группах задач пока нет.</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-gray-100">
+              {libraryTasks.map((task) => (
+                <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={task.id}>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">{task.title}</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {task.group.name} · {getTaskTypeLabel(task.type)}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <TaskClassificationBadges task={task} />
+                    </div>
+                  </div>
+                  <form action={`/api/tasks/${task.id}/copy`} method="post">
+                    <input type="hidden" name="targetGroupId" value={group.id} />
+                    <Button variant="secondary" size="sm">
+                      Добавить
+                    </Button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
       )}
       {isTeacher && (
         <form
@@ -792,6 +930,7 @@ function TasksTab({
             placeholder="Для вариантов — точный текст; несколько ответов через «;»"
           />
           <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} />
+          <TaskClassificationFields />
           <div className="grid gap-4 sm:grid-cols-2">
             <TextInput label="Дата открытия (необязательно)" name="opensAt" type="datetime-local" required={false} />
             <TextInput label="Срок сдачи (необязательно)" name="dueAt" type="datetime-local" required={false} />
@@ -829,7 +968,7 @@ function TasksTab({
           title="Ничего не найдено"
           description={
             hasActiveFilter
-              ? "Попробуйте изменить поисковый запрос или фильтр по статусу."
+              ? "Попробуйте изменить поисковый запрос или фильтры."
               : "Задачи не найдены."
           }
         />
@@ -850,387 +989,46 @@ function TasksTab({
   );
 }
 
-function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
+/** Тематические подборки задач группы. */
+function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean }) {
   return (
-    <SelectField label="Тип задачи" name="type" defaultValue={defaultValue ?? "TEXT"} options={taskTypes} />
-  );
-}
+    <section className="space-y-5">
+      {isTeacher && (
+        <form className={`${cardClasses} grid gap-4`} action={`/api/groups/${group.id}/sets`} method="post">
+          <h2 className="text-base font-semibold text-gray-900">Создать подборку</h2>
+          <TextInput label="Название" name="title" placeholder="Например: Климат — 20 задач" />
+          <TextArea label="Описание" name="description" placeholder="Какая тема и зачем решать" />
+          <Button className="w-fit">Создать подборку</Button>
+        </form>
+      )}
 
-function PublishSelect({ defaultValue }: { defaultValue?: string }) {
-  return (
-    <SelectField
-      label="Статус публикации"
-      name="published"
-      defaultValue={defaultValue ?? "published"}
-      options={[
-        { value: "published", label: "Опубликована" },
-        { value: "draft", label: "Черновик (виден только вам)" },
-      ]}
-    />
-  );
-}
-
-/** Статистика по задаче для учителя: сдачи, средний балл, частота вариантов. */
-function TaskStats({
-  task,
-  options,
-  membersCount,
-}: {
-  task: TaskWithStudentSubmission;
-  options: string[];
-  membersCount: number;
-}) {
-  const submitted = task.submissions.length;
-  const reviewed = task.submissions.filter((submission) => submission.review);
-  const averageScore =
-    reviewed.length > 0
-      ? reviewed.reduce((sum, submission) => sum + (submission.review?.score ?? 0), 0) / reviewed.length
-      : null;
-
-  const optionStats = isAutoGradedTask(task.type)
-    ? options.map((option) => ({
-        option,
-        isCorrect:
-          task.correctAnswer
-            ?.split(";")
-            .map((value) => value.trim())
-            .includes(option) ?? false,
-        count: task.submissions.filter((submission) =>
-          submission.answer
-            .split(";")
-            .map((value) => value.trim())
-            .includes(option),
-        ).length,
-      }))
-    : [];
-
-  return (
-    <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
-      <p className="text-gray-700">
-        Сдали: <span className="font-semibold text-gray-900">{submitted} из {membersCount}</span>
-        {" · "}Средний балл:{" "}
-        <span className="font-semibold text-gray-900">
-          {averageScore === null ? "—" : `${formatScore(averageScore)} из ${task.maxScore}`}
-        </span>
-      </p>
-      {optionStats.length > 0 && (
-        <div className="mt-3 space-y-1.5">
-          {optionStats.map(({ option, count, isCorrect }) => (
-            <div className="flex items-center gap-2" key={option}>
-              <span className={`w-40 shrink-0 truncate text-xs ${isCorrect ? "font-medium text-emerald-800" : "text-gray-600"}`}>
-                {isCorrect ? "✓ " : ""}
-                {option}
-              </span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className={`h-full rounded-full ${isCorrect ? "bg-emerald-600" : "bg-gray-400"}`}
-                  style={{ width: submitted > 0 ? `${(count / submitted) * 100}%` : "0%" }}
-                />
+      {group.taskSets.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {group.taskSets.map((set) => (
+            <Link
+              key={set.id}
+              className={`${cardClasses} block transition hover:border-emerald-300 hover:shadow-md`}
+              href={`/groups/${group.id}/sets/${set.id}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold text-gray-900">{set.title}</h3>
+                <Badge tone="emerald">Задач: {set._count.items}</Badge>
               </div>
-              <span className="w-8 shrink-0 text-right text-xs text-gray-600">{count}</span>
-            </div>
+              <p className="mt-1 text-sm text-gray-600">{set.description}</p>
+            </Link>
           ))}
         </div>
-      )}
-    </div>
-  );
-}
-
-function formatScore(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
-function TaskCard({
-  task,
-  isTeacher,
-  teacherGroups,
-  membersCount,
-}: {
-  task: TaskWithStudentSubmission;
-  isTeacher: boolean;
-  teacherGroups: TeacherGroupOption[];
-  membersCount: number;
-}) {
-  const submission = task.submissions[0];
-  const options = parseTaskOptions(task.options);
-  const notYetOpen = isTaskNotYetOpen(task);
-  const overdue = isTaskOverdue(task);
-  const hasNewResult = !isTeacher && submission?.review != null && submission.review.seenByStudentAt === null;
-  const visibleToStudents = isTaskVisibleToStudents(task);
-
-  return (
-    <article className={cardClasses}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="font-semibold text-gray-900">{task.title}</h3>
-        <div className="flex flex-wrap gap-1.5">
-          {hasNewResult && <Badge tone="emerald">Новый результат</Badge>}
-          {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
-          {isTeacher && !visibleToStudents &&
-            (task.publishAt ? (
-              <Badge tone="amber">Публикация: {formatDateTime(task.publishAt)}</Badge>
-            ) : (
-              <Badge tone="amber">Черновик</Badge>
-            ))}
-          <Badge>{getTaskTypeLabel(task.type)}</Badge>
-          <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
-        </div>
-      </div>
-      <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
-      {(task.opensAt || task.dueAt) && (
-        <p className="mt-2 text-xs text-gray-500">
-          {task.opensAt && <>Открытие: {formatDateTime(task.opensAt)}</>}
-          {task.opensAt && task.dueAt && " · "}
-          {task.dueAt && <>Срок сдачи: {formatDateTime(task.dueAt)}</>}
-        </p>
-      )}
-      {task.imagePath && (
-        <img
-          className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
-          src={`/api/tasks/${task.id}/image`}
-          alt={task.title}
-          loading="lazy"
-        />
-      )}
-      {isTeacher && task.correctAnswer && (
-        <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          Правильный ответ: {task.correctAnswer}
-        </p>
-      )}
-
-      {isTeacher && <TaskStats task={task} options={options} membersCount={membersCount} />}
-
-      {isTeacher && (
-        <details className="mt-4 border-t border-gray-100 pt-3">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
-            Редактировать задачу
-          </summary>
-          <form
-            className="mt-4 grid gap-3"
-            action={`/api/tasks/${task.id}/update`}
-            method="post"
-            encType="multipart/form-data"
-          >
-            <TextInput label="Название" name="title" defaultValue={task.title} />
-            <TextArea label="Условие" name="description" defaultValue={task.description} />
-            <TaskTypeSelect defaultValue={task.type} />
-            <TextArea
-              label="Варианты ответов"
-              name="options"
-              required={false}
-              defaultValue={task.options ?? ""}
-              placeholder="Каждый вариант с новой строки"
-            />
-            <TextInput
-              label="Правильный ответ"
-              name="correctAnswer"
-              required={false}
-              defaultValue={task.correctAnswer ?? ""}
-              placeholder="Для вариантов — точный текст; несколько ответов через «;»"
-            />
-            <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TextInput
-                label="Дата открытия (необязательно)"
-                name="opensAt"
-                type="datetime-local"
-                required={false}
-                defaultValue={toDateTimeLocalValue(task.opensAt)}
-              />
-              <TextInput
-                label="Срок сдачи (необязательно)"
-                name="dueAt"
-                type="datetime-local"
-                required={false}
-                defaultValue={toDateTimeLocalValue(task.dueAt)}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <PublishSelect defaultValue={task.isPublished ? "published" : "draft"} />
-              <TextInput
-                label="Дата публикации (для черновика)"
-                name="publishAt"
-                type="datetime-local"
-                required={false}
-                defaultValue={toDateTimeLocalValue(task.publishAt)}
-              />
-            </div>
-            <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
-            <Button className="w-fit">Сохранить</Button>
-          </form>
-          <form className="mt-3" action={`/api/tasks/${task.id}/delete`} method="post">
-            <Button variant="danger" size="sm">
-              Удалить задачу
-            </Button>
-          </form>
-          <CopyForm
-            action={`/api/tasks/${task.id}/copy`}
-            teacherGroups={teacherGroups}
-            currentGroupId={task.groupId}
-          />
-        </details>
-      )}
-
-      {!isTeacher && (
-        <div className="mt-4">
-          {notYetOpen ? (
-            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-              Задача откроется {formatDateTime(task.opensAt!)} — отправка пока недоступна.
-            </p>
-          ) : submission ? (
-            <StudentSubmissionBlock
-              task={task}
-              submission={submission}
-              options={options}
-              canResubmit={!overdue}
-            />
-          ) : overdue ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              Срок сдачи истёк {formatDateTime(task.dueAt!)} — отправка недоступна.
-            </p>
-          ) : (
-            <SubmissionForm task={task} options={options} />
-          )}
-        </div>
-      )}
-    </article>
-  );
-}
-
-function StudentSubmissionBlock({
-  task,
-  submission,
-  options,
-  canResubmit,
-}: {
-  task: Task;
-  submission: Submission & { review: Review | null; student: User };
-  options: string[];
-  canResubmit: boolean;
-}) {
-  const isReviewed = submission.status === "REVIEWED";
-
-  return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-900">Ваш ответ</p>
-          <SubmissionStatusBadge status={submission.status} />
-        </div>
-
-        {submission.answer && (
-          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{submission.answer}</p>
-        )}
-        {submission.originalFileName && (
-          <a
-            className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-            href={`/api/submissions/${submission.id}/file`}
-          >
-            {submission.originalFileName}
-          </a>
-        )}
-
-        {isReviewed ? (
-          <div className="mt-3 space-y-1 border-t border-gray-200 pt-3 text-sm text-gray-700">
-            <p>
-              Балл:{" "}
-              <span className="font-semibold text-gray-900">
-                {submission.review?.score ?? "нет"} из {task.maxScore}
-              </span>
-            </p>
-            <p>Комментарий: {submission.review?.feedback || "нет"}</p>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-gray-500">Учитель ещё не проверил решение.</p>
-        )}
-      </div>
-
-      {canResubmit ? (
-        <details className="rounded-lg border border-gray-200 p-4">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
-            Изменить ответ и отправить заново
-          </summary>
-          <div className="mt-3">
-            <SubmissionForm task={task} options={options} submission={submission} />
-          </div>
-        </details>
       ) : (
-        <p className="text-xs text-gray-500">Срок сдачи истёк — изменить ответ уже нельзя.</p>
-      )}
-    </div>
-  );
-}
-
-function SubmissionForm({
-  task,
-  options,
-  submission,
-}: {
-  task: Task;
-  options: string[];
-  submission?: Submission;
-}) {
-  const selectedAnswers = submission?.answer
-    ? submission.answer.split(";").map((answer) => answer.trim())
-    : [];
-
-  return (
-    <form
-      className="grid gap-3"
-      action={`/api/tasks/${task.id}/submissions`}
-      method="post"
-      encType="multipart/form-data"
-    >
-      {task.type === "TEXT" && <TextArea label="Ответ" name="answer" defaultValue={submission?.answer ?? ""} />}
-      {task.type === "SINGLE_CHOICE" &&
-        options.map((option) => (
-          <label
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
-            key={option}
-          >
-            <input
-              className="h-4 w-4 accent-emerald-700"
-              name="answer"
-              type="radio"
-              value={option}
-              required
-              defaultChecked={submission?.answer === option}
-            />
-            {option}
-          </label>
-        ))}
-      {task.type === "MULTIPLE_CHOICE" &&
-        options.map((option) => (
-          <label
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
-            key={option}
-          >
-            <input
-              className="h-4 w-4 accent-emerald-700"
-              name="answer"
-              type="checkbox"
-              value={option}
-              defaultChecked={selectedAnswers.includes(option)}
-            />
-            {option}
-          </label>
-        ))}
-      {task.type === "IMAGE_UPLOAD" && (
-        <FileInput
-          label="Изображение"
-          name="file"
-          accept="image/*"
-          required={!submission?.filePath}
-          hint={`JPG, PNG или WebP, до ${maxUploadLabel()}`}
+        <EmptyState
+          title="Подборок пока нет"
+          description={
+            isTeacher
+              ? "Соберите тематический набор задач — ученики будут решать его по порядку."
+              : "Учитель ещё не собрал подборки задач."
+          }
         />
       )}
-      {task.type === "FILE_UPLOAD" && (
-        <FileInput label="Файл" name="file" required={!submission?.filePath} hint={`До ${maxUploadLabel()}`} />
-      )}
-      {(task.type === "IMAGE_UPLOAD" || task.type === "FILE_UPLOAD") && (
-        <TextArea label="Комментарий к файлу" name="answer" required={false} defaultValue={submission?.answer ?? ""} />
-      )}
-      <Button className="w-fit">Отправить</Button>
-    </form>
+    </section>
   );
 }
 

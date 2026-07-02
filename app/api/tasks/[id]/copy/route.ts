@@ -61,6 +61,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       dueAt: task.dueAt,
       isPublished: task.isPublished,
       publishAt: task.publishAt,
+      grade: task.grade,
+      olympiadLevel: task.olympiadLevel,
+      difficulty: task.difficulty,
     },
   });
 

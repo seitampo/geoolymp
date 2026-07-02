@@ -5,10 +5,14 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
+  parseClassificationNumber,
   parseOptionalDeadline,
   parseTaskOptions,
   requiresOptions,
+  taskDifficulties,
+  taskGrades,
   validateChoiceCorrectAnswer,
+  validateOlympiadLevel,
   validateTaskType,
 } from "@/lib/tasks";
 import { isAllowedImageFileName, isUploadTooLarge, maxUploadLabel, saveUploadedFile } from "@/lib/uploads";
@@ -47,6 +51,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Черновик может иметь запланированную дату публикации; у опубликованной задачи она не нужна.
   const isPublished = String(formData.get("published") ?? "published") !== "draft";
   const publishAt = isPublished ? null : parseOptionalDeadline(String(formData.get("publishAt") ?? ""));
+  // Классификация: все поля необязательные, но значения — только из списков.
+  const grade = parseClassificationNumber(String(formData.get("grade") ?? ""), taskGrades);
+  const difficulty = parseClassificationNumber(String(formData.get("difficulty") ?? ""), taskDifficulties);
+  const olympiadLevelRaw = String(formData.get("olympiadLevel") ?? "").trim();
+  const olympiadLevel = olympiadLevelRaw ? validateOlympiadLevel(olympiadLevelRaw) : null;
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
     return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
@@ -69,6 +78,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (publishAt === undefined) {
     return redirectWithError(request, backTo, "Неверный формат даты публикации.");
+  }
+
+  if (grade === undefined || difficulty === undefined || (olympiadLevelRaw !== "" && olympiadLevel === null)) {
+    return redirectWithError(request, backTo, "Неверные значения классификации (класс, уровень или сложность).");
   }
 
   if (opensAt && dueAt && opensAt >= dueAt) {
@@ -102,6 +115,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       dueAt,
       isPublished,
       publishAt,
+      grade,
+      olympiadLevel,
+      difficulty,
     },
   });
 

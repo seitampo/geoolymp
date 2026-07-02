@@ -1,4 +1,4 @@
-import { TaskType } from "@prisma/client";
+import { OlympiadLevel, TaskType } from "@prisma/client";
 
 export const taskTypes = [
   { value: TaskType.TEXT, label: "Текстовый ответ" },
@@ -10,6 +10,38 @@ export const taskTypes = [
 
 export function getTaskTypeLabel(type: TaskType) {
   return taskTypes.find((item) => item.value === type)?.label ?? type;
+}
+
+// Классификация задач: класс, уровень олимпиады, сложность.
+export const taskGrades = [7, 8, 9, 10, 11];
+export const taskDifficulties = [1, 2, 3, 4, 5];
+
+export const olympiadLevels = [
+  { value: OlympiadLevel.SCHOOL, label: "Школьная" },
+  { value: OlympiadLevel.REGIONAL, label: "Областная" },
+  { value: OlympiadLevel.REPUBLICAN, label: "Республиканская" },
+  { value: OlympiadLevel.INTERNATIONAL, label: "Международная" },
+];
+
+export function getOlympiadLevelLabel(level: OlympiadLevel) {
+  return olympiadLevels.find((item) => item.value === level)?.label ?? level;
+}
+
+export function validateOlympiadLevel(value: string): OlympiadLevel | null {
+  return olympiadLevels.some((item) => item.value === value) ? (value as OlympiadLevel) : null;
+}
+
+/**
+ * Разбор необязательного числового поля классификации из формы.
+ * Пустая строка → null (не указано), значение вне списка → undefined (ошибка формы).
+ */
+export function parseClassificationNumber(value: string, allowed: number[]): number | null | undefined {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return allowed.includes(parsed) ? parsed : undefined;
 }
 
 export function validateTaskType(value: string): TaskType | null {

@@ -73,6 +73,7 @@ export function SelectField({
   defaultValue,
   required = false,
 }: {
+  /** Пустая строка — селект без подписи (например, в компактных фильтрах). */
   label: string;
   name: string;
   options: { value: string; label: string }[];
@@ -81,7 +82,7 @@ export function SelectField({
 }) {
   return (
     <label className="block">
-      <span className={labelClasses}>{label}</span>
+      {label && <span className={labelClasses}>{label}</span>}
       <select className={inputClasses} name={name} defaultValue={defaultValue} required={required}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>

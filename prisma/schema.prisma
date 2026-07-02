@@ -36,6 +36,13 @@ enum TaskType {
   FILE_UPLOAD
 }
 
+enum OlympiadLevel {
+  SCHOOL
+  REGIONAL
+  REPUBLICAN
+  INTERNATIONAL
+}
+
 model User {
   id            Int            @id @default(autoincrement())
   name          String
@@ -58,6 +65,7 @@ model Group {
   memberships Membership[]
   materials   Material[]
   tasks       Task[]
+  taskSets    TaskSet[]
 
   @@index([teacherId])
 }
@@ -119,10 +127,40 @@ model Task {
   // наступило запланированное время публикации publishAt (проверка на сервере).
   isPublished       Boolean      @default(true)
   publishAt         DateTime?
-  group             Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Классификация для библиотеки и будущего конструктора олимпиад.
+  grade             Int? // класс, 7–11
+  olympiadLevel     OlympiadLevel?
+  difficulty        Int? // сложность, 1–5
+  group             Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions       Submission[]
+  setItems          TaskSetItem[]
 
   @@index([groupId])
+}
+
+// Тематическая подборка задач группы («Климат — 20 задач»).
+model TaskSet {
+  id          Int           @id @default(autoincrement())
+  groupId     Int
+  title       String
+  description String
+  group       Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  items       TaskSetItem[]
+
+  @@index([groupId])
+}
+
+model TaskSetItem {
+  id       Int     @id @default(autoincrement())
+  setId    Int
+  taskId   Int
+  // Порядок решения внутри подборки (по порядку добавления).
+  position Int
+  set      TaskSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  task     Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, taskId])
+  @@index([taskId])
 }
 
 model Submission {
