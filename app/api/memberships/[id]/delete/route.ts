@@ -27,9 +27,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Участник не найден." }, { status: 404 });
   }
 
-  // Удаляем ученика из группы и очищаем его решения в этой группе,
+  // Удаляем ученика из группы и очищаем его решения и отметки материалов в этой группе,
   // чтобы вкладки "Решения" и "Участники" не показывали старые данные удаленного участника.
   await prisma.$transaction(async (transaction) => {
+    await transaction.materialView.deleteMany({
+      where: {
+        userId: membership.userId,
+        material: { groupId: membership.groupId },
+      },
+    });
+
     await transaction.review.deleteMany({
       where: {
         submission: {

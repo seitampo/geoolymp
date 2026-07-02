@@ -37,14 +37,15 @@ enum TaskType {
 }
 
 model User {
-  id          Int          @id @default(autoincrement())
-  name        String
-  email       String       @unique
-  password    String
-  role        Role
-  groups      Group[]      @relation("TeacherGroups")
-  memberships Membership[]
-  submissions Submission[]
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String
+  role          Role
+  groups        Group[]        @relation("TeacherGroups")
+  memberships   Membership[]
+  submissions   Submission[]
+  materialViews MaterialView[]
 }
 
 model Group {
@@ -72,18 +73,33 @@ model Membership {
 }
 
 model Material {
-  id               Int          @id @default(autoincrement())
+  id               Int            @id @default(autoincrement())
   groupId          Int
   title            String
   description      String
-  type             MaterialType @default(LINK)
+  type             MaterialType   @default(LINK)
   url              String?
   filePath         String?
   originalFileName String?
-  uploadedAt       DateTime     @default(now())
-  group            Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploadedAt       DateTime       @default(now())
+  group            Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  views            MaterialView[]
 
   @@index([groupId])
+}
+
+// Отметка «ученик изучил материал» — для полосок прогресса на странице группы.
+// Создаётся при открытии/скачивании материала или явной отметкой (текстовые материалы).
+model MaterialView {
+  id         Int      @id @default(autoincrement())
+  materialId Int
+  userId     Int
+  viewedAt   DateTime @default(now())
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, userId])
+  @@index([userId])
 }
 
 model Task {
@@ -97,6 +113,8 @@ model Task {
   correctAnswer     String?
   imagePath         String?
   originalImageName String?
+  opensAt           DateTime?
+  dueAt             DateTime?
   group             Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions       Submission[]
 

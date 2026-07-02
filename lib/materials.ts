@@ -1,5 +1,6 @@
 import { MaterialType } from "@prisma/client";
 import path from "path";
+import { prisma } from "./prisma";
 import { allowedImageExtensions, getAbsoluteUploadPath, saveUploadedFile } from "./uploads";
 
 export const materialTypes = [
@@ -65,6 +66,15 @@ export function isAllowedFileName(type: MaterialType, fileName: string) {
 
 export async function saveMaterialFile(file: File) {
   return saveUploadedFile(file, "materials");
+}
+
+/** Отметка «ученик изучил материал» — идемпотентна, повторные открытия не плодят записи. */
+export async function recordMaterialView(materialId: number, userId: number) {
+  await prisma.materialView.upsert({
+    where: { materialId_userId: { materialId, userId } },
+    update: {},
+    create: { materialId, userId },
+  });
 }
 
 export function getAbsoluteMaterialPath(filePath: string) {

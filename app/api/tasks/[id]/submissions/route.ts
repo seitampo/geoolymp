@@ -7,8 +7,11 @@ import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
+  formatDateTime,
   isAnswerCorrect,
   isAutoGradedTask,
+  isTaskNotYetOpen,
+  isTaskOverdue,
   normalizeMultipleChoiceAnswer,
   parseTaskOptions,
 } from "@/lib/tasks";
@@ -41,6 +44,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const backTo = `/groups/${task.groupId}?tab=tasks`;
+
+  // Сроки проверяются на сервере: скрытая форма в интерфейсе не защищает от прямого POST.
+  if (isTaskNotYetOpen(task)) {
+    return redirectWithError(request, backTo, `Задача ещё не открыта — станет доступна ${formatDateTime(task.opensAt!)}.`);
+  }
+
+  if (isTaskOverdue(task)) {
+    return redirectWithError(request, backTo, `Срок сдачи истёк ${formatDateTime(task.dueAt!)} — отправка недоступна.`);
+  }
+
   const formData = await request.formData();
   const selectedAnswers = formData.getAll("answer").map((value) => String(value));
   const answer =

@@ -1,13 +1,14 @@
 import { SubmissionStatus } from "@prisma/client";
 import type { ReactNode } from "react";
 
-type BadgeTone = "gray" | "emerald" | "green" | "amber";
+type BadgeTone = "gray" | "emerald" | "green" | "amber" | "red";
 
 const toneClasses: Record<BadgeTone, string> = {
   gray: "bg-gray-100 text-gray-700",
   emerald: "bg-emerald-50 text-emerald-800",
   green: "bg-green-100 text-green-800",
   amber: "bg-amber-100 text-amber-800",
+  red: "bg-red-100 text-red-800",
 };
 
 export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children: ReactNode }) {
@@ -30,16 +31,26 @@ export function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) 
 }
 
 /**
- * Статус задачи для ученика на карточке задачи. «Просрочено» появится вместе
- * с дедлайнами (часть 3) — без дедлайна такой статус не показываем.
+ * Статус задачи для ученика на карточке задачи. «Просрочено» показывается
+ * только при пропущенном сроке сдачи без отправленного решения.
  */
-export function TaskStatusBadge({ status }: { status: SubmissionStatus | null }) {
+export function TaskStatusBadge({
+  status,
+  overdue = false,
+}: {
+  status: SubmissionStatus | null;
+  overdue?: boolean;
+}) {
   if (status === SubmissionStatus.REVIEWED) {
     return <Badge tone="green">Решено</Badge>;
   }
 
   if (status === SubmissionStatus.PENDING) {
     return <Badge tone="amber">Проверяется</Badge>;
+  }
+
+  if (overdue) {
+    return <Badge tone="red">Просрочено</Badge>;
   }
 
   return <Badge tone="gray">Не отправлено</Badge>;

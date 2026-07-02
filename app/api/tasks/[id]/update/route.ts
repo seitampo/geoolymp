@@ -6,6 +6,7 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
+  parseOptionalDeadline,
   parseTaskOptions,
   requiresOptions,
   validateChoiceCorrectAnswer,
@@ -52,6 +53,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const options = String(formData.get("options") ?? "").trim();
   const correctAnswer = String(formData.get("correctAnswer") ?? "").trim();
   const image = formData.get("image");
+  const opensAt = parseOptionalDeadline(String(formData.get("opensAt") ?? ""));
+  const dueAt = parseOptionalDeadline(String(formData.get("dueAt") ?? ""));
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
     return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
@@ -66,6 +69,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const correctAnswerError = validateChoiceCorrectAnswer(type, parsedOptions, correctAnswer);
   if (correctAnswerError) {
     return redirectWithError(request, backTo, correctAnswerError);
+  }
+
+  if (opensAt === undefined || dueAt === undefined) {
+    return redirectWithError(request, backTo, "Неверный формат даты открытия или срока сдачи.");
+  }
+
+  if (opensAt && dueAt && opensAt >= dueAt) {
+    return redirectWithError(request, backTo, "Дата открытия должна быть раньше срока сдачи.");
   }
 
   if (image instanceof File && isUploadTooLarge(image.size)) {
@@ -89,6 +100,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       correctAnswer: correctAnswer || null,
       imagePath: savedImage?.filePath ?? task.imagePath,
       originalImageName: savedImage?.originalFileName ?? task.originalImageName,
+      opensAt,
+      dueAt,
     },
   });
 

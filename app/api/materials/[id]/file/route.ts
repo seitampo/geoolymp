@@ -2,7 +2,7 @@ import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { canOpenGroup } from "@/lib/permissions";
-import { getAbsoluteMaterialPath } from "@/lib/materials";
+import { getAbsoluteMaterialPath, recordMaterialView } from "@/lib/materials";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { contentDisposition } from "@/lib/uploads";
@@ -25,6 +25,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const material = await prisma.material.findUnique({ where: { id: materialId } });
   if (!material || !(await canOpenGroup(user.id, material.groupId))) {
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
+  }
+
+  // Прогресс отмечаем только по явному клику «Открыть» (?open=1): этот же роут
+  // используется для миниатюр PDF/изображений, которые грузятся сами при рендере вкладки.
+  if (user.role === "STUDENT" && request.nextUrl.searchParams.get("open") === "1") {
+    await recordMaterialView(material.id, user.id);
   }
 
   if (material.url) {

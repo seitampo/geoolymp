@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { getAbsoluteMaterialPath } from "@/lib/materials";
+import { getAbsoluteMaterialPath, recordMaterialView } from "@/lib/materials";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -25,6 +25,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const material = await prisma.material.findUnique({ where: { id: materialId } });
   if (!material || !(await canOpenGroup(user.id, material.groupId))) {
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
+  }
+
+  // Скачивание — явное действие ученика, засчитываем материал изученным.
+  if (user.role === "STUDENT") {
+    await recordMaterialView(material.id, user.id);
   }
 
   if (material.url) {

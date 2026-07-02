@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
+import { ProgressBar } from "@/components/ProgressBar";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getMaterialTypeBadgeLabel,
@@ -17,7 +18,16 @@ import {
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { getTaskTypeLabel, isAutoGradedTask, parseTaskOptions, taskTypes } from "@/lib/tasks";
+import {
+  formatDateTime,
+  getTaskTypeLabel,
+  isAutoGradedTask,
+  isTaskNotYetOpen,
+  isTaskOverdue,
+  parseTaskOptions,
+  taskTypes,
+  toDateTimeLocalValue,
+} from "@/lib/tasks";
 import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "submissions" | "members";
@@ -115,6 +125,18 @@ export default async function GroupPage({
 
   const isTeacher = user.role === "TEACHER";
 
+  // Изученные материалы ученика — для полосок прогресса и отметок «Изучено».
+  const viewedMaterialIds = new Set(
+    isTeacher
+      ? []
+      : (
+          await prisma.materialView.findMany({
+            where: { userId: user.id, material: { groupId } },
+            select: { materialId: true },
+          })
+        ).map((view) => view.materialId),
+  );
+
   return (
     <>
       <Header user={user} />
@@ -150,6 +172,8 @@ export default async function GroupPage({
           </div>
         </div>
 
+        {!isTeacher && <StudentProgress group={group} viewedMaterialIds={viewedMaterialIds} />}
+
         <nav className="mb-6 flex gap-2 overflow-x-auto pb-1" aria-label="Разделы группы">
           <TabLink groupId={group.id} tab="materials" activeTab={activeTab} label="Материалы" />
           <TabLink groupId={group.id} tab="tasks" activeTab={activeTab} label="Задачи" />
@@ -159,12 +183,77 @@ export default async function GroupPage({
           <TabLink groupId={group.id} tab="members" activeTab={activeTab} label="Участники" />
         </nav>
 
-        {activeTab === "materials" && <MaterialsTab group={group} isTeacher={isTeacher} />}
+        {activeTab === "materials" && (
+          <MaterialsTab group={group} isTeacher={isTeacher} viewedMaterialIds={viewedMaterialIds} />
+        )}
         {activeTab === "tasks" && <TasksTab group={group} isTeacher={isTeacher} />}
         {activeTab === "submissions" && isTeacher && <SubmissionsTab submissions={allSubmissions} />}
         {activeTab === "members" && <MembersTab memberships={group.memberships} isTeacher={isTeacher} />}
       </main>
     </>
+  );
+}
+
+function StudentProgress({
+  group,
+  viewedMaterialIds,
+}: {
+  group: GroupForPage;
+  viewedMaterialIds: Set<number>;
+}) {
+  const materialsDone = group.materials.filter((material) => viewedMaterialIds.has(material.id)).length;
+  const materialsTotal = group.materials.length;
+
+  const solvedTasks = group.tasks.filter((task) => task.submissions[0]?.status === "REVIEWED").length;
+  const tasksTotal = group.tasks.length;
+
+  // Средний балл — по проверенным решениям: среднее отношение балла к максимуму задачи.
+  const reviewedRatios = group.tasks
+    .map((task) => {
+      const review = task.submissions[0]?.review;
+      return review && task.maxScore > 0 ? review.score / task.maxScore : null;
+    })
+    .filter((ratio): ratio is number => ratio !== null);
+  const averagePercent =
+    reviewedRatios.length > 0
+      ? Math.round((reviewedRatios.reduce((sum, ratio) => sum + ratio, 0) / reviewedRatios.length) * 100)
+      : null;
+
+  const toPercent = (done: number, total: number) => (total > 0 ? (done / total) * 100 : 0);
+
+  return (
+    <section className={`${cardClasses} mb-6`}>
+      <h2 className="text-base font-semibold text-gray-900">Мой прогресс</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
+            <span className="text-gray-600">Материалы</span>
+            <span className="font-semibold text-gray-900">
+              {materialsDone}/{materialsTotal}
+            </span>
+          </div>
+          <ProgressBar percent={toPercent(materialsDone, materialsTotal)} />
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
+            <span className="text-gray-600">Задачи решено</span>
+            <span className="font-semibold text-gray-900">
+              {solvedTasks}/{tasksTotal}
+            </span>
+          </div>
+          <ProgressBar percent={toPercent(solvedTasks, tasksTotal)} />
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
+            <span className="text-gray-600">Средний балл</span>
+            <span className="font-semibold text-gray-900">
+              {averagePercent === null ? "—" : `${averagePercent}%`}
+            </span>
+          </div>
+          <ProgressBar percent={averagePercent ?? 0} />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -208,7 +297,15 @@ function TabLink({
   );
 }
 
-function MaterialsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean }) {
+function MaterialsTab({
+  group,
+  isTeacher,
+  viewedMaterialIds,
+}: {
+  group: GroupForPage;
+  isTeacher: boolean;
+  viewedMaterialIds: Set<number>;
+}) {
   return (
     <section className="space-y-5">
       {isTeacher && (
@@ -241,7 +338,12 @@ function MaterialsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: bo
       {group.materials.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2">
           {group.materials.map((material) => (
-            <MaterialCard key={material.id} material={material} isTeacher={isTeacher} />
+            <MaterialCard
+              key={material.id}
+              material={material}
+              isTeacher={isTeacher}
+              viewed={viewedMaterialIds.has(material.id)}
+            />
           ))}
         </div>
       ) : (
@@ -258,9 +360,19 @@ function MaterialsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: bo
   );
 }
 
-function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: boolean }) {
-  const openHref = material.url ?? `/api/materials/${material.id}/file`;
-  const downloadHref = material.url ?? `/api/materials/${material.id}/download`;
+function MaterialCard({
+  material,
+  isTeacher,
+  viewed,
+}: {
+  material: Material;
+  isTeacher: boolean;
+  viewed: boolean;
+}) {
+  // Открытие и скачивание идут через API даже для ссылок (роут редиректит на url):
+  // так фиксируется отметка «изучено» для прогресса ученика.
+  const openHref = `/api/materials/${material.id}/file?open=1`;
+  const downloadHref = `/api/materials/${material.id}/download`;
   // У текстового материала нет ни файла, ни ссылки — кнопки «Открыть/Скачать» не нужны.
   const hasContent = Boolean(material.url ?? material.filePath);
 
@@ -282,7 +394,10 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
       )}
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-gray-900">{material.title}</h3>
-        <Badge>{getMaterialTypeBadgeLabel(material.type)}</Badge>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {!isTeacher && viewed && <Badge tone="green">Изучено</Badge>}
+          <Badge>{getMaterialTypeBadgeLabel(material.type)}</Badge>
+        </div>
       </div>
       <p className="mt-1 text-sm text-gray-600">{material.description}</p>
       <div className="mt-3 space-y-0.5 text-xs text-gray-500">
@@ -298,6 +413,13 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
             Скачать
           </AnchorButton>
         </div>
+      )}
+      {!isTeacher && !hasContent && !viewed && (
+        <form className="mt-4" action={`/api/materials/${material.id}/viewed`} method="post">
+          <Button variant="secondary" size="sm">
+            Отметить изученным
+          </Button>
+        </form>
       )}
       {isTeacher && (
         <details className="mt-4 border-t border-gray-100 pt-3">
@@ -373,6 +495,10 @@ function TasksTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolea
             placeholder="Для вариантов — точный текст; несколько ответов через «;»"
           />
           <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextInput label="Дата открытия (необязательно)" name="opensAt" type="datetime-local" required={false} />
+            <TextInput label="Срок сдачи (необязательно)" name="dueAt" type="datetime-local" required={false} />
+          </div>
           <FileInput
             label="Изображение к условию"
             name="image"
@@ -412,18 +538,27 @@ function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
 function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeacher: boolean }) {
   const submission = task.submissions[0];
   const options = parseTaskOptions(task.options);
+  const notYetOpen = isTaskNotYetOpen(task);
+  const overdue = isTaskOverdue(task);
 
   return (
     <article className={cardClasses}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-semibold text-gray-900">{task.title}</h3>
         <div className="flex flex-wrap gap-1.5">
-          {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} />}
+          {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
           <Badge>{getTaskTypeLabel(task.type)}</Badge>
           <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
         </div>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
+      {(task.opensAt || task.dueAt) && (
+        <p className="mt-2 text-xs text-gray-500">
+          {task.opensAt && <>Открытие: {formatDateTime(task.opensAt)}</>}
+          {task.opensAt && task.dueAt && " · "}
+          {task.dueAt && <>Срок сдачи: {formatDateTime(task.dueAt)}</>}
+        </p>
+      )}
       {task.imagePath && (
         <img
           className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
@@ -467,6 +602,22 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
               placeholder="Для вариантов — точный текст; несколько ответов через «;»"
             />
             <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextInput
+                label="Дата открытия (необязательно)"
+                name="opensAt"
+                type="datetime-local"
+                required={false}
+                defaultValue={toDateTimeLocalValue(task.opensAt)}
+              />
+              <TextInput
+                label="Срок сдачи (необязательно)"
+                name="dueAt"
+                type="datetime-local"
+                required={false}
+                defaultValue={toDateTimeLocalValue(task.dueAt)}
+              />
+            </div>
             <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
             <Button className="w-fit">Сохранить</Button>
           </form>
@@ -480,8 +631,21 @@ function TaskCard({ task, isTeacher }: { task: TaskWithStudentSubmission; isTeac
 
       {!isTeacher && (
         <div className="mt-4">
-          {submission ? (
-            <StudentSubmissionBlock task={task} submission={submission} options={options} />
+          {notYetOpen ? (
+            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+              Задача откроется {formatDateTime(task.opensAt!)} — отправка пока недоступна.
+            </p>
+          ) : submission ? (
+            <StudentSubmissionBlock
+              task={task}
+              submission={submission}
+              options={options}
+              canResubmit={!overdue}
+            />
+          ) : overdue ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Срок сдачи истёк {formatDateTime(task.dueAt!)} — отправка недоступна.
+            </p>
           ) : (
             <SubmissionForm task={task} options={options} />
           )}
@@ -495,10 +659,12 @@ function StudentSubmissionBlock({
   task,
   submission,
   options,
+  canResubmit,
 }: {
   task: Task;
   submission: Submission & { review: Review | null; student: User };
   options: string[];
+  canResubmit: boolean;
 }) {
   const isReviewed = submission.status === "REVIEWED";
 
@@ -537,14 +703,18 @@ function StudentSubmissionBlock({
         )}
       </div>
 
-      <details className="rounded-lg border border-gray-200 p-4">
-        <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
-          Изменить ответ и отправить заново
-        </summary>
-        <div className="mt-3">
-          <SubmissionForm task={task} options={options} submission={submission} />
-        </div>
-      </details>
+      {canResubmit ? (
+        <details className="rounded-lg border border-gray-200 p-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+            Изменить ответ и отправить заново
+          </summary>
+          <div className="mt-3">
+            <SubmissionForm task={task} options={options} submission={submission} />
+          </div>
+        </details>
+      ) : (
+        <p className="text-xs text-gray-500">Срок сдачи истёк — изменить ответ уже нельзя.</p>
+      )}
     </div>
   );
 }
