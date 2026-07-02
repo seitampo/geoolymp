@@ -222,8 +222,18 @@ function MaterialsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: bo
           <TextInput label="Название" name="title" />
           <TextArea label="Описание" name="description" />
           <MaterialTypeSelect />
-          <TextInput label="Ссылка на внешний ресурс" name="url" type="url" required={false} />
-          <FileInput label="Файл" name="file" hint={`Для файловых материалов, до ${maxUploadLabel()}`} />
+          <TextInput
+            label="Ссылка на внешний ресурс (необязательно)"
+            name="url"
+            type="url"
+            required={false}
+            placeholder="Только для типа «Ссылка»"
+          />
+          <FileInput
+            label="Файл (необязательно)"
+            name="file"
+            hint={`Только для файловых типов, до ${maxUploadLabel()}`}
+          />
           <Button className="w-fit">Добавить</Button>
         </form>
       )}
@@ -251,6 +261,8 @@ function MaterialsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: bo
 function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: boolean }) {
   const openHref = material.url ?? `/api/materials/${material.id}/file`;
   const downloadHref = material.url ?? `/api/materials/${material.id}/download`;
+  // У текстового материала нет ни файла, ни ссылки — кнопки «Открыть/Скачать» не нужны.
+  const hasContent = Boolean(material.url ?? material.filePath);
 
   return (
     <article className={cardClasses}>
@@ -277,14 +289,16 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
         <p>Дата загрузки: {formatDate(material.uploadedAt)}</p>
         {material.originalFileName && <p className="break-all">Файл: {material.originalFileName}</p>}
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <AnchorButton href={openHref} variant="primary" size="sm" newTab>
-          Открыть
-        </AnchorButton>
-        <AnchorButton href={downloadHref} variant="secondary" size="sm">
-          Скачать
-        </AnchorButton>
-      </div>
+      {hasContent && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <AnchorButton href={openHref} variant="primary" size="sm" newTab>
+            Открыть
+          </AnchorButton>
+          <AnchorButton href={downloadHref} variant="secondary" size="sm">
+            Скачать
+          </AnchorButton>
+        </div>
+      )}
       {isTeacher && (
         <details className="mt-4 border-t border-gray-100 pt-3">
           <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
@@ -300,13 +314,14 @@ function MaterialCard({ material, isTeacher }: { material: Material; isTeacher: 
             <TextArea label="Описание" name="description" defaultValue={material.description} />
             <MaterialTypeSelect defaultValue={material.type} />
             <TextInput
-              label="Ссылка на внешний ресурс"
+              label="Ссылка на внешний ресурс (необязательно)"
               name="url"
               type="url"
               required={false}
               defaultValue={material.url ?? ""}
+              placeholder="Только для типа «Ссылка»"
             />
-            <FileInput label="Новый файл" name="file" />
+            <FileInput label="Новый файл (необязательно)" name="file" />
             <Button className="w-fit">Сохранить</Button>
           </form>
           <form className="mt-3" action={`/api/materials/${material.id}/delete`} method="post">
@@ -325,7 +340,7 @@ function MaterialTypeSelect({ defaultValue }: { defaultValue?: string }) {
     <SelectField
       label="Тип материала"
       name="type"
-      defaultValue={defaultValue ?? "LINK"}
+      defaultValue={defaultValue ?? "TEXT"}
       options={materialTypes}
     />
   );

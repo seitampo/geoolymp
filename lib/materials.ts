@@ -3,6 +3,7 @@ import path from "path";
 import { allowedImageExtensions, getAbsoluteUploadPath, saveUploadedFile } from "./uploads";
 
 export const materialTypes = [
+  { value: MaterialType.TEXT, label: "Только текст (без файла и ссылки)" },
   { value: MaterialType.PDF, label: "PDF" },
   { value: MaterialType.DOCX, label: "DOCX" },
   { value: MaterialType.PPTX, label: "PPTX" },
@@ -12,6 +13,7 @@ export const materialTypes = [
 ];
 
 const allowedExtensions: Record<MaterialType, string[]> = {
+  TEXT: [],
   PDF: [".pdf"],
   DOCX: [".docx"],
   PPTX: [".pptx"],
@@ -26,7 +28,9 @@ export function getMaterialTypeLabel(type: MaterialType) {
 
 /** Короткая подпись для бейджа на карточке (полная — для выпадающего списка). */
 export function getMaterialTypeBadgeLabel(type: MaterialType) {
-  return type === MaterialType.LINK ? "Ссылка" : getMaterialTypeLabel(type);
+  if (type === MaterialType.LINK) return "Ссылка";
+  if (type === MaterialType.TEXT) return "Текст";
+  return getMaterialTypeLabel(type);
 }
 
 /**
@@ -43,7 +47,7 @@ export function isValidExternalUrl(value: string) {
 }
 
 export function isFileMaterial(type: MaterialType) {
-  return type !== MaterialType.LINK;
+  return type !== MaterialType.LINK && type !== MaterialType.TEXT;
 }
 
 export function isPreviewableMaterial(type: MaterialType) {

@@ -19,6 +19,7 @@ enum SubmissionStatus {
 }
 
 enum MaterialType {
+  TEXT
   PDF
   DOCX
   PPTX

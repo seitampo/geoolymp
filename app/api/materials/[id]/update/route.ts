@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { MaterialType, Role } from "@prisma/client";
 import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
@@ -48,13 +48,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (!isFileMaterial(type)) {
-    if (!url || !isValidExternalUrl(url)) {
+    if (type === MaterialType.LINK && (!url || !isValidExternalUrl(url))) {
       return redirectWithError(request, backTo, "Добавьте корректную ссылку (http:// или https://).");
     }
 
     await prisma.material.update({
       where: { id: materialId },
-      data: { title, description, type, url, filePath: null, originalFileName: null },
+      data: {
+        title,
+        description,
+        type,
+        url: type === MaterialType.LINK ? url : null,
+        filePath: null,
+        originalFileName: null,
+      },
     });
 
     if (material.filePath) {

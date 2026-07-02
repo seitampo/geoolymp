@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { MaterialType, Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
@@ -70,12 +70,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         originalFileName: savedFile.originalFileName,
       },
     });
-  } else {
+  } else if (type === MaterialType.LINK) {
     if (!url || !isValidExternalUrl(url)) {
       return redirectWithError(request, backTo, "Добавьте корректную ссылку (http:// или https://).");
     }
 
     await prisma.material.create({ data: { groupId, title, description, type, url } });
+  } else {
+    // Текстовый материал: достаточно названия и описания.
+    await prisma.material.create({ data: { groupId, title, description, type } });
   }
 
   return redirectAfterPost(request, backTo);
