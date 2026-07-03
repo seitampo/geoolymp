@@ -5,6 +5,7 @@ import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isTaskVisibleToStudents } from "@/lib/tasks";
+import { hasTrainingAttemptForTask, isTaskInTrainingSet } from "@/lib/training";
 import { getAbsoluteUploadPath } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -29,6 +30,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Изображение черновика доступно только учителю группы.
   if (task.group.teacherId !== user.id && !isTaskVisibleToStudents(task)) {
+    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+  }
+
+  // Картинку тренировочной задачи ученик видит только начав тренировку —
+  // иначе условие можно подсмотреть перебором id до старта.
+  if (
+    task.group.teacherId !== user.id &&
+    (await isTaskInTrainingSet(task.id)) &&
+    !(await hasTrainingAttemptForTask(user.id, task.id))
+  ) {
     return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
   }
 

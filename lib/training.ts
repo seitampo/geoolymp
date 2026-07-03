@@ -10,6 +10,42 @@ export function isTrainingSupportedTaskType(type: TaskType) {
   return type === TaskType.TEXT || type === TaskType.SINGLE_CHOICE || type === TaskType.MULTIPLE_CHOICE;
 }
 
+/**
+ * Prisma-условие «задача не входит ни в одну тренировочную подборку».
+ * Тренировочные задачи на карантине: ученик видит их только внутри попытки,
+ * иначе автопроверка на вкладке задач раскрыла бы правильные ответы до тренировки.
+ */
+export const notInTrainingSetFilter = {
+  setItems: { none: { set: { trainingMinutes: { not: null } } } },
+} as const;
+
+/** Входит ли задача хотя бы в одну тренировочную подборку. */
+export async function isTaskInTrainingSet(taskId: number) {
+  const item = await prisma.taskSetItem.findFirst({
+    where: { taskId, set: { trainingMinutes: { not: null } } },
+    select: { id: true },
+  });
+  return item !== null;
+}
+
+/** id всех задач группы, занятых в тренировочных подборках. */
+export async function getTrainingTaskIds(groupId: number) {
+  const items = await prisma.taskSetItem.findMany({
+    where: { set: { groupId, trainingMinutes: { not: null } } },
+    select: { taskId: true },
+  });
+  return new Set(items.map((item) => item.taskId));
+}
+
+/** Есть ли у ученика попытка (идущая или завершённая) в тренировке с этой задачей. */
+export async function hasTrainingAttemptForTask(studentId: number, taskId: number) {
+  const attempt = await prisma.trainingAttempt.findFirst({
+    where: { studentId, set: { trainingMinutes: { not: null }, items: { some: { taskId } } } },
+    select: { id: true },
+  });
+  return attempt !== null;
+}
+
 /** Разбор необязательного лимита времени (в минутах) из формы подборки. */
 export function parseTrainingMinutes(value: string): number | null | undefined {
   if (!value.trim()) {

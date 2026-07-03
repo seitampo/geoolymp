@@ -13,7 +13,7 @@ import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, isAutoGradedTask, isTaskVisibleToStudents } from "@/lib/tasks";
-import { isTrainingSupportedTaskType } from "@/lib/training";
+import { getTrainingTaskIds, isTrainingSupportedTaskType } from "@/lib/training";
 
 export default async function TaskSetPage({
   params,
@@ -63,9 +63,14 @@ export default async function TaskSetPage({
   const isTeacher = user.role === "TEACHER";
 
   // Черновики в подборке видит только учитель — тот же фильтр, что и на вкладке задач.
+  // В обычной подборке ученик не видит и задачи, занятые в тренировках других подборок.
+  const quarantinedTaskIds =
+    !isTeacher && set.trainingMinutes === null ? await getTrainingTaskIds(groupId) : new Set<number>();
   const visibleItems = isTeacher
     ? set.items
-    : set.items.filter((item) => isTaskVisibleToStudents(item.task));
+    : set.items.filter(
+        (item) => isTaskVisibleToStudents(item.task) && !quarantinedTaskIds.has(item.taskId),
+      );
 
   // Открытие подборки тоже «показывает результат» — снимаем пометку «Новый результат»
   // с задач подборки (та же логика, что на вкладке задач: рендерим по уже загруженным данным).

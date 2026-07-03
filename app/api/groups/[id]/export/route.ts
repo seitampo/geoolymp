@@ -4,6 +4,7 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { isTaskVisibleToStudents } from "@/lib/tasks";
+import { getTrainingTaskIds } from "@/lib/training";
 import { contentDisposition } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -46,8 +47,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     submissions.map((submission) => [submissionKey(submission), submission]),
   );
 
-  // Черновики не экспортируем: по ним не может быть решений, строки только шумят.
-  const visibleTasks = group.tasks.filter((task) => isTaskVisibleToStudents(task));
+  // Черновики и тренировочные задачи не экспортируем: обычных решений по ним нет,
+  // строки только шумят (результаты тренировок — на странице подборки).
+  const trainingTaskIds = await getTrainingTaskIds(groupId);
+  const visibleTasks = group.tasks.filter(
+    (task) => isTaskVisibleToStudents(task) && !trainingTaskIds.has(task.id),
+  );
 
   const rows: string[][] = [["Ученик", "Email", "Задача", "Статус", "Балл", "Макс. балл"]];
 

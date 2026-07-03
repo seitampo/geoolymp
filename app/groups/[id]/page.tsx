@@ -38,6 +38,7 @@ import {
   taskGrades,
   validateOlympiadLevel,
 } from "@/lib/tasks";
+import { getTrainingTaskIds, notInTrainingSetFilter } from "@/lib/training";
 import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "sets" | "submissions" | "members";
@@ -130,10 +131,14 @@ export default async function GroupPage({
       materials: { orderBy: { uploadedAt: "desc" } },
       tasks: {
         orderBy: { id: "asc" },
-        // Черновики видит только учитель; условие повторяет isTaskVisibleToStudents.
+        // Черновики видит только учитель (условие повторяет isTaskVisibleToStudents),
+        // а тренировочные задачи для ученика существуют только внутри тренировки.
         where:
           user.role === "STUDENT"
-            ? { OR: [{ isPublished: true }, { publishAt: { lte: new Date() } }] }
+            ? {
+                OR: [{ isPublished: true }, { publishAt: { lte: new Date() } }],
+                ...notInTrainingSetFilter,
+              }
             : undefined,
         include: {
           submissions: {
@@ -185,6 +190,10 @@ export default async function GroupPage({
         orderBy: { name: "asc" },
       })
     : [];
+
+  // Задачи, занятые в тренировочных подборках, — учителю показываем бейдж-предупреждение.
+  const trainingTaskIds =
+    isTeacher && activeTab === "tasks" ? await getTrainingTaskIds(groupId) : new Set<number>();
 
   // Библиотека: задачи учителя из других его групп — для переиспользования копией.
   const libraryTasks: LibraryTask[] =
@@ -296,6 +305,7 @@ export default async function GroupPage({
             classification={classification}
             teacherGroups={teacherGroups}
             libraryTasks={libraryTasks}
+            trainingTaskIds={trainingTaskIds}
           />
         )}
         {activeTab === "sets" && <SetsTab group={group} isTeacher={isTeacher} />}
@@ -825,6 +835,7 @@ function TasksTab({
   classification,
   teacherGroups,
   libraryTasks,
+  trainingTaskIds,
 }: {
   group: GroupForPage;
   isTeacher: boolean;
@@ -833,6 +844,7 @@ function TasksTab({
   classification: ClassificationFilters;
   teacherGroups: TeacherGroupOption[];
   libraryTasks: LibraryTask[];
+  trainingTaskIds: Set<number>;
 }) {
   const normalizedQuery = searchQuery.toLowerCase();
   const visibleTasks = group.tasks.filter((task) => {
@@ -981,6 +993,7 @@ function TasksTab({
               isTeacher={isTeacher}
               teacherGroups={teacherGroups}
               membersCount={group.memberships.length}
+              inTraining={trainingTaskIds.has(task.id)}
             />
           ))}
         </div>

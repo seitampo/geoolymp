@@ -16,6 +16,7 @@ import {
   normalizeMultipleChoiceAnswer,
   parseTaskOptions,
 } from "@/lib/tasks";
+import { isTaskInTrainingSet } from "@/lib/training";
 import {
   getAbsoluteUploadPath,
   isAllowedImageFileName,
@@ -46,6 +47,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const backTo = `/groups/${task.groupId}?tab=tasks`;
+
+  // Тренировочные задачи решаются только внутри попытки (/api/training/*):
+  // обычная отправка раскрыла бы правильный ответ автопроверкой до тренировки.
+  if (await isTaskInTrainingSet(task.id)) {
+    return redirectWithError(request, backTo, "Эта задача решается только в режиме тренировки.");
+  }
 
   // Сроки проверяются на сервере: скрытая форма в интерфейсе не защищает от прямого POST.
   if (isTaskNotYetOpen(task)) {

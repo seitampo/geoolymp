@@ -197,11 +197,14 @@ export function TaskCard({
   isTeacher,
   teacherGroups,
   membersCount,
+  inTraining = false,
 }: {
   task: TaskWithStudentSubmission;
   isTeacher: boolean;
   teacherGroups: TeacherGroupOption[];
   membersCount: number;
+  /** Задача занята в тренировочной подборке — ученикам видна только там. */
+  inTraining?: boolean;
 }) {
   const submission = task.submissions[0];
   const options = parseTaskOptions(task.options);
@@ -217,6 +220,7 @@ export function TaskCard({
         <div className="flex flex-wrap gap-1.5">
           {hasNewResult && <Badge tone="emerald">Новый результат</Badge>}
           {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
+          {isTeacher && inTraining && <Badge tone="amber">Только в тренировке</Badge>}
           {isTeacher && !visibleToStudents &&
             (task.publishAt ? (
               <Badge tone="amber">Публикация: {formatDateTime(task.publishAt)}</Badge>
