@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
-import { Button } from "@/components/Button";
+import { Button, LinkButton } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -12,7 +12,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { isTaskVisibleToStudents } from "@/lib/tasks";
+import { formatDateTime, isAutoGradedTask, isTaskVisibleToStudents } from "@/lib/tasks";
+import { isTrainingSupportedTaskType } from "@/lib/training";
 
 export default async function TaskSetPage({
   params,
@@ -87,6 +88,32 @@ export default async function TaskSetPage({
 
   const membersCount = await prisma.membership.count({ where: { groupId } });
 
+  const isTrainingMode = set.trainingMinutes !== null;
+  const trainableCount = visibleItems.filter((item) =>
+    isTrainingSupportedTaskType(item.task.type),
+  ).length;
+
+  // Ученику в тренировочной подборке — только карточка тренировки, без задач.
+  const studentAttempt =
+    !isTeacher && isTrainingMode
+      ? await prisma.trainingAttempt.findUnique({
+          where: { setId_studentId: { setId: set.id, studentId: user.id } },
+        })
+      : null;
+
+  // Учителю — сводка попыток учеников.
+  const attempts =
+    isTeacher && isTrainingMode
+      ? await prisma.trainingAttempt.findMany({
+          where: { setId: set.id },
+          include: { student: true, answers: true },
+          orderBy: { startedAt: "desc" },
+        })
+      : [];
+  const possibleScore = set.items
+    .filter((item) => isAutoGradedTask(item.task.type) && item.task.correctAnswer)
+    .reduce((sum, item) => sum + item.task.maxScore, 0);
+
   const teacherGroups: TeacherGroupOption[] = isTeacher
     ? await prisma.group.findMany({
         where: { teacherId: user.id },
@@ -125,9 +152,10 @@ export default async function TaskSetPage({
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold tracking-tight text-gray-900">{set.title}</h1>
                 <Badge tone="emerald">Задач: {visibleItems.length}</Badge>
+                {isTrainingMode && <Badge tone="amber">Тренировка · {set.trainingMinutes} мин</Badge>}
               </div>
               <p className="mt-1 text-sm text-gray-600">{set.description}</p>
-              {!isTeacher && visibleItems.length > 0 && (
+              {!isTeacher && !isTrainingMode && visibleItems.length > 0 && (
                 <p className="mt-2 text-xs text-gray-500">Решайте задачи по порядку — сверху вниз.</p>
               )}
             </div>
@@ -150,6 +178,15 @@ export default async function TaskSetPage({
               <form className="mt-4 grid gap-3" action={`/api/sets/${set.id}/update`} method="post">
                 <TextInput label="Название" name="title" defaultValue={set.title} />
                 <TextArea label="Описание" name="description" defaultValue={set.description} />
+                <TextInput
+                  label="Лимит тренировки в минутах (пусто — обычная подборка)"
+                  name="trainingMinutes"
+                  type="number"
+                  min={1}
+                  max={600}
+                  required={false}
+                  defaultValue={set.trainingMinutes ?? ""}
+                />
                 <Button className="w-fit">Сохранить</Button>
               </form>
             </details>
@@ -173,10 +210,76 @@ export default async function TaskSetPage({
                 <Button className="shrink-0">Добавить в подборку</Button>
               </form>
             )}
+
+            {isTrainingMode && attempts.length > 0 && (
+              <div className={cardClasses}>
+                <h2 className="text-base font-semibold text-gray-900">Попытки учеников</h2>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[420px] text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                        <th className="py-2 pr-3">Ученик</th>
+                        <th className="py-2 pr-3">Результат</th>
+                        <th className="py-2 pr-3">Статус</th>
+                        <th className="py-2">Начата</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {attempts.map((attempt) => {
+                        const earned = attempt.answers.reduce((sum, answer) => sum + answer.score, 0);
+                        return (
+                          <tr key={attempt.id}>
+                            <td className="py-2 pr-3 font-medium text-gray-900">{attempt.student.name}</td>
+                            <td className="py-2 pr-3 text-gray-700">
+                              {attempt.finishedAt ? `${earned} из ${possibleScore}` : "—"}
+                            </td>
+                            <td className="py-2 pr-3">
+                              {attempt.finishedAt ? (
+                                <Badge tone="green">Завершена</Badge>
+                              ) : (
+                                <Badge tone="amber">Идёт</Badge>
+                              )}
+                            </td>
+                            <td className="py-2 text-gray-700">{formatDateTime(attempt.startedAt)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {visibleItems.length === 0 ? (
+        {!isTeacher && isTrainingMode ? (
+          <section className={`${cardClasses} text-center`}>
+            <h2 className="text-lg font-semibold text-gray-900">Тренировка</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {trainableCount} задач · {set.trainingMinutes} минут · одна попытка · без подсказок
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Задачи откроются после старта, таймер запустится сразу — подготовьтесь заранее.
+            </p>
+            <div className="mt-4 flex justify-center">
+              {studentAttempt?.finishedAt ? (
+                <LinkButton href={`/groups/${groupId}/sets/${set.id}/training`} variant="secondary">
+                  Посмотреть результат
+                </LinkButton>
+              ) : studentAttempt ? (
+                <LinkButton href={`/groups/${groupId}/sets/${set.id}/training`} variant="primary">
+                  Продолжить тренировку
+                </LinkButton>
+              ) : trainableCount > 0 ? (
+                <form action={`/api/sets/${set.id}/training/start`} method="post">
+                  <Button variant="primary">Начать тренировку</Button>
+                </form>
+              ) : (
+                <p className="text-sm text-gray-500">Учитель ещё не добавил задачи для тренировки.</p>
+              )}
+            </div>
+          </section>
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             title="В подборке пока нет задач"
             description={

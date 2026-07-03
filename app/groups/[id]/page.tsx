@@ -998,6 +998,15 @@ function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean
           <h2 className="text-base font-semibold text-gray-900">Создать подборку</h2>
           <TextInput label="Название" name="title" placeholder="Например: Климат — 20 задач" />
           <TextArea label="Описание" name="description" placeholder="Какая тема и зачем решать" />
+          <TextInput
+            label="Лимит тренировки в минутах (необязательно)"
+            name="trainingMinutes"
+            type="number"
+            min={1}
+            max={600}
+            required={false}
+            placeholder="Например: 40 — включит режим тренировки"
+          />
           <Button className="w-fit">Создать подборку</Button>
         </form>
       )}
@@ -1012,7 +1021,12 @@ function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-gray-900">{set.title}</h3>
-                <Badge tone="emerald">Задач: {set._count.items}</Badge>
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {set.trainingMinutes !== null && (
+                    <Badge tone="amber">Тренировка · {set.trainingMinutes} мин</Badge>
+                  )}
+                  <Badge tone="emerald">Задач: {set._count.items}</Badge>
+                </div>
               </div>
               <p className="mt-1 text-sm text-gray-600">{set.description}</p>
             </Link>

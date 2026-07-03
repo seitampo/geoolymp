@@ -324,6 +324,8 @@ export function TaskCard({
         </details>
       )}
 
+      {isTeacher && <ExplanationEditor task={task} />}
+
       {!isTeacher && (
         <div className="mt-4">
           {notYetOpen ? (
@@ -347,6 +349,60 @@ export function TaskCard({
         </div>
       )}
     </article>
+  );
+}
+
+/** Форма разбора решения (учитель): текст и/или файл PDF/картинка. */
+function ExplanationEditor({ task }: { task: Task }) {
+  const hasExplanation = Boolean(task.explanationText || task.explanationFilePath);
+
+  return (
+    <details className="mt-4 border-t border-gray-100 pt-3">
+      <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+        Разбор решения{hasExplanation ? " · добавлен" : ""}
+      </summary>
+      <p className="mt-2 text-xs text-gray-500">
+        Ученик увидит разбор после того, как его решение будет проверено.
+      </p>
+      <form
+        className="mt-3 grid gap-3"
+        action={`/api/tasks/${task.id}/explanation`}
+        method="post"
+        encType="multipart/form-data"
+      >
+        <TextArea
+          label="Текст разбора"
+          name="explanationText"
+          required={false}
+          defaultValue={task.explanationText ?? ""}
+          placeholder="Ход решения, типичные ошибки, на что обратить внимание"
+        />
+        <FileInput
+          label={task.explanationFilePath ? "Заменить файл разбора" : "Файл разбора (необязательно)"}
+          name="file"
+          accept=".pdf,image/*"
+          hint={`PDF, JPG, PNG или WebP, до ${maxUploadLabel()}`}
+        />
+        {task.explanationFilePath && (
+          <a
+            className="break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            href={`/api/tasks/${task.id}/explanation/file`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Текущий файл: {task.explanationFileName ?? "открыть"}
+          </a>
+        )}
+        <Button className="w-fit">Сохранить разбор</Button>
+      </form>
+      {hasExplanation && (
+        <form className="mt-3" action={`/api/tasks/${task.id}/explanation/delete`} method="post">
+          <Button variant="danger" size="sm">
+            Удалить разбор
+          </Button>
+        </form>
+      )}
+    </details>
   );
 }
 
@@ -397,6 +453,25 @@ function StudentSubmissionBlock({
           <p className="mt-3 text-sm text-gray-500">Учитель ещё не проверил решение.</p>
         )}
       </div>
+
+      {isReviewed && (task.explanationText || task.explanationFilePath) && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-900">Разбор задачи</p>
+          {task.explanationText && (
+            <p className="mt-1.5 whitespace-pre-wrap text-sm text-emerald-900">{task.explanationText}</p>
+          )}
+          {task.explanationFilePath && (
+            <a
+              className="mt-2 inline-block break-all text-sm font-medium text-emerald-800 hover:underline"
+              href={`/api/tasks/${task.id}/explanation/file`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Открыть файл разбора{task.explanationFileName ? ` (${task.explanationFileName})` : ""}
+            </a>
+          )}
+        </div>
+      )}
 
       {canResubmit ? (
         <details className="rounded-lg border border-gray-200 p-4">

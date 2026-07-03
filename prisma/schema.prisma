@@ -44,15 +44,16 @@ enum OlympiadLevel {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  password      String
-  role          Role
-  groups        Group[]        @relation("TeacherGroups")
-  memberships   Membership[]
-  submissions   Submission[]
-  materialViews MaterialView[]
+  id               Int               @id @default(autoincrement())
+  name             String
+  email            String            @unique
+  password         String
+  role             Role
+  groups           Group[]           @relation("TeacherGroups")
+  memberships      Membership[]
+  submissions      Submission[]
+  materialViews    MaterialView[]
+  trainingAttempts TrainingAttempt[]
 }
 
 model Group {
@@ -131,9 +132,15 @@ model Task {
   grade             Int? // класс, 7–11
   olympiadLevel     OlympiadLevel?
   difficulty        Int? // сложность, 1–5
-  group             Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Разбор решения: текст и/или файл (PDF/картинка). Ученик видит после проверки
+  // своего решения (submissions/[id] REVIEWED), доступ контролируется на сервере.
+  explanationText     String?
+  explanationFilePath String?
+  explanationFileName String?
+  group             Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions       Submission[]
   setItems          TaskSetItem[]
+  trainingAnswers   TrainingAnswer[]
 
   @@index([groupId])
 }
@@ -144,10 +151,46 @@ model TaskSet {
   groupId     Int
   title       String
   description String
-  group       Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Режим тренировки: лимит времени в минутах. null — обычная подборка.
+  // У тренировочной подборки ученик не видит задачи заранее — только через попытку.
+  trainingMinutes Int?
+  group       Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   items       TaskSetItem[]
+  attempts    TrainingAttempt[]
 
   @@index([groupId])
+}
+
+// Попытка тренировки: одна на пару подборка+ученик («одна попытка»).
+model TrainingAttempt {
+  id         Int              @id @default(autoincrement())
+  setId      Int
+  studentId  Int
+  startedAt  DateTime         @default(now())
+  // Дедлайн фиксируется при старте; сервер сверяется с ним при каждом запросе.
+  expiresAt  DateTime
+  finishedAt DateTime?
+  set        TaskSet          @relation(fields: [setId], references: [id], onDelete: Cascade)
+  student    User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers    TrainingAnswer[]
+
+  @@unique([setId, studentId])
+  @@index([studentId])
+}
+
+model TrainingAnswer {
+  id        Int             @id @default(autoincrement())
+  attemptId Int
+  taskId    Int
+  answer    String
+  // Заполняются при завершении попытки: null — тип без автопроверки (текстовый).
+  isCorrect Boolean?
+  score     Int             @default(0)
+  attempt   TrainingAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  task      Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, taskId])
+  @@index([taskId])
 }
 
 model TaskSetItem {
