@@ -57,6 +57,21 @@ model User {
   trainingAttempts TrainingAttempt[]
   olympiads        Olympiad[]        @relation("TeacherOlympiads")
   olympiadAttempts OlympiadAttempt[]
+  earnedBadges     EarnedBadge[]
+}
+
+// Полученный значок достижения. Каталог значков живёт в коде (lib/achievements.ts);
+// здесь только факт получения. seenAt как в Review — для пометки «новый значок».
+model EarnedBadge {
+  id       Int       @id @default(autoincrement())
+  userId   Int
+  code     String
+  earnedAt DateTime  @default(now())
+  seenAt   DateTime?
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 model Group {
@@ -304,6 +319,10 @@ model Submission {
   filePath         String?
   originalFileName String?
   status           SubmissionStatus @default(PENDING)
+  // createdAt — первая отправка по задаче, updatedAt — последняя (пере)отправка.
+  // Нужны для стриков активности в достижениях.
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @default(now()) @updatedAt
   task             Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
   student          User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
   review           Review?

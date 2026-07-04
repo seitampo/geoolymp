@@ -25,6 +25,14 @@ export function Header({ user }: { user: User }) {
           GeoOlymp
         </Link>
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          {user.role === "STUDENT" && (
+            <Link
+              href="/achievements"
+              className="hidden shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-emerald-700 sm:inline"
+            >
+              Достижения
+            </Link>
+          )}
           <div className="min-w-0 text-right leading-tight">
             <p className="truncate text-sm font-medium text-gray-900">{user.name}</p>
             <p className="text-xs text-gray-500">{user.role === "TEACHER" ? "Учитель" : "Ученик"}</p>

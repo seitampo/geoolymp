@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Header } from "@/components/Header";
 import { inputClasses, TextArea, TextInput } from "@/components/FormFields";
+import { awardEarnedBadges, badgeCatalog, computeAchievementStats } from "@/lib/achievements";
 import { getCurrentUser } from "@/lib/auth";
 import { getOlympiadPhase, getOlympiadPhaseLabel } from "@/lib/olympiads";
 import { prisma } from "@/lib/prisma";
@@ -44,6 +45,18 @@ export default async function DashboardPage({
         ).map((review) => review.submission.task.groupId)
       : [],
   );
+
+  // Достижения ученика: начисляем недостающие значки и показываем сводку с пометкой новых.
+  let achievements: { earnedCount: number; unseenCount: number; streak: number } | null = null;
+  if (user.role === "STUDENT") {
+    const stats = await computeAchievementStats(user.id);
+    await awardEarnedBadges(user.id, stats);
+    const [earnedCount, unseenCount] = await Promise.all([
+      prisma.earnedBadge.count({ where: { userId: user.id } }),
+      prisma.earnedBadge.count({ where: { userId: user.id, seenAt: null } }),
+    ]);
+    achievements = { earnedCount, unseenCount, streak: stats.currentStreak };
+  }
 
   // Олимпиады: учителю — свои, ученику — назначенные его группам.
   const olympiadCards =
@@ -114,6 +127,29 @@ export default async function DashboardPage({
               <Button className="shrink-0">Вступить</Button>
             </form>
           </section>
+        )}
+
+        {achievements && (
+          <Link
+            href="/achievements"
+            className={`${cardClasses} mb-8 flex flex-wrap items-center justify-between gap-3 transition hover:border-emerald-300 hover:shadow-md`}
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-gray-900">Достижения</h2>
+                {achievements.unseenCount > 0 && (
+                  <Badge tone="emerald">Новых: {achievements.unseenCount}</Badge>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                Значков: {achievements.earnedCount} из {badgeCatalog.length} · стрик{" "}
+                {achievements.streak} дн.
+              </p>
+            </div>
+            <span className="text-2xl" aria-hidden="true">
+              🏅
+            </span>
+          </Link>
         )}
 
         <section className="mb-8">
