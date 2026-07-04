@@ -64,6 +64,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       grade: task.grade,
       olympiadLevel: task.olympiadLevel,
       difficulty: task.difficulty,
+      mapTargetX: task.mapTargetX,
+      mapTargetY: task.mapTargetY,
+      mapRadius: task.mapRadius,
     },
   });
 

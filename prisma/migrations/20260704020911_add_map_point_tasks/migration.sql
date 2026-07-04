@@ -1,0 +1,7 @@
+-- AlterEnum
+ALTER TYPE "TaskType" ADD VALUE 'MAP_POINT';
+
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN     "mapRadius" DOUBLE PRECISION,
+ADD COLUMN     "mapTargetX" DOUBLE PRECISION,
+ADD COLUMN     "mapTargetY" DOUBLE PRECISION;

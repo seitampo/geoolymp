@@ -6,6 +6,7 @@ export const taskTypes = [
   { value: TaskType.MULTIPLE_CHOICE, label: "Несколько вариантов" },
   { value: TaskType.IMAGE_UPLOAD, label: "Загрузка изображения" },
   { value: TaskType.FILE_UPLOAD, label: "Загрузка файла" },
+  { value: TaskType.MAP_POINT, label: "Клик по карте" },
 ];
 
 export function getTaskTypeLabel(type: TaskType) {
@@ -123,6 +124,81 @@ export function formatDateTime(date: Date) {
 /** Задачи с вариантами проверяются автоматически, остальные — учителем вручную. */
 export function isAutoGradedTask(type: TaskType) {
   return type === TaskType.SINGLE_CHOICE || type === TaskType.MULTIPLE_CHOICE;
+}
+
+export function isMapTask(type: TaskType) {
+  return type === TaskType.MAP_POINT;
+}
+
+/** Поля задачи, которые нужны для автопроверки любого поддерживаемого типа. */
+export type AutoCheckableTask = {
+  type: TaskType;
+  correctAnswer: string | null;
+  mapTargetX: number | null;
+  mapTargetY: number | null;
+  mapRadius: number | null;
+};
+
+/** Есть ли у задачи всё для автопроверки (варианты с ответом или карта с целью). */
+export function isAutoCheckedTask(task: AutoCheckableTask) {
+  if (isAutoGradedTask(task.type)) {
+    return Boolean(task.correctAnswer);
+  }
+
+  if (isMapTask(task.type)) {
+    return task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null;
+  }
+
+  return false;
+}
+
+/** Ответ картозадачи: "x;y" в процентах ширины изображения. */
+export function parseMapPoint(answer: string): { x: number; y: number } | null {
+  const parts = answer.split(";").map((value) => Number(value.trim()));
+
+  if (parts.length !== 2 || parts.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+
+  return { x: parts[0], y: parts[1] };
+}
+
+/**
+ * Число из формы картозадачи (координата/радиус в процентах ширины).
+ * Пустая строка → null, вне диапазона → undefined (ошибка формы).
+ */
+export function parseMapNumber(value: string, min: number, max: number): number | null | undefined {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max
+    ? Math.round(parsed * 100) / 100
+    : undefined;
+}
+
+/**
+ * Единая автопроверка для всех поверхностей (задачи, тренировки, олимпиады):
+ * true/false — вердикт, null — тип без автопроверки, оценивает учитель.
+ */
+export function autoCheckAnswer(task: AutoCheckableTask, answer: string): boolean | null {
+  if (isAutoGradedTask(task.type) && task.correctAnswer) {
+    return isAnswerCorrect(task.type, answer, task.correctAnswer);
+  }
+
+  if (isMapTask(task.type) && task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null) {
+    const point = parseMapPoint(answer);
+
+    if (!point) {
+      return false;
+    }
+
+    // Обе координаты в процентах ширины — обычное евклидово расстояние корректно.
+    return Math.hypot(point.x - task.mapTargetX, point.y - task.mapTargetY) <= task.mapRadius;
+  }
+
+  return null;
 }
 
 /**

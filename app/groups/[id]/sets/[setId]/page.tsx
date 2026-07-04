@@ -12,7 +12,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, isAutoGradedTask, isTaskVisibleToStudents } from "@/lib/tasks";
+import { formatDateTime, isAutoCheckedTask, isTaskVisibleToStudents } from "@/lib/tasks";
 import { getTrainingTaskIds, isTrainingSupportedTaskType } from "@/lib/training";
 
 export default async function TaskSetPage({
@@ -116,7 +116,7 @@ export default async function TaskSetPage({
         })
       : [];
   const possibleScore = set.items
-    .filter((item) => isAutoGradedTask(item.task.type) && item.task.correctAnswer)
+    .filter((item) => isAutoCheckedTask(item.task))
     .reduce((sum, item) => sum + item.task.maxScore, 0);
 
   const teacherGroups: TeacherGroupOption[] = isTeacher

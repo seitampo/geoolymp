@@ -6,12 +6,13 @@ import { cardClasses } from "@/components/Card";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { TextArea } from "@/components/FormFields";
 import { Header } from "@/components/Header";
+import { MapAnswerInput } from "@/components/MapPoint";
 import { TrainingTimer } from "@/components/TrainingTimer";
 import { getCurrentUser } from "@/lib/auth";
 import { finalizeOlympiadAttempt, parseTaskOrder } from "@/lib/olympiads";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { parseTaskOptions } from "@/lib/tasks";
+import { isMapTask, parseTaskOptions } from "@/lib/tasks";
 
 export default async function OlympiadTakePage({
   params,
@@ -115,7 +116,7 @@ export default async function OlympiadTakePage({
                   </div>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
-                {task.imagePath && (
+                {task.imagePath && !isMapTask(task.type) && (
                   <img
                     className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
                     src={`/api/tasks/${task.id}/image`}
@@ -132,6 +133,12 @@ export default async function OlympiadTakePage({
                   <input type="hidden" name="taskId" value={task.id} />
                   {task.type === "TEXT" && (
                     <TextArea label="Ответ" name="answer" defaultValue={savedAnswer?.answer ?? ""} />
+                  )}
+                  {task.type === "MAP_POINT" && task.imagePath && (
+                    <MapAnswerInput
+                      imageUrl={`/api/tasks/${task.id}/image`}
+                      initialAnswer={savedAnswer?.answer}
+                    />
                   )}
                   {task.type === "SINGLE_CHOICE" &&
                     options.map((option) => (

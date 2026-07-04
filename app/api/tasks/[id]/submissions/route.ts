@@ -7,13 +7,15 @@ import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
+  autoCheckAnswer,
   formatDateTime,
-  isAnswerCorrect,
   isAutoGradedTask,
+  isMapTask,
   isTaskNotYetOpen,
   isTaskOverdue,
   isTaskVisibleToStudents,
   normalizeMultipleChoiceAnswer,
+  parseMapPoint,
   parseTaskOptions,
 } from "@/lib/tasks";
 import { isTaskInTrainingSet } from "@/lib/training";
@@ -87,6 +89,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
+  if (isMapTask(task.type) && parseMapPoint(answer) === null) {
+    return redirectWithError(request, backTo, "Отметьте точку на карте.");
+  }
+
   if (file instanceof File && isUploadTooLarge(file.size)) {
     return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
   }
@@ -109,15 +115,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, "Добавьте ответ или файл.");
   }
 
-  // Автопроверка задач с вариантами: балл выставляется сразу при отправке,
+  // Автопроверка (варианты и картозадачи): балл выставляется сразу при отправке,
   // учителю такие решения вручную проверять не нужно. Частичного балла нет:
-  // полное совпадение — maxScore, иначе 0.
+  // полное совпадение/попадание в зону — maxScore, иначе 0.
+  const verdict = autoCheckAnswer(task, answer);
   const autoReview =
-    isAutoGradedTask(task.type) && task.correctAnswer
-      ? isAnswerCorrect(task.type, answer, task.correctAnswer)
+    verdict === null
+      ? null
+      : verdict
         ? { score: task.maxScore, feedback: "Автопроверка: ответ верный." }
-        : { score: 0, feedback: "Автопроверка: ответ неверный." }
-      : null;
+        : { score: 0, feedback: "Автопроверка: ответ неверный." };
 
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
   await prisma.$transaction(async (transaction) => {

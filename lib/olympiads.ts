@@ -1,6 +1,6 @@
 import { randomInt } from "crypto";
 import { prisma } from "./prisma";
-import { isAnswerCorrect, isAutoGradedTask } from "./tasks";
+import { autoCheckAnswer } from "./tasks";
 
 export type OlympiadPhase = "upcoming" | "running" | "closed";
 
@@ -94,11 +94,15 @@ export async function finalizeOlympiadAttempt(attemptId: number) {
     for (const answer of attempt.answers) {
       const task = attempt.olympiad.tasks.find((item) => item.taskId === answer.taskId)?.task;
 
-      if (!task || !isAutoGradedTask(task.type) || !task.correctAnswer) {
+      if (!task) {
         continue;
       }
 
-      const correct = isAnswerCorrect(task.type, answer.answer, task.correctAnswer);
+      const correct = autoCheckAnswer(task, answer.answer);
+      if (correct === null) {
+        continue;
+      }
+
       await transaction.olympiadAnswer.update({
         where: { id: answer.id },
         data: { isCorrect: correct, score: correct ? task.maxScore : 0 },

@@ -4,7 +4,7 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { isAutoGradedTask } from "@/lib/tasks";
+import { isAutoCheckedTask } from "@/lib/tasks";
 
 /** Ручная оценка текстового ответа олимпиады (со страницы результатов). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -31,8 +31,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const backTo = `/olympiads/${answer.attempt.olympiadId}/results`;
 
-  // Тестовые ответы уже посчитаны автопроверкой — вручную оцениваются только текстовые.
-  if (isAutoGradedTask(answer.task.type)) {
+  // Тесты и картозадачи уже посчитаны автопроверкой — вручную оцениваются только текстовые.
+  if (isAutoCheckedTask(answer.task)) {
     return redirectWithError(request, backTo, "Этот ответ оценивается автоматически.");
   }
 

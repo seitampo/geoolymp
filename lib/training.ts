@@ -1,13 +1,18 @@
 import { TaskType } from "@prisma/client";
 import { prisma } from "./prisma";
-import { isAnswerCorrect, isAutoGradedTask } from "./tasks";
+import { autoCheckAnswer } from "./tasks";
 
 /**
- * В тренировке участвуют задачи с текстовым ответом и с вариантами.
- * Загрузка файлов в режиме на время не поддерживается.
+ * В тренировке (и олимпиаде) участвуют задачи с текстовым ответом, с вариантами
+ * и картозадачи. Загрузка файлов в режиме на время не поддерживается.
  */
 export function isTrainingSupportedTaskType(type: TaskType) {
-  return type === TaskType.TEXT || type === TaskType.SINGLE_CHOICE || type === TaskType.MULTIPLE_CHOICE;
+  return (
+    type === TaskType.TEXT ||
+    type === TaskType.SINGLE_CHOICE ||
+    type === TaskType.MULTIPLE_CHOICE ||
+    type === TaskType.MAP_POINT
+  );
 }
 
 /**
@@ -82,11 +87,15 @@ export async function finalizeTrainingAttempt(attemptId: number) {
     for (const answer of attempt.answers) {
       const task = attempt.set.items.find((item) => item.taskId === answer.taskId)?.task;
 
-      if (!task || !isAutoGradedTask(task.type) || !task.correctAnswer) {
+      if (!task) {
         continue;
       }
 
-      const correct = isAnswerCorrect(task.type, answer.answer, task.correctAnswer);
+      const correct = autoCheckAnswer(task, answer.answer);
+      if (correct === null) {
+        continue;
+      }
+
       await transaction.trainingAnswer.update({
         where: { id: answer.id },
         data: { isCorrect: correct, score: correct ? task.maxScore : 0 },

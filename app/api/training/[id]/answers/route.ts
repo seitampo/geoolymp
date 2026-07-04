@@ -6,8 +6,10 @@ import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
   isAutoGradedTask,
+  isMapTask,
   isTaskVisibleToStudents,
   normalizeMultipleChoiceAnswer,
+  parseMapPoint,
   parseTaskOptions,
 } from "@/lib/tasks";
 import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/training";
@@ -85,6 +87,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
       return redirectWithError(request, trainingTo, "Выберите вариант ответа из списка.");
     }
+  }
+
+  if (isMapTask(item.task.type) && parseMapPoint(answer) === null) {
+    return redirectWithError(request, trainingTo, "Отметьте точку на карте.");
   }
 
   if (!answer) {

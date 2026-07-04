@@ -3,11 +3,13 @@ import { Badge, SubmissionStatusBadge, TaskStatusBadge } from "@/components/Badg
 import { Button } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
+import { MapAnswerInput, MapPointEditor } from "@/components/MapPoint";
 import {
   formatDateTime,
   getOlympiadLevelLabel,
   getTaskTypeLabel,
   isAutoGradedTask,
+  isMapTask,
   isTaskNotYetOpen,
   isTaskOverdue,
   isTaskVisibleToStudents,
@@ -240,7 +242,7 @@ export function TaskCard({
           {task.dueAt && <>Срок сдачи: {formatDateTime(task.dueAt)}</>}
         </p>
       )}
-      {task.imagePath && (
+      {task.imagePath && !isMapTask(task.type) && (
         <img
           className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
           src={`/api/tasks/${task.id}/image`}
@@ -248,6 +250,17 @@ export function TaskCard({
           loading="lazy"
         />
       )}
+      {isTeacher && isMapTask(task.type) && task.imagePath &&
+        task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null && (
+          <div className="mt-3">
+            <p className="mb-2 text-xs text-gray-500">Правильная зона (видна только вам):</p>
+            <MapAnswerInput
+              imageUrl={`/api/tasks/${task.id}/image`}
+              readOnly
+              target={{ x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }}
+            />
+          </div>
+        )}
       {isTeacher && task.correctAnswer && (
         <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           Правильный ответ: {task.correctAnswer}
@@ -313,6 +326,12 @@ export function TaskCard({
               />
             </div>
             <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
+            <MapPointEditor
+              existingImageUrl={task.imagePath ? `/api/tasks/${task.id}/image` : undefined}
+              initialX={task.mapTargetX ?? undefined}
+              initialY={task.mapTargetY ?? undefined}
+              initialRadius={task.mapRadius ?? undefined}
+            />
             <Button className="w-fit">Сохранить</Button>
           </form>
           <form className="mt-3" action={`/api/tasks/${task.id}/delete`} method="post">
@@ -431,8 +450,29 @@ function StudentSubmissionBlock({
           <SubmissionStatusBadge status={submission.status} />
         </div>
 
-        {submission.answer && (
-          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{submission.answer}</p>
+        {isMapTask(task.type) && task.imagePath ? (
+          <div className="mt-3">
+            <MapAnswerInput
+              imageUrl={`/api/tasks/${task.id}/image`}
+              initialAnswer={submission.answer || undefined}
+              readOnly
+              target={
+                isReviewed &&
+                task.mapTargetX !== null &&
+                task.mapTargetY !== null &&
+                task.mapRadius !== null
+                  ? { x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }
+                  : undefined
+              }
+            />
+            <p className="mt-1.5 text-xs text-gray-500">
+              Красная метка — ваш ответ{isReviewed ? ", зелёная зона — правильная область" : ""}.
+            </p>
+          </div>
+        ) : (
+          submission.answer && (
+            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{submission.answer}</p>
+          )
         )}
         {submission.originalFileName && (
           <a
@@ -514,6 +554,9 @@ function SubmissionForm({
       encType="multipart/form-data"
     >
       {task.type === "TEXT" && <TextArea label="Ответ" name="answer" defaultValue={submission?.answer ?? ""} />}
+      {task.type === "MAP_POINT" && task.imagePath && (
+        <MapAnswerInput imageUrl={`/api/tasks/${task.id}/image`} initialAnswer={submission?.answer} />
+      )}
       {task.type === "SINGLE_CHOICE" &&
         options.map((option) => (
           <label

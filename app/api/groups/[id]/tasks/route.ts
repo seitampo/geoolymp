@@ -5,7 +5,9 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
+  isMapTask,
   parseClassificationNumber,
+  parseMapNumber,
   parseOptionalDeadline,
   parseTaskOptions,
   requiresOptions,
@@ -56,6 +58,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const difficulty = parseClassificationNumber(String(formData.get("difficulty") ?? ""), taskDifficulties);
   const olympiadLevelRaw = String(formData.get("olympiadLevel") ?? "").trim();
   const olympiadLevel = olympiadLevelRaw ? validateOlympiadLevel(olympiadLevelRaw) : null;
+  // Картозадача: цель в процентах ширины (y может превышать 100 у вертикальных карт).
+  const mapTargetX = parseMapNumber(String(formData.get("mapTargetX") ?? ""), 0, 100);
+  const mapTargetY = parseMapNumber(String(formData.get("mapTargetY") ?? ""), 0, 300);
+  const mapRadius = parseMapNumber(String(formData.get("mapRadius") ?? ""), 0.5, 50);
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
     return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
@@ -82,6 +88,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (grade === undefined || difficulty === undefined || (olympiadLevelRaw !== "" && olympiadLevel === null)) {
     return redirectWithError(request, backTo, "Неверные значения классификации (класс, уровень или сложность).");
+  }
+
+  if (mapTargetX === undefined || mapTargetY === undefined || mapRadius === undefined) {
+    return redirectWithError(request, backTo, "Неверные координаты цели картозадачи.");
+  }
+
+  if (isMapTask(type)) {
+    if (!(image instanceof File) || image.size === 0) {
+      return redirectWithError(request, backTo, "Для картозадачи загрузите изображение карты.");
+    }
+
+    if (mapTargetX === null || mapTargetY === null || mapRadius === null) {
+      return redirectWithError(request, backTo, "Отметьте правильную точку на карте и задайте допуск.");
+    }
   }
 
   if (opensAt && dueAt && opensAt >= dueAt) {
@@ -118,6 +138,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       grade,
       olympiadLevel,
       difficulty,
+      mapTargetX: isMapTask(type) ? mapTargetX : null,
+      mapTargetY: isMapTask(type) ? mapTargetY : null,
+      mapRadius: isMapTask(type) ? mapRadius : null,
     },
   });
 

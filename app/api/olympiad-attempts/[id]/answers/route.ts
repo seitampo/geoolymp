@@ -5,7 +5,13 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { finalizeOlympiadAttempt, parseTaskOrder } from "@/lib/olympiads";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { isAutoGradedTask, normalizeMultipleChoiceAnswer, parseTaskOptions } from "@/lib/tasks";
+import {
+  isAutoGradedTask,
+  isMapTask,
+  normalizeMultipleChoiceAnswer,
+  parseMapPoint,
+  parseTaskOptions,
+} from "@/lib/tasks";
 
 /** Сохранение ответа во время олимпиады (до завершения можно менять). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,6 +75,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
       return redirectWithError(request, takeTo, "Выберите вариант ответа из списка.");
     }
+  }
+
+  if (isMapTask(task.type) && parseMapPoint(answer) === null) {
+    return redirectWithError(request, takeTo, "Отметьте точку на карте.");
   }
 
   if (!answer) {

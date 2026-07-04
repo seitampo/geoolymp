@@ -34,6 +34,7 @@ enum TaskType {
   MULTIPLE_CHOICE
   IMAGE_UPLOAD
   FILE_UPLOAD
+  MAP_POINT
 }
 
 enum OlympiadLevel {
@@ -140,6 +141,12 @@ model Task {
   explanationText     String?
   explanationFilePath String?
   explanationFileName String?
+  // Картозадача (MAP_POINT): карта — imagePath, цель — точка с радиусом допуска.
+  // Все значения в процентах ШИРИНЫ изображения (y тоже) — расстояние до цели
+  // считается евклидово в одних единицах и не зависит от размера экрана.
+  mapTargetX          Float?
+  mapTargetY          Float?
+  mapRadius           Float?
   group             Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submissions       Submission[]
   setItems          TaskSetItem[]

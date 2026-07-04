@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
+import { MapPointEditor } from "@/components/MapPoint";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   CopyForm,
@@ -30,7 +31,7 @@ import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
   getTaskTypeLabel,
-  isAutoGradedTask,
+  isAutoCheckedTask,
   isTaskOverdue,
   olympiadLevels,
   parseClassificationNumber,
@@ -962,6 +963,7 @@ function TasksTab({
             accept="image/*"
             hint={`JPG, PNG или WebP, до ${maxUploadLabel()}`}
           />
+          <MapPointEditor />
           <Button className="w-fit">Создать</Button>
         </form>
       )}
@@ -1118,7 +1120,7 @@ function SubmissionsTab({
     <section className="space-y-4">
       {filterChips}
       {submissions.map((submission) => {
-        const isAutoGraded = isAutoGradedTask(submission.task.type);
+        const isAutoGraded = isAutoCheckedTask(submission.task);
 
         const reviewForm = (
           <form

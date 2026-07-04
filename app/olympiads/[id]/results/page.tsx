@@ -16,7 +16,7 @@ import {
 } from "@/lib/olympiads";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { isAutoGradedTask } from "@/lib/tasks";
+import { isAutoCheckedTask, isMapTask } from "@/lib/tasks";
 
 type AttemptForResults = {
   id: number;
@@ -85,7 +85,7 @@ export default async function OlympiadResultsPage({
     score: attempt.answers.reduce((sum, answer) => sum + answer.score, 0),
     durationMs: attempt.finishedAt ? attempt.finishedAt.getTime() - attempt.startedAt.getTime() : null,
     ungradedCount: attempt.answers.filter(
-      (answer) => !isAutoGradedTask(answer.task.type) && answer.gradedAt === null,
+      (answer) => !isAutoCheckedTask(answer.task) && answer.gradedAt === null,
     ).length,
   }));
 
@@ -242,7 +242,7 @@ function AnswerRow({
   answer?: OlympiadAnswer & { task?: Task };
   canGrade: boolean;
 }) {
-  const isAuto = isAutoGradedTask(task.type) && task.correctAnswer;
+  const isAuto = isAutoCheckedTask(task);
 
   return (
     <div className="rounded-lg bg-gray-50 px-3 py-2.5 text-sm">
@@ -269,9 +269,12 @@ function AnswerRow({
         )}
       </div>
       <p className="mt-1.5 whitespace-pre-wrap text-gray-700">
-        Ответ: <span className="font-medium text-gray-900">{answer?.answer || "—"}</span>
+        Ответ:{" "}
+        <span className="font-medium text-gray-900">
+          {answer ? (isMapTask(task.type) ? "точка на карте" : answer.answer) : "—"}
+        </span>
       </p>
-      {isAuto && (
+      {isAuto && task.correctAnswer && (
         <p className="mt-1 text-emerald-800">
           Правильный ответ: <span className="font-medium">{task.correctAnswer}</span>
         </p>

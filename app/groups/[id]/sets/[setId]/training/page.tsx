@@ -12,7 +12,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { isAutoGradedTask, isTaskVisibleToStudents, parseTaskOptions } from "@/lib/tasks";
+import { MapAnswerInput } from "@/components/MapPoint";
+import { isAutoCheckedTask, isMapTask, isTaskVisibleToStudents, parseTaskOptions } from "@/lib/tasks";
 import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/training";
 
 export default async function TrainingPage({
@@ -149,7 +150,7 @@ function ActiveTraining({
               </div>
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
-            {task.imagePath && (
+            {task.imagePath && !isMapTask(task.type) && (
               <img
                 className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
                 src={`/api/tasks/${task.id}/image`}
@@ -162,6 +163,12 @@ function ActiveTraining({
               <input type="hidden" name="taskId" value={task.id} />
               {task.type === "TEXT" && (
                 <TextArea label="Ответ" name="answer" defaultValue={savedAnswer?.answer ?? ""} />
+              )}
+              {task.type === "MAP_POINT" && task.imagePath && (
+                <MapAnswerInput
+                  imageUrl={`/api/tasks/${task.id}/image`}
+                  initialAnswer={savedAnswer?.answer}
+                />
               )}
               {task.type === "SINGLE_CHOICE" &&
                 options.map((option) => (
@@ -230,7 +237,7 @@ function TrainingResult({
   const answerByTaskId = new Map(attempt.answers.map((answer) => [answer.taskId, answer]));
 
   // Автоподсчёт — только задачи с вариантами и правильным ответом (автопроверка части 2).
-  const autoTasks = tasks.filter((task) => isAutoGradedTask(task.type) && task.correctAnswer);
+  const autoTasks = tasks.filter((task) => isAutoCheckedTask(task));
   const possibleScore = autoTasks.reduce((sum, task) => sum + task.maxScore, 0);
   const earnedScore = autoTasks.reduce(
     (sum, task) => sum + (answerByTaskId.get(task.id)?.score ?? 0),
@@ -265,7 +272,7 @@ function TrainingResult({
 
       {tasks.map((task, index) => {
         const answer = answerByTaskId.get(task.id);
-        const isAuto = isAutoGradedTask(task.type) && task.correctAnswer;
+        const isAuto = isAutoCheckedTask(task);
 
         return (
           <article className={cardClasses} key={task.id}>
@@ -288,17 +295,35 @@ function TrainingResult({
               </div>
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
-            <div className="mt-3 space-y-1 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-              <p className="text-gray-700">
-                Ваш ответ:{" "}
-                <span className="font-medium text-gray-900">{answer?.answer || "—"}</span>
-              </p>
-              {isAuto && (
-                <p className="text-emerald-800">
-                  Правильный ответ: <span className="font-medium">{task.correctAnswer}</span>
+            {isMapTask(task.type) && task.imagePath ? (
+              <div className="mt-3">
+                <MapAnswerInput
+                  imageUrl={`/api/tasks/${task.id}/image`}
+                  initialAnswer={answer?.answer}
+                  readOnly
+                  target={
+                    task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null
+                      ? { x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }
+                      : undefined
+                  }
+                />
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Красная метка — ваш ответ, зелёная зона — правильная область.
                 </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-1 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                <p className="text-gray-700">
+                  Ваш ответ:{" "}
+                  <span className="font-medium text-gray-900">{answer?.answer || "—"}</span>
+                </p>
+                {isAuto && (
+                  <p className="text-emerald-800">
+                    Правильный ответ: <span className="font-medium">{task.correctAnswer}</span>
+                  </p>
+                )}
+              </div>
+            )}
           </article>
         );
       })}
