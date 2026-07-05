@@ -55,8 +55,6 @@ model User {
   submissions      Submission[]
   materialViews    MaterialView[]
   trainingAttempts TrainingAttempt[]
-  olympiads        Olympiad[]        @relation("TeacherOlympiads")
-  olympiadAttempts OlympiadAttempt[]
   earnedBadges     EarnedBadge[]
 }
 
@@ -81,11 +79,10 @@ model Group {
   inviteCode  String       @unique
   teacherId   Int
   teacher     User         @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
-  memberships    Membership[]
-  materials      Material[]
-  tasks          Task[]
-  taskSets       TaskSet[]
-  olympiadGroups OlympiadGroup[]
+  memberships Membership[]
+  materials   Material[]
+  tasks       Task[]
+  taskSets    TaskSet[]
 
   @@index([teacherId])
 }
@@ -147,9 +144,9 @@ model Task {
   // наступило запланированное время публикации publishAt (проверка на сервере).
   isPublished       Boolean      @default(true)
   publishAt         DateTime?
-  // Классификация для библиотеки и будущего конструктора олимпиад.
+  // Классификация задачи для библиотеки и фильтров.
   grade             Int? // класс, 7–11
-  olympiadLevel     OlympiadLevel?
+  olympiadLevel     OlympiadLevel? // уровень олимпиады как характеристика задачи
   difficulty        Int? // сложность, 1–5
   // Разбор решения: текст и/или файл (PDF/картинка). Ученик видит после проверки
   // своего решения (submissions/[id] REVIEWED), доступ контролируется на сервере.
@@ -166,88 +163,8 @@ model Task {
   submissions       Submission[]
   setItems          TaskSetItem[]
   trainingAnswers   TrainingAnswer[]
-  olympiadItems     OlympiadTask[]
-  olympiadAnswers   OlympiadAnswer[]
 
   @@index([groupId])
-}
-
-// Олимпиада: собирается учителем из его задач (библиотека, часть 6)
-// и назначается одной или нескольким его группам.
-model Olympiad {
-  id              Int               @id @default(autoincrement())
-  teacherId       Int
-  title           String
-  description     String
-  // Общее время попытки в минутах; дедлайн попытки = min(старт + время, closesAt).
-  durationMinutes Int
-  opensAt         DateTime
-  closesAt        DateTime
-  // Перемешивать ли порядок задач для каждого участника (фиксируется в попытке).
-  shuffleTasks    Boolean           @default(false)
-  teacher         User              @relation("TeacherOlympiads", fields: [teacherId], references: [id], onDelete: Cascade)
-  tasks           OlympiadTask[]
-  groups          OlympiadGroup[]
-  attempts        OlympiadAttempt[]
-
-  @@index([teacherId])
-}
-
-model OlympiadTask {
-  id         Int      @id @default(autoincrement())
-  olympiadId Int
-  taskId     Int
-  position   Int
-  olympiad   Olympiad @relation(fields: [olympiadId], references: [id], onDelete: Cascade)
-  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@unique([olympiadId, taskId])
-  @@index([taskId])
-}
-
-model OlympiadGroup {
-  id         Int      @id @default(autoincrement())
-  olympiadId Int
-  groupId    Int
-  olympiad   Olympiad @relation(fields: [olympiadId], references: [id], onDelete: Cascade)
-  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@unique([olympiadId, groupId])
-  @@index([groupId])
-}
-
-model OlympiadAttempt {
-  id         Int              @id @default(autoincrement())
-  olympiadId Int
-  studentId  Int
-  startedAt  DateTime         @default(now())
-  expiresAt  DateTime
-  finishedAt DateTime?
-  // Порядок задач участника (JSON-массив id) — свой при включённом перемешивании.
-  taskOrder  String
-  olympiad   Olympiad         @relation(fields: [olympiadId], references: [id], onDelete: Cascade)
-  student    User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  answers    OlympiadAnswer[]
-
-  @@unique([olympiadId, studentId])
-  @@index([studentId])
-}
-
-model OlympiadAnswer {
-  id        Int             @id @default(autoincrement())
-  attemptId Int
-  taskId    Int
-  answer    String
-  // isCorrect null — задача без автопроверки (текстовая), балл ставит учитель.
-  isCorrect Boolean?
-  score     Int             @default(0)
-  // Когда учитель выставил ручную оценку (для отметки «ожидает проверки»).
-  gradedAt  DateTime?
-  attempt   OlympiadAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  task      Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@unique([attemptId, taskId])
-  @@index([taskId])
 }
 
 // Тематическая подборка задач группы («Климат — 20 задач»).

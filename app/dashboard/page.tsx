@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
-import { Button, LinkButton } from "@/components/Button";
+import { Button } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -9,9 +9,7 @@ import { Header } from "@/components/Header";
 import { inputClasses, TextArea, TextInput } from "@/components/FormFields";
 import { awardEarnedBadges, badgeCatalog, computeAchievementStats } from "@/lib/achievements";
 import { getCurrentUser } from "@/lib/auth";
-import { getOlympiadPhase, getOlympiadPhaseLabel } from "@/lib/olympiads";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime } from "@/lib/tasks";
 
 export default async function DashboardPage({
   searchParams,
@@ -57,46 +55,6 @@ export default async function DashboardPage({
     ]);
     achievements = { earnedCount, unseenCount, streak: stats.currentStreak };
   }
-
-  // Олимпиады: учителю — свои, ученику — назначенные его группам.
-  const olympiadCards =
-    user.role === "TEACHER"
-      ? (
-          await prisma.olympiad.findMany({
-            where: { teacherId: user.id },
-            include: { _count: { select: { tasks: true, groups: true, attempts: true } } },
-            orderBy: { opensAt: "desc" },
-          })
-        ).map((olympiad) => ({
-          id: olympiad.id,
-          title: olympiad.title,
-          opensAt: olympiad.opensAt,
-          closesAt: olympiad.closesAt,
-          phase: getOlympiadPhase(olympiad),
-          note: `${olympiad._count.tasks} задач · ${olympiad._count.groups} групп · попыток: ${olympiad._count.attempts}`,
-        }))
-      : (
-          await prisma.olympiad.findMany({
-            where: { groups: { some: { group: { memberships: { some: { userId: user.id } } } } } },
-            include: {
-              _count: { select: { tasks: true } },
-              attempts: { where: { studentId: user.id } },
-            },
-            orderBy: { opensAt: "desc" },
-          })
-        ).map((olympiad) => {
-          const attempt = olympiad.attempts[0];
-          return {
-            id: olympiad.id,
-            title: olympiad.title,
-            opensAt: olympiad.opensAt,
-            closesAt: olympiad.closesAt,
-            phase: getOlympiadPhase(olympiad),
-            note: `${olympiad._count.tasks} задач · ${olympiad.durationMinutes} мин · ${
-              attempt ? (attempt.finishedAt ? "вы участвовали" : "попытка идёт") : "вы ещё не участвовали"
-            }`,
-          };
-        });
 
   return (
     <>
@@ -151,53 +109,6 @@ export default async function DashboardPage({
             </span>
           </Link>
         )}
-
-        <section className="mb-8">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">Олимпиады</h2>
-            {user.role === "TEACHER" && (
-              <LinkButton href="/olympiads/new" variant="primary" size="sm">
-                Создать олимпиаду
-              </LinkButton>
-            )}
-          </div>
-          {olympiadCards.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {olympiadCards.map((olympiad) => (
-                <Link
-                  className={`${cardClasses} block transition hover:border-emerald-300 hover:shadow-md`}
-                  href={`/olympiads/${olympiad.id}`}
-                  key={olympiad.id}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900">{olympiad.title}</h3>
-                    <Badge
-                      tone={
-                        olympiad.phase === "running"
-                          ? "green"
-                          : olympiad.phase === "upcoming"
-                            ? "amber"
-                            : "gray"
-                      }
-                    >
-                      {getOlympiadPhaseLabel(olympiad.phase)}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-600">{olympiad.note}</p>
-                  <p className="mt-2 text-xs text-gray-500">
-                    {formatDateTime(olympiad.opensAt)} — {formatDateTime(olympiad.closesAt)}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              {user.role === "TEACHER"
-                ? "Олимпиад пока нет — соберите первую за пару минут."
-                : "Назначенных олимпиад пока нет."}
-            </p>
-          )}
-        </section>
 
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Группы</h2>
         {groups.length > 0 ? (

@@ -7,7 +7,7 @@ import { prisma } from "./prisma";
  * (и на дашборд): функция awardEarnedBadges идемпотентна.
  */
 
-export type BadgeFamily = "tasks" | "maps" | "streak" | "olympiad";
+export type BadgeFamily = "tasks" | "maps" | "streak";
 
 export type BadgeDef = {
   code: string;
@@ -25,7 +25,6 @@ export type AchievementStats = {
   solvedTasks: number;
   solvedMaps: number;
   currentStreak: number;
-  finishedOlympiads: number;
 };
 
 export const badgeCatalog: BadgeDef[] = [
@@ -39,14 +38,12 @@ export const badgeCatalog: BadgeDef[] = [
   { code: "streak-3", family: "streak", title: "Три дня подряд", description: "Заниматься 3 дня подряд", icon: "🔥", stat: "currentStreak", target: 3 },
   { code: "streak-7", family: "streak", title: "Неделя подряд", description: "Заниматься 7 дней подряд", icon: "🔥", stat: "currentStreak", target: 7 },
   { code: "streak-30", family: "streak", title: "Месяц подряд", description: "Заниматься 30 дней подряд", icon: "🏆", stat: "currentStreak", target: 30 },
-  { code: "olympiad-1", family: "olympiad", title: "Олимпиец", description: "Пройти олимпиаду до конца", icon: "🎖️", stat: "finishedOlympiads", target: 1 },
 ];
 
 export const badgeFamilyLabels: Record<BadgeFamily, string> = {
   tasks: "Решённые задачи",
   maps: "Картозадачи",
   streak: "Дни подряд",
-  olympiad: "Олимпиады",
 };
 
 /** День активности в часовом поясе Казахстана (Астана, UTC+5). */
@@ -85,24 +82,20 @@ function computeCurrentStreak(dates: Date[]): number {
 }
 
 export async function computeAchievementStats(userId: number): Promise<AchievementStats> {
-  const [solvedTasks, solvedMaps, finishedOlympiads, submissions, trainings, olympiads, views] =
-    await Promise.all([
-      // «Решено» = проверенное решение с положительным баллом (автопроверка или учитель).
-      prisma.review.count({ where: { score: { gt: 0 }, submission: { studentId: userId } } }),
-      prisma.review.count({
-        where: { score: { gt: 0 }, submission: { studentId: userId, task: { type: "MAP_POINT" } } },
-      }),
-      prisma.olympiadAttempt.count({ where: { studentId: userId, finishedAt: { not: null } } }),
-      prisma.submission.findMany({ where: { studentId: userId }, select: { updatedAt: true, createdAt: true } }),
-      prisma.trainingAttempt.findMany({ where: { studentId: userId }, select: { startedAt: true } }),
-      prisma.olympiadAttempt.findMany({ where: { studentId: userId }, select: { startedAt: true } }),
-      prisma.materialView.findMany({ where: { userId }, select: { viewedAt: true } }),
-    ]);
+  const [solvedTasks, solvedMaps, submissions, trainings, views] = await Promise.all([
+    // «Решено» = проверенное решение с положительным баллом (автопроверка или учитель).
+    prisma.review.count({ where: { score: { gt: 0 }, submission: { studentId: userId } } }),
+    prisma.review.count({
+      where: { score: { gt: 0 }, submission: { studentId: userId, task: { type: "MAP_POINT" } } },
+    }),
+    prisma.submission.findMany({ where: { studentId: userId }, select: { updatedAt: true, createdAt: true } }),
+    prisma.trainingAttempt.findMany({ where: { studentId: userId }, select: { startedAt: true } }),
+    prisma.materialView.findMany({ where: { userId }, select: { viewedAt: true } }),
+  ]);
 
   const activityDates = [
     ...submissions.flatMap((row) => [row.createdAt, row.updatedAt]),
     ...trainings.map((row) => row.startedAt),
-    ...olympiads.map((row) => row.startedAt),
     ...views.map((row) => row.viewedAt),
   ];
 
@@ -110,7 +103,6 @@ export async function computeAchievementStats(userId: number): Promise<Achieveme
     solvedTasks,
     solvedMaps,
     currentStreak: computeCurrentStreak(activityDates),
-    finishedOlympiads,
   };
 }
 
