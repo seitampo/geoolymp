@@ -15,6 +15,35 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, isAutoCheckedTask, isTaskVisibleToStudents } from "@/lib/tasks";
 import { getTrainingTaskIds, isTrainingSupportedTaskType } from "@/lib/training";
 
+type SetTaskStatus = "solved" | "wrong" | "pending" | "none";
+
+function SetProgressChip({
+  index,
+  status,
+  title,
+}: {
+  index: number;
+  status: SetTaskStatus;
+  title: string;
+}) {
+  const styles: Record<SetTaskStatus, { className: string; glyph: string; label: string }> = {
+    solved: { className: "bg-green-100 text-green-800", glyph: "✓", label: "решено" },
+    wrong: { className: "bg-red-100 text-red-800", glyph: "✗", label: "неверно" },
+    pending: { className: "bg-amber-100 text-amber-800", glyph: "⏳", label: "на проверке" },
+    none: { className: "bg-gray-100 text-gray-400", glyph: "—", label: "не решалось" },
+  };
+  const style = styles[status];
+
+  return (
+    <span
+      title={`Задача ${index}: ${title} — ${style.label}`}
+      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${style.className}`}
+    >
+      {index} {style.glyph}
+    </span>
+  );
+}
+
 export default async function TaskSetPage({
   params,
   searchParams,
@@ -91,7 +120,17 @@ export default async function TaskSetPage({
     }
   }
 
-  const membersCount = await prisma.membership.count({ where: { groupId } });
+  // Учителю нужны сами участники (для «Прогресс учеников»), ученику — только число.
+  const members = isTeacher
+    ? await prisma.membership.findMany({
+        where: { groupId },
+        include: { user: true },
+        orderBy: { user: { name: "asc" } },
+      })
+    : [];
+  const membersCount = isTeacher
+    ? members.length
+    : await prisma.membership.count({ where: { groupId } });
 
   const isTrainingMode = set.trainingMinutes !== null;
   const trainableCount = visibleItems.filter((item) =>
@@ -118,6 +157,58 @@ export default async function TaskSetPage({
   const possibleScore = set.items
     .filter((item) => isAutoCheckedTask(item.task))
     .reduce((sum, item) => sum + item.task.maxScore, 0);
+
+  // Прогресс учеников: какие задачи подборки решены. В обычной подборке статус берём
+  // из проверенных решений, в тренировке — из ответов завершённых попыток.
+  const trainingAnswerByKey = new Map<string, { isCorrect: boolean | null }>();
+  const finishedStudentIds = new Set<number>();
+  for (const attempt of attempts) {
+    if (!attempt.finishedAt) {
+      continue;
+    }
+    finishedStudentIds.add(attempt.studentId);
+    for (const answer of attempt.answers) {
+      trainingAnswerByKey.set(`${attempt.studentId}:${answer.taskId}`, answer);
+    }
+  }
+
+  const taskStatusFor = (studentId: number, item: (typeof set.items)[number]): SetTaskStatus => {
+    if (isTrainingMode) {
+      if (!finishedStudentIds.has(studentId)) {
+        return "none";
+      }
+      const answer = trainingAnswerByKey.get(`${studentId}:${item.taskId}`);
+      if (!answer) {
+        return "none";
+      }
+      if (answer.isCorrect === true) {
+        return "solved";
+      }
+      return answer.isCorrect === false ? "wrong" : "pending";
+    }
+
+    const submission = item.task.submissions.find((entry) => entry.studentId === studentId);
+    if (!submission) {
+      return "none";
+    }
+    if (submission.review && submission.review.score > 0) {
+      return "solved";
+    }
+    return submission.review ? "wrong" : "pending";
+  };
+
+  const memberProgress = members.map((membership) => {
+    const statuses = set.items.map((item) => ({
+      title: item.task.title,
+      status: taskStatusFor(membership.userId, item),
+    }));
+    return {
+      userId: membership.userId,
+      name: membership.user.name,
+      solved: statuses.filter((entry) => entry.status === "solved").length,
+      statuses,
+    };
+  });
 
   const teacherGroups: TeacherGroupOption[] = isTeacher
     ? await prisma.group.findMany({
@@ -251,6 +342,39 @@ export default async function TaskSetPage({
                       })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {members.length > 0 && (
+              <div className={cardClasses}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-semibold text-gray-900">Прогресс учеников</h2>
+                  <p className="text-xs text-gray-500">
+                    ✓ решено · ⏳ на проверке · ✗ неверно · — не решалось
+                  </p>
+                </div>
+                <div className="mt-4 space-y-4">
+                  {memberProgress.map((member) => (
+                    <div key={member.userId}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-gray-900">{member.name}</span>
+                        <Badge tone={member.solved > 0 ? "green" : "gray"}>
+                          Решено {member.solved} из {set.items.length}
+                        </Badge>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {member.statuses.map((entry, index) => (
+                          <SetProgressChip
+                            key={index}
+                            index={index + 1}
+                            status={entry.status}
+                            title={entry.title}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
