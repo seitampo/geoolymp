@@ -48,7 +48,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
-  const backTo = `/groups/${task.groupId}?tab=tasks`;
+  const formData = await request.formData();
+  // Форма из подборки передаёт returnTo (куда вернуться) и once=1 (контест: один ответ).
+  const backTo = safeReturnTo(String(formData.get("returnTo") ?? ""), task.groupId);
+  const submitOnce = String(formData.get("once") ?? "") === "1";
 
   // Тренировочные задачи решаются только внутри попытки (/api/training/*):
   // обычная отправка раскрыла бы правильный ответ автопроверкой до тренировки.
@@ -65,13 +68,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, `Срок сдачи истёк ${formatDateTime(task.dueAt!)} — отправка недоступна.`);
   }
 
-  const formData = await request.formData();
   const selectedAnswers = formData.getAll("answer").map((value) => String(value));
   const answer =
     task.type === "MULTIPLE_CHOICE"
       ? normalizeMultipleChoiceAnswer(selectedAnswers)
       : String(formData.get("answer") ?? "").trim();
   const file = formData.get("file");
+
+  const oldSubmission = await prisma.submission.findUnique({
+    where: { taskId_studentId: { taskId, studentId: user.id } },
+  });
+
+  // В подборке (контест) переотправка недоступна: задача решается один раз.
+  if (submitOnce && oldSubmission) {
+    return redirectWithError(
+      request,
+      backTo,
+      "В подборке задача решается один раз — переотправка недоступна.",
+    );
+  }
 
   // Для задач с вариантами принимаем только ответы из списка — иначе прямой POST
   // мог бы записать произвольную строку и сломать автопроверку.
@@ -107,9 +122,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const savedFile = file instanceof File && file.size > 0 ? await saveUploadedFile(file, "submissions") : null;
-  const oldSubmission = await prisma.submission.findUnique({
-    where: { taskId_studentId: { taskId, studentId: user.id } },
-  });
 
   if (!answer && !savedFile && !oldSubmission?.filePath) {
     return redirectWithError(request, backTo, "Добавьте ответ или файл.");
@@ -162,4 +174,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   return redirectAfterPost(request, backTo);
+}
+
+/**
+ * Куда вернуть ученика после отправки. Разрешаем только внутренние пути группы
+ * (страница подборки или вкладка задач) — защита от open redirect.
+ */
+function safeReturnTo(value: string, groupId: number): string {
+  if (value.startsWith("/groups/") && !value.startsWith("//") && !value.includes("://")) {
+    return value;
+  }
+  return `/groups/${groupId}?tab=tasks`;
 }

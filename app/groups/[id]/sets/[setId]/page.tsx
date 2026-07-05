@@ -252,7 +252,10 @@ export default async function TaskSetPage({
               </div>
               <p className="mt-1 text-sm text-gray-600">{set.description}</p>
               {!isTeacher && !isTrainingMode && visibleItems.length > 0 && (
-                <p className="mt-2 text-xs text-gray-500">Решайте задачи по порядку — сверху вниз.</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Решайте задачи по порядку. Каждая задача отправляется один раз — переотправка
+                  недоступна.
+                </p>
               )}
             </div>
             {isTeacher && (
@@ -439,6 +442,10 @@ export default async function TaskSetPage({
                   isTeacher={isTeacher}
                   teacherGroups={teacherGroups}
                   membersCount={membersCount}
+                  submissionContext={{
+                    returnTo: `/groups/${groupId}/sets/${set.id}`,
+                    oneShot: true,
+                  }}
                 />
               </div>
             ))}

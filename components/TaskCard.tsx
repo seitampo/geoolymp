@@ -194,12 +194,16 @@ function formatScore(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+/** Контекст решения на странице подборки: куда вернуться и режим «один ответ». */
+export type SubmissionContext = { returnTo: string; oneShot: boolean };
+
 export function TaskCard({
   task,
   isTeacher,
   teacherGroups,
   membersCount,
   inTraining = false,
+  submissionContext,
 }: {
   task: TaskWithStudentSubmission;
   isTeacher: boolean;
@@ -207,6 +211,8 @@ export function TaskCard({
   membersCount: number;
   /** Задача занята в тренировочной подборке — ученикам видна только там. */
   inTraining?: boolean;
+  /** Задан на странице подборки — возврат туда и запрет переотправки (контест). */
+  submissionContext?: SubmissionContext;
 }) {
   const submission = task.submissions[0];
   const options = parseTaskOptions(task.options);
@@ -360,14 +366,15 @@ export function TaskCard({
               task={task}
               submission={submission}
               options={options}
-              canResubmit={!overdue}
+              canResubmit={!overdue && !submissionContext?.oneShot}
+              submissionContext={submissionContext}
             />
           ) : overdue ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               Срок сдачи истёк {formatDateTime(task.dueAt!)} — отправка недоступна.
             </p>
           ) : (
-            <SubmissionForm task={task} options={options} />
+            <SubmissionForm task={task} options={options} submissionContext={submissionContext} />
           )}
         </div>
       )}
@@ -434,11 +441,13 @@ function StudentSubmissionBlock({
   submission,
   options,
   canResubmit,
+  submissionContext,
 }: {
   task: Task;
   submission: Submission & { review: Review | null; student: User };
   options: string[];
   canResubmit: boolean;
+  submissionContext?: SubmissionContext;
 }) {
   const isReviewed = submission.status === "REVIEWED";
 
@@ -517,13 +526,17 @@ function StudentSubmissionBlock({
         </div>
       )}
 
-      {canResubmit ? (
+      {submissionContext?.oneShot ? (
+        <p className="text-xs text-gray-500">
+          В подборке задача решается один раз — ответ уже отправлен и не меняется.
+        </p>
+      ) : canResubmit ? (
         <details className="rounded-lg border border-gray-200 p-4">
           <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
             Изменить ответ и отправить заново
           </summary>
           <div className="mt-3">
-            <SubmissionForm task={task} options={options} submission={submission} />
+            <SubmissionForm task={task} options={options} submission={submission} submissionContext={submissionContext} />
           </div>
         </details>
       ) : (
@@ -537,10 +550,12 @@ function SubmissionForm({
   task,
   options,
   submission,
+  submissionContext,
 }: {
   task: Task;
   options: string[];
   submission?: Submission;
+  submissionContext?: SubmissionContext;
 }) {
   const selectedAnswers = submission?.answer
     ? submission.answer.split(";").map((answer) => answer.trim())
@@ -553,6 +568,10 @@ function SubmissionForm({
       method="post"
       encType="multipart/form-data"
     >
+      {submissionContext && (
+        <input type="hidden" name="returnTo" value={submissionContext.returnTo} />
+      )}
+      {submissionContext?.oneShot && <input type="hidden" name="once" value="1" />}
       {task.type === "TEXT" && <TextArea label="Ответ" name="answer" defaultValue={submission?.answer ?? ""} />}
       {task.type === "MAP_POINT" && task.imagePath && (
         <MapAnswerInput imageUrl={`/api/tasks/${task.id}/image`} initialAnswer={submission?.answer} />
