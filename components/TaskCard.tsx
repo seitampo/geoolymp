@@ -605,6 +605,9 @@ function SubmissionForm({
       {(task.type === "IMAGE_UPLOAD" || task.type === "FILE_UPLOAD") && (
         <TextArea label="Комментарий к файлу" name="answer" required={false} defaultValue={submission?.answer ?? ""} />
       )}
+      <p className="text-xs text-gray-500">
+        Ответ засчитывается только после нажатия «Отправить». Каждую задачу нужно отправить отдельно.
+      </p>
       <Button className="w-fit">Отправить</Button>
     </form>
   );

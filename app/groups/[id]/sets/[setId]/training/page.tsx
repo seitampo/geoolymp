@@ -121,7 +121,7 @@ function ActiveTraining({
         <div className="min-w-0">
           <h1 className="text-lg font-bold tracking-tight text-gray-900">{set.title}</h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            Отвечено: {answeredCount} из {tasks.length} · Ответ можно менять до конца тренировки
+            Отвечено: {answeredCount} из {tasks.length}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -132,6 +132,11 @@ function ActiveTraining({
             </Button>
           </form>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        Каждый ответ сохраняйте отдельно — кнопкой «Сохранить ответ» под задачей. Несохранённые
+        ответы не засчитываются при завершении. Ответ можно менять до конца тренировки.
       </div>
 
       {tasks.map((task, index) => {
