@@ -1,5 +1,4 @@
 import { Role } from "@prisma/client";
-import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
@@ -20,11 +19,13 @@ import {
 } from "@/lib/tasks";
 import { isTaskInTrainingSet } from "@/lib/training";
 import {
-  getAbsoluteUploadPath,
+  deleteUploadedFile,
+  hasStorageRoom,
   isAllowedImageFileName,
   isUploadTooLarge,
   maxUploadLabel,
   saveUploadedFile,
+  storageLimitLabel,
 } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -121,6 +122,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, "Изображение должно быть в формате JPG, PNG или WebP.");
   }
 
+  if (file instanceof File && file.size > 0 && !(await hasStorageRoom(file.size))) {
+    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Обратитесь к учителю.`);
+  }
+
   const savedFile = file instanceof File && file.size > 0 ? await saveUploadedFile(file, "submissions") : null;
 
   if (!answer && !savedFile && !oldSubmission?.filePath) {
@@ -169,7 +174,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     if (savedFile && oldSubmission?.filePath) {
-      await unlink(getAbsoluteUploadPath(oldSubmission.filePath)).catch(() => undefined);
+      await deleteUploadedFile(oldSubmission.filePath);
     }
   });
 

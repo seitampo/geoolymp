@@ -1,7 +1,7 @@
 import { MaterialType } from "@prisma/client";
 import path from "path";
 import { prisma } from "./prisma";
-import { allowedImageExtensions, getAbsoluteUploadPath, saveUploadedFile } from "./uploads";
+import { allowedImageExtensions, saveUploadedFile } from "./uploads";
 
 export const materialTypes = [
   { value: MaterialType.TEXT, label: "Только текст (без файла и ссылки)" },
@@ -75,8 +75,4 @@ export async function recordMaterialView(materialId: number, userId: number) {
     update: {},
     create: { materialId, userId },
   });
-}
-
-export function getAbsoluteMaterialPath(filePath: string) {
-  return getAbsoluteUploadPath(filePath);
 }

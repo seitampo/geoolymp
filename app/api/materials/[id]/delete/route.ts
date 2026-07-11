@@ -1,11 +1,10 @@
 import { Role } from "@prisma/client";
-import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithSuccess } from "@/lib/formResponse";
-import { getAbsoluteMaterialPath } from "@/lib/materials";
+import { redirectWithSuccess } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
+import { deleteUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await prisma.material.delete({ where: { id: materialId } });
 
   if (material.filePath) {
-    await unlink(getAbsoluteMaterialPath(material.filePath)).catch(() => undefined);
+    await deleteUploadedFile(material.filePath);
   }
 
   return redirectWithSuccess(request, `/groups/${material.groupId}?tab=materials`, "Материал удалён.");
