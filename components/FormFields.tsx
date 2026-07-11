@@ -1,7 +1,7 @@
-const labelClasses = "mb-1.5 block text-sm font-medium text-gray-700";
+const labelClasses = "mb-1.5 block text-sm font-medium text-ink-soft";
 
 export const inputClasses =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors placeholder:text-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20";
+  "w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-sm text-ink shadow-sm transition-colors placeholder:text-ink-mute/70 focus:border-rust focus:outline-none focus:ring-2 focus:ring-rust/15";
 
 export function TextInput({
   label,
@@ -111,13 +111,13 @@ export function FileInput({
     <label className="block">
       <span className={labelClasses}>{label}</span>
       <input
-        className="block w-full cursor-pointer text-sm text-gray-500 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-emerald-800 hover:file:bg-emerald-100"
+        className="block w-full cursor-pointer text-sm text-ink-mute file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-rust-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-rust-deep hover:file:bg-rust-soft/70"
         name={name}
         type="file"
         accept={accept}
         required={required}
       />
-      {hint && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-ink-mute/80">{hint}</span>}
     </label>
   );
 }

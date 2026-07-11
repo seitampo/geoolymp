@@ -30,7 +30,7 @@ function SetProgressChip({
     solved: { className: "bg-green-100 text-green-800", glyph: "✓", label: "решено" },
     wrong: { className: "bg-red-100 text-red-800", glyph: "✗", label: "неверно" },
     pending: { className: "bg-amber-100 text-amber-800", glyph: "⏳", label: "на проверке" },
-    none: { className: "bg-gray-100 text-gray-400", glyph: "—", label: "не решалось" },
+    none: { className: "bg-ink/5 text-ink-mute/70", glyph: "—", label: "не решалось" },
   };
   const style = styles[status];
 
@@ -238,7 +238,7 @@ export default async function TaskSetPage({
 
         <div className="mb-6">
           <Link
-            className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+            className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
             href={`/groups/${groupId}?tab=sets`}
           >
             <span aria-hidden="true">←</span> К подборкам группы
@@ -246,20 +246,25 @@ export default async function TaskSetPage({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900">{set.title}</h1>
+                <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{set.title}</h1>
                 <Badge tone="emerald">Задач: {visibleItems.length}</Badge>
                 {isTrainingMode && <Badge tone="amber">Тренировка · {set.trainingMinutes} мин</Badge>}
               </div>
-              <p className="mt-1 text-sm text-gray-600">{set.description}</p>
+              <p className="mt-1 text-sm text-ink-soft">{set.description}</p>
               {!isTeacher && !isTrainingMode && visibleItems.length > 0 && (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-ink-mute">
                   Решайте задачи по порядку. Каждая задача отправляется один раз — переотправка
                   недоступна.
                 </p>
               )}
             </div>
             {isTeacher && (
-              <form className="shrink-0" action={`/api/sets/${set.id}/delete`} method="post">
+              <form
+                className="shrink-0"
+                action={`/api/sets/${set.id}/delete`}
+                method="post"
+                data-confirm="Удалить подборку? Задачи останутся в группе, но результаты подборки пропадут."
+              >
                 <Button variant="danger" size="sm">
                   Удалить подборку
                 </Button>
@@ -271,7 +276,7 @@ export default async function TaskSetPage({
         {isTeacher && (
           <div className="mb-6 space-y-4">
             <details className={cardClasses}>
-              <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+              <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
                 Редактировать название и описание
               </summary>
               <form className="mt-4 grid gap-3" action={`/api/sets/${set.id}/update`} method="post">
@@ -312,24 +317,24 @@ export default async function TaskSetPage({
 
             {isTrainingMode && attempts.length > 0 && (
               <div className={cardClasses}>
-                <h2 className="text-base font-semibold text-gray-900">Попытки учеников</h2>
+                <h2 className="font-heading text-[15px] font-semibold text-ink">Попытки учеников</h2>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[420px] text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-ink-mute">
                         <th className="py-2 pr-3">Ученик</th>
                         <th className="py-2 pr-3">Результат</th>
                         <th className="py-2 pr-3">Статус</th>
                         <th className="py-2">Начата</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-line/70">
                       {attempts.map((attempt) => {
                         const earned = attempt.answers.reduce((sum, answer) => sum + answer.score, 0);
                         return (
                           <tr key={attempt.id}>
-                            <td className="py-2 pr-3 font-medium text-gray-900">{attempt.student.name}</td>
-                            <td className="py-2 pr-3 text-gray-700">
+                            <td className="py-2 pr-3 font-medium text-ink">{attempt.student.name}</td>
+                            <td className="py-2 pr-3 text-ink-soft">
                               {attempt.finishedAt ? `${earned} из ${possibleScore}` : "—"}
                             </td>
                             <td className="py-2 pr-3">
@@ -339,7 +344,7 @@ export default async function TaskSetPage({
                                 <Badge tone="amber">Идёт</Badge>
                               )}
                             </td>
-                            <td className="py-2 text-gray-700">{formatDateTime(attempt.startedAt)}</td>
+                            <td className="py-2 text-ink-soft">{formatDateTime(attempt.startedAt)}</td>
                           </tr>
                         );
                       })}
@@ -352,8 +357,8 @@ export default async function TaskSetPage({
             {members.length > 0 && (
               <div className={cardClasses}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-base font-semibold text-gray-900">Прогресс учеников</h2>
-                  <p className="text-xs text-gray-500">
+                  <h2 className="font-heading text-[15px] font-semibold text-ink">Прогресс учеников</h2>
+                  <p className="text-xs text-ink-mute">
                     ✓ решено · ⏳ на проверке · ✗ неверно · — не решалось
                   </p>
                 </div>
@@ -361,7 +366,7 @@ export default async function TaskSetPage({
                   {memberProgress.map((member) => (
                     <div key={member.userId}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-gray-900">{member.name}</span>
+                        <span className="text-sm font-medium text-ink">{member.name}</span>
                         <Badge tone={member.solved > 0 ? "green" : "gray"}>
                           Решено {member.solved} из {set.items.length}
                         </Badge>
@@ -386,11 +391,11 @@ export default async function TaskSetPage({
 
         {!isTeacher && isTrainingMode ? (
           <section className={`${cardClasses} text-center`}>
-            <h2 className="text-lg font-semibold text-gray-900">Тренировка</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <h2 className="font-heading font-heading text-[15px] font-semibold text-ink">Тренировка</h2>
+            <p className="mt-2 text-sm text-ink-soft">
               {trainableCount} задач · {set.trainingMinutes} минут · одна попытка · без подсказок
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-ink-mute">
               Задачи откроются после старта, таймер запустится сразу — подготовьтесь заранее.
             </p>
             <div className="mt-4 flex justify-center">
@@ -407,7 +412,7 @@ export default async function TaskSetPage({
                   <Button variant="primary">Начать тренировку</Button>
                 </form>
               ) : (
-                <p className="text-sm text-gray-500">Учитель ещё не добавил задачи для тренировки.</p>
+                <p className="text-sm text-ink-mute">Учитель ещё не добавил задачи для тренировки.</p>
               )}
             </div>
           </section>
@@ -425,7 +430,7 @@ export default async function TaskSetPage({
             {visibleItems.map((item, index) => (
               <div key={item.id}>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-gray-500">
+                  <p className="text-sm font-medium text-ink-mute">
                     Задача {index + 1} из {visibleItems.length}
                   </p>
                   {isTeacher && (

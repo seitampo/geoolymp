@@ -42,7 +42,7 @@ export function CopyForm({
   currentGroupId: number;
 }) {
   return (
-    <form className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-end" action={action} method="post">
+    <form className="mt-4 flex flex-col gap-2 border-t border-line/70 pt-3 sm:flex-row sm:items-end" action={action} method="post">
       <div className="flex-1">
         <SelectField
           label="Копировать в группу"
@@ -159,11 +159,11 @@ function TaskStats({
     : [];
 
   return (
-    <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
-      <p className="text-gray-700">
-        Сдали: <span className="font-semibold text-gray-900">{submitted} из {membersCount}</span>
+    <div className="mt-4 rounded-lg bg-paper px-4 py-3 text-sm">
+      <p className="text-ink-soft">
+        Сдали: <span className="font-semibold text-ink">{submitted} из {membersCount}</span>
         {" · "}Средний балл:{" "}
-        <span className="font-semibold text-gray-900">
+        <span className="font-semibold text-ink">
           {averageScore === null ? "—" : `${formatScore(averageScore)} из ${task.maxScore}`}
         </span>
       </p>
@@ -171,17 +171,17 @@ function TaskStats({
         <div className="mt-3 space-y-1.5">
           {optionStats.map(({ option, count, isCorrect }) => (
             <div className="flex items-center gap-2" key={option}>
-              <span className={`w-40 shrink-0 truncate text-xs ${isCorrect ? "font-medium text-emerald-800" : "text-gray-600"}`}>
+              <span className={`w-40 shrink-0 truncate text-xs ${isCorrect ? "font-medium text-green-800" : "text-ink-soft"}`}>
                 {isCorrect ? "✓ " : ""}
                 {option}
               </span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink/10">
                 <div
-                  className={`h-full rounded-full ${isCorrect ? "bg-emerald-600" : "bg-gray-400"}`}
+                  className={`h-full rounded-full ${isCorrect ? "bg-green-600" : "bg-ink/30"}`}
                   style={{ width: submitted > 0 ? `${(count / submitted) * 100}%` : "0%" }}
                 />
               </div>
-              <span className="w-8 shrink-0 text-right text-xs text-gray-600">{count}</span>
+              <span className="w-8 shrink-0 text-right text-xs text-ink-soft">{count}</span>
             </div>
           ))}
         </div>
@@ -222,9 +222,9 @@ export function TaskCard({
   const visibleToStudents = isTaskVisibleToStudents(task);
 
   return (
-    <article className={cardClasses}>
+    <article id={`task-${task.id}`} className={`${cardClasses} scroll-mt-20`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="font-semibold text-gray-900">{task.title}</h3>
+        <h3 className="font-semibold text-ink">{task.title}</h3>
         <div className="flex flex-wrap gap-1.5">
           {hasNewResult && <Badge tone="emerald">Новый результат</Badge>}
           {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
@@ -240,9 +240,9 @@ export function TaskCard({
           <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
         </div>
       </div>
-      <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
       {(task.opensAt || task.dueAt) && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-ink-mute">
           {task.opensAt && <>Открытие: {formatDateTime(task.opensAt)}</>}
           {task.opensAt && task.dueAt && " · "}
           {task.dueAt && <>Срок сдачи: {formatDateTime(task.dueAt)}</>}
@@ -250,7 +250,7 @@ export function TaskCard({
       )}
       {task.imagePath && !isMapTask(task.type) && (
         <img
-          className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
+          className="mt-3 max-h-80 rounded-lg border border-line object-contain"
           src={`/api/tasks/${task.id}/image`}
           alt={task.title}
           loading="lazy"
@@ -259,7 +259,7 @@ export function TaskCard({
       {isTeacher && isMapTask(task.type) && task.imagePath &&
         task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null && (
           <div className="mt-3">
-            <p className="mb-2 text-xs text-gray-500">Правильная зона (видна только вам):</p>
+            <p className="mb-2 text-xs text-ink-mute">Правильная зона (видна только вам):</p>
             <MapAnswerInput
               imageUrl={`/api/tasks/${task.id}/image`}
               readOnly
@@ -268,7 +268,7 @@ export function TaskCard({
           </div>
         )}
       {isTeacher && task.correctAnswer && (
-        <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
           Правильный ответ: {task.correctAnswer}
         </p>
       )}
@@ -276,8 +276,8 @@ export function TaskCard({
       {isTeacher && <TaskStats task={task} options={options} membersCount={membersCount} />}
 
       {isTeacher && (
-        <details className="mt-4 border-t border-gray-100 pt-3">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+        <details className="mt-4 border-t border-line/70 pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
             Редактировать задачу
           </summary>
           <form
@@ -340,7 +340,12 @@ export function TaskCard({
             />
             <Button className="w-fit">Сохранить</Button>
           </form>
-          <form className="mt-3" action={`/api/tasks/${task.id}/delete`} method="post">
+          <form
+            className="mt-3"
+            action={`/api/tasks/${task.id}/delete`}
+            method="post"
+            data-confirm="Удалить задачу вместе с решениями учеников? Это необратимо."
+          >
             <Button variant="danger" size="sm">
               Удалить задачу
             </Button>
@@ -358,7 +363,7 @@ export function TaskCard({
       {!isTeacher && (
         <div className="mt-4">
           {notYetOpen ? (
-            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+            <p className="rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink-soft">
               Задача откроется {formatDateTime(task.opensAt!)} — отправка пока недоступна.
             </p>
           ) : submission ? (
@@ -387,11 +392,11 @@ function ExplanationEditor({ task }: { task: Task }) {
   const hasExplanation = Boolean(task.explanationText || task.explanationFilePath);
 
   return (
-    <details className="mt-4 border-t border-gray-100 pt-3">
-      <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+    <details className="mt-4 border-t border-line/70 pt-3">
+      <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
         Разбор решения{hasExplanation ? " · добавлен" : ""}
       </summary>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-ink-mute">
         Ученик увидит разбор после того, как его решение будет проверено.
       </p>
       <form
@@ -415,7 +420,7 @@ function ExplanationEditor({ task }: { task: Task }) {
         />
         {task.explanationFilePath && (
           <a
-            className="break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="break-all text-sm font-medium text-sea hover:underline"
             href={`/api/tasks/${task.id}/explanation/file`}
             target="_blank"
             rel="noopener noreferrer"
@@ -426,7 +431,12 @@ function ExplanationEditor({ task }: { task: Task }) {
         <Button className="w-fit">Сохранить разбор</Button>
       </form>
       {hasExplanation && (
-        <form className="mt-3" action={`/api/tasks/${task.id}/explanation/delete`} method="post">
+        <form
+          className="mt-3"
+          action={`/api/tasks/${task.id}/explanation/delete`}
+          method="post"
+          data-confirm="Удалить разбор задачи?"
+        >
           <Button variant="danger" size="sm">
             Удалить разбор
           </Button>
@@ -453,9 +463,9 @@ function StudentSubmissionBlock({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="rounded-lg border border-line bg-paper p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-900">Ваш ответ</p>
+          <p className="text-sm font-semibold text-ink">Ваш ответ</p>
           <SubmissionStatusBadge status={submission.status} />
         </div>
 
@@ -474,18 +484,18 @@ function StudentSubmissionBlock({
                   : undefined
               }
             />
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-ink-mute">
               Красная метка — ваш ответ{isReviewed ? ", зелёная зона — правильная область" : ""}.
             </p>
           </div>
         ) : (
           submission.answer && (
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{submission.answer}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{submission.answer}</p>
           )
         )}
         {submission.originalFileName && (
           <a
-            className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
             href={`/api/submissions/${submission.id}/file`}
           >
             {submission.originalFileName}
@@ -493,29 +503,29 @@ function StudentSubmissionBlock({
         )}
 
         {isReviewed ? (
-          <div className="mt-3 space-y-1 border-t border-gray-200 pt-3 text-sm text-gray-700">
+          <div className="mt-3 space-y-1 border-t border-line pt-3 text-sm text-ink-soft">
             <p>
               Балл:{" "}
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-ink">
                 {submission.review?.score ?? "нет"} из {task.maxScore}
               </span>
             </p>
             <p>Комментарий: {submission.review?.feedback || "нет"}</p>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-gray-500">Учитель ещё не проверил решение.</p>
+          <p className="mt-3 text-sm text-ink-mute">Учитель ещё не проверил решение.</p>
         )}
       </div>
 
       {isReviewed && (task.explanationText || task.explanationFilePath) && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-semibold text-emerald-900">Разбор задачи</p>
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <p className="text-sm font-semibold text-green-900">Разбор задачи</p>
           {task.explanationText && (
-            <p className="mt-1.5 whitespace-pre-wrap text-sm text-emerald-900">{task.explanationText}</p>
+            <p className="mt-1.5 whitespace-pre-wrap text-sm text-green-900">{task.explanationText}</p>
           )}
           {task.explanationFilePath && (
             <a
-              className="mt-2 inline-block break-all text-sm font-medium text-emerald-800 hover:underline"
+              className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
               href={`/api/tasks/${task.id}/explanation/file`}
               target="_blank"
               rel="noopener noreferrer"
@@ -527,12 +537,12 @@ function StudentSubmissionBlock({
       )}
 
       {submissionContext?.oneShot ? (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-mute">
           В подборке задача решается один раз — ответ уже отправлен и не меняется.
         </p>
       ) : canResubmit ? (
-        <details className="rounded-lg border border-gray-200 p-4">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+        <details className="rounded-lg border border-line p-4">
+          <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
             Изменить ответ и отправить заново
           </summary>
           <div className="mt-3">
@@ -540,7 +550,7 @@ function StudentSubmissionBlock({
           </div>
         </details>
       ) : (
-        <p className="text-xs text-gray-500">Срок сдачи истёк — изменить ответ уже нельзя.</p>
+        <p className="text-xs text-ink-mute">Срок сдачи истёк — изменить ответ уже нельзя.</p>
       )}
     </div>
   );
@@ -579,11 +589,11 @@ function SubmissionForm({
       {task.type === "SINGLE_CHOICE" &&
         options.map((option) => (
           <label
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
             key={option}
           >
             <input
-              className="h-4 w-4 accent-emerald-700"
+              className="h-4 w-4 accent-rust"
               name="answer"
               type="radio"
               value={option}
@@ -596,11 +606,11 @@ function SubmissionForm({
       {task.type === "MULTIPLE_CHOICE" &&
         options.map((option) => (
           <label
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
             key={option}
           >
             <input
-              className="h-4 w-4 accent-emerald-700"
+              className="h-4 w-4 accent-rust"
               name="answer"
               type="checkbox"
               value={option}
@@ -624,7 +634,7 @@ function SubmissionForm({
       {(task.type === "IMAGE_UPLOAD" || task.type === "FILE_UPLOAD") && (
         <TextArea label="Комментарий к файлу" name="answer" required={false} defaultValue={submission?.answer ?? ""} />
       )}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-mute">
         Ответ засчитывается только после нажатия «Отправить». Каждую задачу нужно отправить отдельно.
       </p>
       <Button className="w-fit">Отправить</Button>

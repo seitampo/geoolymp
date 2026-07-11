@@ -1,7 +1,7 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
@@ -144,5 +144,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     },
   });
 
-  return redirectAfterPost(request, backTo);
+  return redirectWithSuccess(request, backTo, "Задача создана.");
 }

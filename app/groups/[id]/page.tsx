@@ -5,7 +5,8 @@ import { Badge, SubmissionStatusBadge } from "@/components/Badge";
 import { AnchorButton, Button, LinkButton } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
-import { ErrorBanner } from "@/components/ErrorBanner";
+import { CopyButton } from "@/components/CopyButton";
+import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
 import { MapPointEditor } from "@/components/MapPoint";
@@ -92,6 +93,7 @@ export default async function GroupPage({
   searchParams: Promise<{
     tab?: string;
     error?: string;
+    ok?: string;
     q?: string;
     status?: string;
     filter?: string;
@@ -108,7 +110,7 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab, error, q, status, filter, after, grade, level, difficulty } = await searchParams;
+  const { tab, error, ok, q, status, filter, after, grade, level, difficulty } = await searchParams;
   const searchQuery = (q ?? "").trim();
   const statusFilter = getStatusFilter(status);
   const reviewFilter: ReviewFilter = filter === "pending" ? "pending" : "all";
@@ -240,28 +242,35 @@ export default async function GroupPage({
       <Header user={user} />
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <ErrorBanner message={error} />
+        <SuccessBanner message={ok} />
 
         <div className="mb-6">
           <Link
-            className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+            className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
             href="/dashboard"
           >
             <span aria-hidden="true">←</span> Назад к группам
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">{group.name}</h1>
-              <p className="mt-1 text-sm text-gray-600">{group.description}</p>
+              <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{group.name}</h1>
+              <p className="mt-1 text-sm text-ink-soft">{group.description}</p>
               {isTeacher && (
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Badge tone="emerald">
                     Код приглашения: <span className="font-mono">{group.inviteCode}</span>
                   </Badge>
+                  <CopyButton value={group.inviteCode} />
                 </div>
               )}
             </div>
             {isTeacher && (
-              <form className="shrink-0" action={`/api/groups/${group.id}/delete`} method="post">
+              <form
+                className="shrink-0"
+                action={`/api/groups/${group.id}/delete`}
+                method="post"
+                data-confirm="Удалить группу вместе со всеми задачами, материалами и решениями учеников? Это необратимо."
+              >
                 <Button variant="danger" size="sm">
                   Удалить группу
                 </Button>
@@ -355,12 +364,12 @@ function StudentProgress({
 
   return (
     <section className={`${cardClasses} mb-6`}>
-      <h2 className="text-base font-semibold text-gray-900">Мой прогресс</h2>
+      <h2 className="font-heading text-[15px] font-semibold text-ink">Мой прогресс</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
-            <span className="text-gray-600">Материалы</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-ink-soft">Материалы</span>
+            <span className="font-semibold text-ink">
               {materialsDone}/{materialsTotal}
             </span>
           </div>
@@ -368,8 +377,8 @@ function StudentProgress({
         </div>
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
-            <span className="text-gray-600">Задачи решено</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-ink-soft">Задачи решено</span>
+            <span className="font-semibold text-ink">
               {solvedTasks}/{tasksTotal}
             </span>
           </div>
@@ -377,8 +386,8 @@ function StudentProgress({
         </div>
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
-            <span className="text-gray-600">Средний балл</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-ink-soft">Средний балл</span>
+            <span className="font-semibold text-ink">
               {averagePercent === null ? "—" : `${averagePercent}%`}
             </span>
           </div>
@@ -578,8 +587,8 @@ function TaskFilterChips({
             key={filter.value}
             className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               isActive
-                ? "border-emerald-700 bg-emerald-700 text-white"
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                ? "border-rust bg-rust text-white"
+                : "border-line bg-white text-ink-soft hover:border-ink/25 hover:text-ink"
             }`}
             href={`/groups/${groupId}?${params.toString()}`}
             aria-current={isActive ? "true" : undefined}
@@ -611,8 +620,8 @@ function TabLink({
     <Link
       className={`inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         isActive
-          ? "bg-emerald-700 text-white"
-          : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+          ? "bg-rust text-white"
+          : "border border-line bg-white text-ink-soft hover:border-ink/25 hover:text-ink"
       }`}
       href={`/groups/${groupId}?tab=${tab}`}
       aria-current={isActive ? "page" : undefined}
@@ -620,7 +629,7 @@ function TabLink({
       {label}
       {showDot && (
         <span
-          className="ml-1.5 inline-block h-2 w-2 rounded-full bg-emerald-600"
+          className="ml-1.5 inline-block h-2 w-2 rounded-full bg-rust"
           title="Есть новый результат"
         />
       )}
@@ -656,13 +665,16 @@ function MaterialsTab({
         />
       )}
       {isTeacher && (
-        <form
-          className={`${cardClasses} grid gap-4`}
-          action={`/api/groups/${group.id}/materials`}
-          method="post"
-          encType="multipart/form-data"
-        >
-          <h2 className="text-base font-semibold text-gray-900">Добавить материал</h2>
+        <details className={cardClasses}>
+          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-rust">
+            + Добавить материал
+          </summary>
+          <form
+            className="mt-4 grid gap-4"
+            action={`/api/groups/${group.id}/materials`}
+            method="post"
+            encType="multipart/form-data"
+          >
           <TextInput label="Название" name="title" />
           <TextArea label="Описание" name="description" />
           <MaterialTypeSelect />
@@ -678,8 +690,9 @@ function MaterialsTab({
             name="file"
             hint={`Только для файловых типов, до ${maxUploadLabel()}`}
           />
-          <Button className="w-fit">Добавить</Button>
-        </form>
+            <Button className="w-fit">Добавить</Button>
+          </form>
+        </details>
       )}
 
       {group.materials.length === 0 ? (
@@ -734,7 +747,7 @@ function MaterialCard({
   return (
     <article className={cardClasses}>
       {isPreviewableMaterial(material.type) && material.filePath && (
-        <div className="mb-4 h-44 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+        <div className="mb-4 h-44 overflow-hidden rounded-lg border border-line bg-paper">
           {material.type === "IMAGE" ? (
             <img
               className="h-full w-full object-cover"
@@ -748,14 +761,14 @@ function MaterialCard({
         </div>
       )}
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-semibold text-gray-900">{material.title}</h3>
+        <h3 className="font-semibold text-ink">{material.title}</h3>
         <div className="flex flex-wrap justify-end gap-1.5">
           {!isTeacher && viewed && <Badge tone="green">Изучено</Badge>}
           <Badge>{getMaterialTypeBadgeLabel(material.type)}</Badge>
         </div>
       </div>
-      <p className="mt-1 text-sm text-gray-600">{material.description}</p>
-      <div className="mt-3 space-y-0.5 text-xs text-gray-500">
+      <p className="mt-1 text-sm text-ink-soft">{material.description}</p>
+      <div className="mt-3 space-y-0.5 text-xs text-ink-mute">
         <p>Дата загрузки: {formatDate(material.uploadedAt)}</p>
         {material.originalFileName && <p className="break-all">Файл: {material.originalFileName}</p>}
       </div>
@@ -777,8 +790,8 @@ function MaterialCard({
         </form>
       )}
       {isTeacher && (
-        <details className="mt-4 border-t border-gray-100 pt-3">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+        <details className="mt-4 border-t border-line/70 pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
             Редактировать
           </summary>
           <form
@@ -801,7 +814,12 @@ function MaterialCard({
             <FileInput label="Новый файл (необязательно)" name="file" />
             <Button className="w-fit">Сохранить</Button>
           </form>
-          <form className="mt-3" action={`/api/materials/${material.id}/delete`} method="post">
+          <form
+            className="mt-3"
+            action={`/api/materials/${material.id}/delete`}
+            method="post"
+            data-confirm="Удалить материал? Это необратимо."
+          >
             <Button variant="danger" size="sm">
               Удалить
             </Button>
@@ -886,21 +904,21 @@ function TasksTab({
       )}
       {isTeacher && (
         <details className={cardClasses}>
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+          <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
             Библиотека задач ({libraryTasks.length})
           </summary>
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-ink-mute">
             Задачи из ваших других групп. «Добавить» создаёт независимую копию в этой группе.
           </p>
           {libraryTasks.length === 0 ? (
-            <p className="mt-3 text-sm text-gray-500">В других ваших группах задач пока нет.</p>
+            <p className="mt-3 text-sm text-ink-mute">В других ваших группах задач пока нет.</p>
           ) : (
-            <ul className="mt-2 divide-y divide-gray-100">
+            <ul className="mt-2 divide-y divide-line/70">
               {libraryTasks.map((task) => (
                 <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={task.id}>
                   <div className="min-w-0">
-                    <p className="font-medium text-gray-900">{task.title}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="font-medium text-ink">{task.title}</p>
+                    <p className="mt-0.5 text-xs text-ink-mute">
                       {task.group.name} · {getTaskTypeLabel(task.type)}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -920,13 +938,16 @@ function TasksTab({
         </details>
       )}
       {isTeacher && (
-        <form
-          className={`${cardClasses} grid gap-4`}
-          action={`/api/groups/${group.id}/tasks`}
-          method="post"
-          encType="multipart/form-data"
-        >
-          <h2 className="text-base font-semibold text-gray-900">Создать задачу</h2>
+        <details className={cardClasses}>
+          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-rust">
+            + Создать задачу
+          </summary>
+          <form
+            className="mt-4 grid gap-4"
+            action={`/api/groups/${group.id}/tasks`}
+            method="post"
+            encType="multipart/form-data"
+          >
           <TextInput label="Название" name="title" />
           <TextArea label="Условие" name="description" />
           <TaskTypeSelect />
@@ -964,8 +985,9 @@ function TasksTab({
             hint={`JPG, PNG или WebP, до ${maxUploadLabel()}`}
           />
           <MapPointEditor />
-          <Button className="w-fit">Создать</Button>
-        </form>
+            <Button className="w-fit">Создать</Button>
+          </form>
+        </details>
       )}
 
       {group.tasks.length === 0 ? (
@@ -996,6 +1018,10 @@ function TasksTab({
               teacherGroups={teacherGroups}
               membersCount={group.memberships.length}
               inTraining={trainingTaskIds.has(task.id)}
+              submissionContext={{
+                returnTo: `/groups/${group.id}?tab=tasks#task-${task.id}`,
+                oneShot: false,
+              }}
             />
           ))}
         </div>
@@ -1009,8 +1035,11 @@ function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean
   return (
     <section className="space-y-5">
       {isTeacher && (
-        <form className={`${cardClasses} grid gap-4`} action={`/api/groups/${group.id}/sets`} method="post">
-          <h2 className="text-base font-semibold text-gray-900">Создать подборку</h2>
+        <details className={cardClasses}>
+          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-rust">
+            + Создать подборку
+          </summary>
+          <form className="mt-4 grid gap-4" action={`/api/groups/${group.id}/sets`} method="post">
           <TextInput label="Название" name="title" placeholder="Например: Климат — 20 задач" />
           <TextArea label="Описание" name="description" placeholder="Какая тема и зачем решать" />
           <TextInput
@@ -1022,8 +1051,9 @@ function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean
             required={false}
             placeholder="Например: 40 — включит режим тренировки"
           />
-          <Button className="w-fit">Создать подборку</Button>
-        </form>
+            <Button className="w-fit">Создать подборку</Button>
+          </form>
+        </details>
       )}
 
       {group.taskSets.length > 0 ? (
@@ -1031,11 +1061,11 @@ function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean
           {group.taskSets.map((set) => (
             <Link
               key={set.id}
-              className={`${cardClasses} block transition hover:border-emerald-300 hover:shadow-md`}
+              className={`${cardClasses} block transition hover:border-rust/40 hover:shadow-md`}
               href={`/groups/${group.id}/sets/${set.id}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-gray-900">{set.title}</h3>
+                <h3 className="font-semibold text-ink">{set.title}</h3>
                 <div className="flex flex-wrap justify-end gap-1.5">
                   {set.trainingMinutes !== null && (
                     <Badge tone="amber">Тренировка · {set.trainingMinutes} мин</Badge>
@@ -1043,7 +1073,7 @@ function SetsTab({ group, isTeacher }: { group: GroupForPage; isTeacher: boolean
                   <Badge tone="emerald">Задач: {set._count.items}</Badge>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-gray-600">{set.description}</p>
+              <p className="mt-1 text-sm text-ink-soft">{set.description}</p>
             </Link>
           ))}
         </div>
@@ -1094,8 +1124,8 @@ function SubmissionsTab({
             key={chip.value}
             className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               isActive
-                ? "border-emerald-700 bg-emerald-700 text-white"
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                ? "border-rust bg-rust text-white"
+                : "border-line bg-white text-ink-soft hover:border-ink/25 hover:text-ink"
             }`}
             href={`/groups/${groupId}?tab=submissions${chip.value === "pending" ? "&filter=pending" : ""}`}
             aria-current={isActive ? "true" : undefined}
@@ -1145,8 +1175,8 @@ function SubmissionsTab({
           <article className={cardClasses} key={submission.id}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="font-semibold text-gray-900">{submission.task.title}</h3>
-                <p className="mt-0.5 text-sm text-gray-600">
+                <h3 className="font-semibold text-ink">{submission.task.title}</h3>
+                <p className="mt-0.5 text-sm text-ink-soft">
                   {submission.student.name} · {getTaskTypeLabel(submission.task.type)}
                 </p>
               </div>
@@ -1161,13 +1191,13 @@ function SubmissionsTab({
               </div>
             </div>
             {submission.answer && (
-              <p className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
+              <p className="mt-3 whitespace-pre-wrap rounded-lg bg-paper px-3 py-2 text-sm text-ink">
                 {submission.answer}
               </p>
             )}
             {submission.originalFileName && (
               <a
-                className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
                 href={`/api/submissions/${submission.id}/file`}
               >
                 Скачать файл: {submission.originalFileName}
@@ -1176,14 +1206,14 @@ function SubmissionsTab({
             {isAutoGraded ? (
               // Балл уже выставлен автоматически — ручная форма спрятана,
               // но остаётся доступной, если учитель хочет скорректировать оценку.
-              <details className="mt-4 border-t border-gray-100 pt-3">
-                <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+              <details className="mt-4 border-t border-line/70 pt-3">
+                <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
                   Изменить оценку вручную
                 </summary>
                 {reviewForm}
               </details>
             ) : (
-              <div className="mt-4 border-t border-gray-100 pt-1">{reviewForm}</div>
+              <div className="mt-4 border-t border-line/70 pt-1">{reviewForm}</div>
             )}
           </article>
         );
@@ -1240,34 +1270,34 @@ function ReviewQueue({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-600">
-        Осталось в очереди: <span className="font-semibold text-gray-900">{queue.length}</span>
+      <p className="text-sm text-ink-soft">
+        Осталось в очереди: <span className="font-semibold text-ink">{queue.length}</span>
       </p>
       <article className={cardClasses}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900">{current.task.title}</h3>
-            <p className="mt-0.5 text-sm text-gray-600">
+            <h3 className="font-semibold text-ink">{current.task.title}</h3>
+            <p className="mt-0.5 text-sm text-ink-soft">
               {current.student.name} · {getTaskTypeLabel(current.task.type)}
             </p>
           </div>
           <SubmissionStatusBadge status={current.status} />
         </div>
         {current.answer && (
-          <p className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          <p className="mt-3 whitespace-pre-wrap rounded-lg bg-paper px-3 py-2 text-sm text-ink">
             {current.answer}
           </p>
         )}
         {current.originalFileName && (
           <a
-            className="mt-2 inline-block break-all text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
             href={`/api/submissions/${current.id}/file`}
           >
             Скачать файл: {current.originalFileName}
           </a>
         )}
         <form
-          className="mt-4 grid gap-3 border-t border-gray-100 pt-4"
+          className="mt-4 grid gap-3 border-t border-line/70 pt-4"
           action={`/api/submissions/${current.id}/review`}
           method="post"
         >
@@ -1322,18 +1352,18 @@ function MembersTab({
           </AnchorButton>
         </div>
       )}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-line bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[480px] text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+            <tr className="border-b border-line bg-paper text-left text-xs font-medium uppercase tracking-wide text-ink-mute">
               <th className="px-4 py-3">Ученик</th>
               <th className="px-4 py-3">Проверено задач</th>
               <th className="px-4 py-3">Сумма баллов</th>
               {isTeacher && <th className="px-4 py-3">Действия</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-line/70">
             {memberships.map((membership) => {
               const reviewed = membership.user.submissions.filter((submission) => submission.review);
               const totalScore = reviewed.reduce(
@@ -1343,12 +1373,16 @@ function MembersTab({
 
               return (
                 <tr key={membership.user.id}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{membership.user.name}</td>
-                  <td className="px-4 py-3 text-gray-700">{reviewed.length}</td>
-                  <td className="px-4 py-3 text-gray-700">{totalScore}</td>
+                  <td className="px-4 py-3 font-medium text-ink">{membership.user.name}</td>
+                  <td className="px-4 py-3 text-ink-soft">{reviewed.length}</td>
+                  <td className="px-4 py-3 text-ink-soft">{totalScore}</td>
                   {isTeacher && (
                     <td className="px-4 py-3">
-                      <form action={`/api/memberships/${membership.id}/delete`} method="post">
+                      <form
+                        action={`/api/memberships/${membership.id}/delete`}
+                        method="post"
+                        data-confirm="Удалить ученика из группы вместе с его решениями?"
+                      >
                         <Button variant="danger" size="sm">
                           Удалить из группы
                         </Button>

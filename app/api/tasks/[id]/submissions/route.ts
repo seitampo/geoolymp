@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   });
 
-  return redirectAfterPost(request, backTo);
+  return redirectWithSuccess(request, backTo, "Ответ отправлен.");
 }
 
 /**

@@ -23,7 +23,7 @@ function TargetCircle({ point, radius, aspect }: { point: Point; radius: number;
   return (
     <>
       <span
-        className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-emerald-600 bg-emerald-500/20"
+        className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-green-600 bg-green-500/20"
         style={{
           left: `${point.x}%`,
           top: `${point.y * aspect}%`,
@@ -32,7 +32,7 @@ function TargetCircle({ point, radius, aspect }: { point: Point; radius: number;
         }}
       />
       <span
-        className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-700"
+        className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-700"
         style={{ left: `${point.x}%`, top: `${point.y * aspect}%` }}
       />
     </>
@@ -94,15 +94,15 @@ export function MapPointEditor({
   }, []);
 
   return (
-    <div ref={wrapperRef} className="rounded-lg border border-gray-200 p-3">
-      <p className="text-sm font-medium text-gray-700">Цель картозадачи</p>
-      <p className="mt-0.5 text-xs text-gray-500">
+    <div ref={wrapperRef} className="rounded-lg border border-line p-3">
+      <p className="text-sm font-medium text-ink-soft">Цель картозадачи</p>
+      <p className="mt-0.5 text-xs text-ink-mute">
         Для типа «Клик по карте»: загрузите карту в поле изображения, затем кликните по ней,
         чтобы отметить правильную точку, и подберите допуск.
       </p>
 
       {imageUrl ? (
-        <div className="relative mt-3 cursor-crosshair overflow-hidden rounded-lg border border-gray-200">
+        <div className="relative mt-3 cursor-crosshair overflow-hidden rounded-lg border border-line">
           <img
             className="block w-full select-none"
             src={imageUrl}
@@ -116,16 +116,16 @@ export function MapPointEditor({
           {point && <TargetCircle point={point} radius={radius} aspect={aspect} />}
         </div>
       ) : (
-        <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+        <p className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink-mute">
           Карта появится здесь после выбора изображения.
         </p>
       )}
 
       {imageUrl && (
-        <label className="mt-3 block text-xs text-gray-600">
+        <label className="mt-3 block text-xs text-ink-soft">
           Допуск (радиус зоны): <span className="font-medium">{radius}%</span> ширины карты
           <input
-            className="mt-1 block w-full accent-emerald-700"
+            className="mt-1 block w-full accent-rust"
             type="range"
             min={1}
             max={25}
@@ -171,12 +171,12 @@ export function MapAnswerInput({
   return (
     <div>
       {!readOnly && (
-        <p className="mb-2 text-sm text-gray-700">
+        <p className="mb-2 text-sm text-ink-soft">
           Кликните по карте, чтобы отметить ответ{point ? " (можно передвинуть новым кликом)" : ""}.
         </p>
       )}
       <div
-        className={`relative overflow-hidden rounded-lg border border-gray-200 ${
+        className={`relative overflow-hidden rounded-lg border border-line ${
           readOnly ? "" : "cursor-crosshair"
         }`}
       >

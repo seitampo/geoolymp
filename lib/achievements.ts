@@ -14,7 +14,6 @@ export type BadgeDef = {
   family: BadgeFamily;
   title: string;
   description: string;
-  icon: string;
   /** По какому счётчику из AchievementStats считается прогресс. */
   stat: keyof AchievementStats;
   /** Порог для получения значка. */
@@ -28,16 +27,16 @@ export type AchievementStats = {
 };
 
 export const badgeCatalog: BadgeDef[] = [
-  { code: "task-1", family: "tasks", title: "Первое решение", description: "Решить первую задачу", icon: "✅", stat: "solvedTasks", target: 1 },
-  { code: "task-10", family: "tasks", title: "Десяток", description: "Решить 10 задач", icon: "🔟", stat: "solvedTasks", target: 10 },
-  { code: "task-50", family: "tasks", title: "Полусотня", description: "Решить 50 задач", icon: "⭐", stat: "solvedTasks", target: 50 },
-  { code: "task-100", family: "tasks", title: "Сотня", description: "Решить 100 задач", icon: "💯", stat: "solvedTasks", target: 100 },
-  { code: "map-1", family: "maps", title: "Первая карта", description: "Верно отметить объект на карте", icon: "📍", stat: "solvedMaps", target: 1 },
-  { code: "map-10", family: "maps", title: "Картограф", description: "Решить 10 картозадач", icon: "🗺️", stat: "solvedMaps", target: 10 },
-  { code: "map-25", family: "maps", title: "Покоритель карт", description: "Решить 25 картозадач", icon: "🧭", stat: "solvedMaps", target: 25 },
-  { code: "streak-3", family: "streak", title: "Три дня подряд", description: "Заниматься 3 дня подряд", icon: "🔥", stat: "currentStreak", target: 3 },
-  { code: "streak-7", family: "streak", title: "Неделя подряд", description: "Заниматься 7 дней подряд", icon: "🔥", stat: "currentStreak", target: 7 },
-  { code: "streak-30", family: "streak", title: "Месяц подряд", description: "Заниматься 30 дней подряд", icon: "🏆", stat: "currentStreak", target: 30 },
+  { code: "task-1", family: "tasks", title: "Первое решение", description: "Решить первую задачу", stat: "solvedTasks", target: 1 },
+  { code: "task-10", family: "tasks", title: "Десяток", description: "Решить 10 задач", stat: "solvedTasks", target: 10 },
+  { code: "task-50", family: "tasks", title: "Полусотня", description: "Решить 50 задач", stat: "solvedTasks", target: 50 },
+  { code: "task-100", family: "tasks", title: "Сотня", description: "Решить 100 задач", stat: "solvedTasks", target: 100 },
+  { code: "map-1", family: "maps", title: "Первая карта", description: "Верно отметить объект на карте", stat: "solvedMaps", target: 1 },
+  { code: "map-10", family: "maps", title: "Картограф", description: "Решить 10 картозадач", stat: "solvedMaps", target: 10 },
+  { code: "map-25", family: "maps", title: "Покоритель карт", description: "Решить 25 картозадач", stat: "solvedMaps", target: 25 },
+  { code: "streak-3", family: "streak", title: "Три дня подряд", description: "Заниматься 3 дня подряд", stat: "currentStreak", target: 3 },
+  { code: "streak-7", family: "streak", title: "Неделя подряд", description: "Заниматься 7 дней подряд", stat: "currentStreak", target: 7 },
+  { code: "streak-30", family: "streak", title: "Месяц подряд", description: "Заниматься 30 дней подряд", stat: "currentStreak", target: 30 },
 ];
 
 export const badgeFamilyLabels: Record<BadgeFamily, string> = {

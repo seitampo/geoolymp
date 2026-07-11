@@ -1,7 +1,7 @@
 import { MaterialType, Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import {
   isAllowedFileName,
   isFileMaterial,
@@ -81,5 +81,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await prisma.material.create({ data: { groupId, title, description, type } });
   }
 
-  return redirectAfterPost(request, backTo);
+  return redirectWithSuccess(request, backTo, "Материал добавлен.");
 }

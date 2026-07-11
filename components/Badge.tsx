@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 
 type BadgeTone = "gray" | "emerald" | "green" | "amber" | "red";
 
+// «emerald» исторически — фирменный акцент; в новой палитре это терракота.
 const toneClasses: Record<BadgeTone, string> = {
-  gray: "bg-gray-100 text-gray-700",
-  emerald: "bg-emerald-50 text-emerald-800",
+  gray: "bg-ink/5 text-ink-soft",
+  emerald: "bg-rust-soft text-rust-deep",
   green: "bg-green-100 text-green-800",
   amber: "bg-amber-100 text-amber-800",
   red: "bg-red-100 text-red-800",
@@ -14,7 +15,7 @@ const toneClasses: Record<BadgeTone, string> = {
 export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${toneClasses[tone]}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ${toneClasses[tone]}`}
     >
       {children}
     </span>

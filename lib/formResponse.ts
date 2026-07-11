@@ -16,3 +16,18 @@ export function redirectWithError(request: NextRequest, redirectTo: string, mess
 export function redirectAfterPost(request: NextRequest, redirectTo: string) {
   return NextResponse.redirect(new URL(redirectTo, request.url), 303);
 }
+
+/**
+ * Редирект с сообщением об успехе (?ok=) — симметрия к redirectWithError.
+ * Понимает адреса с якорем: параметр вставляется до «#», чтобы браузер
+ * и показал баннер, и проскроллил к нужному блоку.
+ */
+export function redirectWithSuccess(request: NextRequest, redirectTo: string, message: string) {
+  const [path, fragment] = redirectTo.split("#");
+  const url = new URL(path, request.url);
+  url.searchParams.set("ok", message);
+  if (fragment) {
+    url.hash = fragment;
+  }
+  return NextResponse.redirect(url, 303);
+}

@@ -1,7 +1,7 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import { createInviteCode } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -29,5 +29,5 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return redirectAfterPost(request, `/groups/${group.id}`);
+  return redirectWithSuccess(request, `/groups/${group.id}`, "Группа создана. Отправьте ученикам код приглашения.");
 }

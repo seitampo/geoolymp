@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import { Compass } from "@/components/Compass";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { TextInput } from "@/components/FormFields";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default async function LoginPage({
   searchParams,
@@ -22,20 +24,21 @@ export default async function LoginPage({
   return (
     <main className="mx-auto w-full max-w-sm px-4 py-12 sm:px-0 sm:py-16">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Вход</h1>
-        <p className="mt-1 text-sm text-gray-500">С возвращением в GeoOlymp</p>
+        <Compass className="mx-auto mb-3 h-9 w-9 text-rust" />
+        <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">Вход</h1>
+        <p className="mt-1 text-sm text-ink-mute">С возвращением в GeoOlymp</p>
       </div>
       <Card>
         <ErrorBanner message={error} />
         <form className="space-y-4" action="/api/auth/login" method="post">
           <TextInput label="Email" name="email" type="email" placeholder="you@example.com" />
-          <TextInput label="Пароль" name="password" type="password" />
+          <PasswordInput />
           <Button className="w-full">Войти</Button>
         </form>
       </Card>
-      <p className="mt-4 text-center text-sm text-gray-600">
+      <p className="mt-4 text-center text-sm text-ink-soft">
         Нет аккаунта?{" "}
-        <Link className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline" href="/register">
+        <Link className="font-medium text-sea hover:underline" href="/register">
           Зарегистрироваться
         </Link>
       </p>

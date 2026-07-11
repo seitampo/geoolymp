@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost } from "@/lib/formResponse";
+import { redirectAfterPost, redirectWithSuccess } from "@/lib/formResponse";
 import { getAbsoluteMaterialPath } from "@/lib/materials";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
@@ -33,5 +33,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await unlink(getAbsoluteMaterialPath(material.filePath)).catch(() => undefined);
   }
 
-  return redirectAfterPost(request, `/groups/${material.groupId}?tab=materials`);
+  return redirectWithSuccess(request, `/groups/${material.groupId}?tab=materials`, "Материал удалён.");
 }

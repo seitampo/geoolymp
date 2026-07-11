@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
+import { BadgeGlyph } from "@/components/BadgeGlyph";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { Header } from "@/components/Header";
@@ -46,7 +47,7 @@ export default async function AchievementsPage() {
       <Header user={user} />
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <Link
-          className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
           href="/dashboard"
         >
           <span aria-hidden="true">←</span> В личный кабинет
@@ -54,8 +55,8 @@ export default async function AchievementsPage() {
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Достижения</h1>
-            <p className="mt-1 text-sm text-gray-600">
+            <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">Достижения</h1>
+            <p className="mt-1 text-sm text-ink-soft">
               Получено значков: {earnedCount} из {badgeCatalog.length}
             </p>
           </div>
@@ -69,7 +70,7 @@ export default async function AchievementsPage() {
         </div>
 
         {newlyEarnedCodes.size > 0 && (
-          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <div className="mb-6 rounded-lg border border-rust/30 bg-rust-soft px-4 py-3 text-sm text-rust-deep">
             <span className="font-semibold">Поздравляем!</span> Новых значков: {newlyEarnedCodes.size}.
             Они отмечены ниже.
           </div>
@@ -78,13 +79,13 @@ export default async function AchievementsPage() {
         {user.role === "TEACHER" && earnedCount === 0 ? (
           <EmptyState
             title="Значки — для учеников"
-            description="Достижения начисляются за решённые задачи, картозадачи, стрики и олимпиады."
+            description="Достижения начисляются за решённые задачи, картозадачи и стрики."
           />
         ) : (
           <div className="space-y-8">
             {families.map((family) => (
               <section key={family}>
-                <h2 className="mb-3 text-base font-semibold text-gray-900">{badgeFamilyLabels[family]}</h2>
+                <h2 className="mb-3 font-heading text-[15px] font-semibold text-ink">{badgeFamilyLabels[family]}</h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {badgeCatalog
                     .filter((badge) => badge.family === family)
@@ -98,15 +99,13 @@ export default async function AchievementsPage() {
                           key={badge.code}
                           className={`${cardClasses} ${
                             earnedBadge ? "" : "opacity-70"
-                          } ${isNew ? "ring-2 ring-emerald-400" : ""}`}
+                          } ${isNew ? "ring-2 ring-rust/60" : ""}`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span
-                              className={`text-3xl ${earnedBadge ? "" : "grayscale"}`}
-                              aria-hidden="true"
-                            >
-                              {badge.icon}
-                            </span>
+                            <BadgeGlyph
+                              family={badge.family}
+                              className={`h-9 w-9 ${earnedBadge ? "text-rust" : "text-ink-mute/50"}`}
+                            />
                             {earnedBadge ? (
                               isNew ? (
                                 <Badge tone="emerald">Новый</Badge>
@@ -119,10 +118,10 @@ export default async function AchievementsPage() {
                               </Badge>
                             )}
                           </div>
-                          <h3 className="mt-2 font-semibold text-gray-900">{badge.title}</h3>
-                          <p className="mt-0.5 text-sm text-gray-600">{badge.description}</p>
+                          <h3 className="mt-2 font-semibold text-ink">{badge.title}</h3>
+                          <p className="mt-0.5 text-sm text-ink-soft">{badge.description}</p>
                           {earnedBadge ? (
-                            <p className="mt-3 text-xs text-gray-500">
+                            <p className="mt-3 text-xs text-ink-mute">
                               Получен: {formatDateTime(earnedBadge.earnedAt)}
                             </p>
                           ) : (

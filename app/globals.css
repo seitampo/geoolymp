@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/*
+ * Палитра «Экспедиционная карта»:
+ * бумага + чернила + терракотовый акцент (rust) + морской тил для ссылок.
+ * Семантика статусов (green/amber/red) остаётся из Tailwind.
+ */
+@theme {
+  --color-paper: #f7f4ee;
+  --color-ink: #16232b;
+  --color-ink-soft: #45535c;
+  --color-ink-mute: #6d7a82;
+  --color-line: #e5dfd2;
+  --color-rust: #b0380f;
+  --color-rust-deep: #922e0c;
+  --color-rust-soft: #f7e7dd;
+  --color-sea: #0f5e63;
+
+  --font-sans: var(--font-body), system-ui, sans-serif;
+  --font-heading: var(--font-heading), var(--font-body), sans-serif;
+}
+
 :root {
   color-scheme: light;
 }
@@ -15,10 +35,23 @@ select {
 /* Единый видимый фокус для доступности (навигация с клавиатуры).
    Утилиты focus:* на полях ввода перекрывают это правило за счёт специфичности. */
 :focus-visible {
-  outline: 2px solid #059669; /* emerald-600 */
+  outline: 2px solid #b0380f;
   outline-offset: 2px;
 }
 
 button {
   cursor: pointer;
+}
+
+::selection {
+  background: #f2d7c9;
+}
+
+/* Авторская деталь: пунктирная «линия маршрута» из точек — подчёркивание
+   заголовков разделов и след в пустых состояниях. */
+.route-dash {
+  height: 3px;
+  background-image: radial-gradient(circle, #b0380f 1.5px, transparent 1.6px);
+  background-size: 11px 3px;
+  background-repeat: repeat-x;
 }

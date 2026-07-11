@@ -29,7 +29,7 @@ export function TrainingTimer({ expiresAt }: { expiresAt: string }) {
   }, [expiresAt]);
 
   if (msLeft === null) {
-    return <span className="font-mono text-lg font-semibold tabular-nums text-gray-900">—:—</span>;
+    return <span className="font-mono text-lg font-semibold tabular-nums text-ink">—:—</span>;
   }
 
   const totalSeconds = Math.floor(msLeft / 1000);
@@ -39,7 +39,7 @@ export function TrainingTimer({ expiresAt }: { expiresAt: string }) {
 
   return (
     <span
-      className={`font-mono text-lg font-semibold tabular-nums ${isLow ? "text-red-700" : "text-gray-900"}`}
+      className={`font-mono text-lg font-semibold tabular-nums ${isLow ? "text-red-700" : "text-ink"}`}
     >
       {minutes}:{String(seconds).padStart(2, "0")}
     </span>

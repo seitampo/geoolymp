@@ -86,7 +86,7 @@ export default async function TrainingPage({
         <ErrorBanner message={error} />
 
         <Link
-          className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
           href={`/groups/${groupId}/sets/${set.id}`}
         >
           <span aria-hidden="true">←</span> К подборке
@@ -119,8 +119,8 @@ function ActiveTraining({
     <div className="space-y-5">
       <div className={`${cardClasses} sticky top-16 z-10 flex flex-wrap items-center justify-between gap-3`}>
         <div className="min-w-0">
-          <h1 className="text-lg font-bold tracking-tight text-gray-900">{set.title}</h1>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <h1 className="font-heading text-base font-semibold tracking-tight text-ink">{set.title}</h1>
+          <p className="mt-0.5 text-xs text-ink-mute">
             Отвечено: {answeredCount} из {tasks.length}
           </p>
         </div>
@@ -146,7 +146,7 @@ function ActiveTraining({
         return (
           <article className={cardClasses} key={task.id}>
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h2 className="font-semibold text-gray-900">
+              <h2 className="font-semibold text-ink">
                 {index + 1}. {task.title}
               </h2>
               <div className="flex gap-1.5">
@@ -154,10 +154,10 @@ function ActiveTraining({
                 <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
               </div>
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
             {task.imagePath && !isMapTask(task.type) && (
               <img
-                className="mt-3 max-h-80 rounded-lg border border-gray-200 object-contain"
+                className="mt-3 max-h-80 rounded-lg border border-line object-contain"
                 src={`/api/tasks/${task.id}/image`}
                 alt={task.title}
                 loading="lazy"
@@ -178,11 +178,11 @@ function ActiveTraining({
               {task.type === "SINGLE_CHOICE" &&
                 options.map((option) => (
                   <label
-                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
                     key={option}
                   >
                     <input
-                      className="h-4 w-4 accent-emerald-700"
+                      className="h-4 w-4 accent-rust"
                       name="answer"
                       type="radio"
                       value={option}
@@ -199,11 +199,11 @@ function ActiveTraining({
                     : [];
                   return (
                     <label
-                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 transition-colors hover:border-emerald-300"
+                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
                       key={option}
                     >
                       <input
-                        className="h-4 w-4 accent-emerald-700"
+                        className="h-4 w-4 accent-rust"
                         name="answer"
                         type="checkbox"
                         value={option}
@@ -259,13 +259,13 @@ function TrainingResult({
   return (
     <div className="space-y-5">
       <section className={`${cardClasses} text-center`}>
-        <p className="text-sm font-medium text-emerald-700">Тренировка завершена</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">{set.title}</h1>
-        <p className="mt-4 text-4xl font-bold text-gray-900">
+        <p className="text-sm font-medium text-green-700">Тренировка завершена</p>
+        <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight text-ink">{set.title}</h1>
+        <p className="mt-4 text-4xl font-bold text-ink">
           {earnedScore}
-          <span className="text-xl font-medium text-gray-500"> из {possibleScore}</span>
+          <span className="text-xl font-medium text-ink-mute"> из {possibleScore}</span>
         </p>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-ink-mute">
           баллов по автопроверке · время: {durationMinutes}:{String(durationSeconds).padStart(2, "0")}
         </p>
         <div className="mt-5">
@@ -282,7 +282,7 @@ function TrainingResult({
         return (
           <article className={cardClasses} key={task.id}>
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h2 className="font-semibold text-gray-900">
+              <h2 className="font-semibold text-ink">
                 {index + 1}. {task.title}
               </h2>
               <div className="flex gap-1.5">
@@ -299,7 +299,7 @@ function TrainingResult({
                 )}
               </div>
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{task.description}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
             {isMapTask(task.type) && task.imagePath ? (
               <div className="mt-3">
                 <MapAnswerInput
@@ -312,18 +312,18 @@ function TrainingResult({
                       : undefined
                   }
                 />
-                <p className="mt-1.5 text-xs text-gray-500">
+                <p className="mt-1.5 text-xs text-ink-mute">
                   Красная метка — ваш ответ, зелёная зона — правильная область.
                 </p>
               </div>
             ) : (
-              <div className="mt-3 space-y-1 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                <p className="text-gray-700">
+              <div className="mt-3 space-y-1 rounded-lg bg-paper px-3 py-2 text-sm">
+                <p className="text-ink-soft">
                   Ваш ответ:{" "}
-                  <span className="font-medium text-gray-900">{answer?.answer || "—"}</span>
+                  <span className="font-medium text-ink">{answer?.answer || "—"}</span>
                 </p>
                 {isAuto && (
-                  <p className="text-emerald-800">
+                  <p className="text-green-800">
                     Правильный ответ: <span className="font-medium">{task.correctAnswer}</span>
                   </p>
                 )}
@@ -334,7 +334,7 @@ function TrainingResult({
       })}
 
       {manualTasks.length > 0 && (
-        <p className="text-center text-xs text-gray-500">
+        <p className="text-center text-xs text-ink-mute">
           Задачи без вариантов ответа не оцениваются автоматически и не входят в сумму баллов.
         </p>
       )}

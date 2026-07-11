@@ -1,7 +1,7 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost } from "@/lib/formResponse";
+import { redirectAfterPost, redirectWithSuccess } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
@@ -26,5 +26,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Удаляется только подборка (items каскадом); сами задачи остаются в группе.
   await prisma.taskSet.delete({ where: { id: setId } });
 
-  return redirectAfterPost(request, `/groups/${set.groupId}?tab=sets`);
+  return redirectWithSuccess(request, `/groups/${set.groupId}?tab=sets`, "Подборка удалена.");
 }

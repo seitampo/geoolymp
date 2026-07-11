@@ -5,12 +5,13 @@ type ButtonVariant = "primary" | "secondary" | "danger";
 type ButtonSize = "md" | "sm";
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 
-// emerald-700 как заливка: белый текст на emerald-600 не проходит контраст 4.5:1.
+// Терракотовая заливка (белый текст на #b0380f — контраст > 4.5:1),
+// второстепенная — чернильный контур, опасная — красный контур.
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-emerald-700 text-white hover:bg-emerald-800 active:bg-emerald-900",
-  secondary: "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50",
+  primary: "bg-rust text-white hover:bg-rust-deep active:bg-rust-deep",
+  secondary: "border border-ink/25 bg-white text-ink hover:border-ink/50 hover:bg-paper",
   danger: "border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50",
 };
 
