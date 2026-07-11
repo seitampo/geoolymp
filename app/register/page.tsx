@@ -40,12 +40,23 @@ export default async function RegisterPage({
               name="role"
               required
               options={[
-                { value: "TEACHER", label: "Учитель" },
                 { value: "STUDENT", label: "Ученик" },
+                { value: "TEACHER", label: "Учитель" },
               ]}
             />
             <p className="mt-1.5 text-xs text-ink-mute">
               Учитель создаёт группы и задачи; ученик вступает в группу по коду приглашения.
+            </p>
+          </div>
+          <div>
+            <TextInput
+              label="Код учителя"
+              name="inviteCode"
+              required={false}
+              placeholder="Только при регистрации учителем"
+            />
+            <p className="mt-1.5 text-xs text-ink-mute">
+              Ученики оставляют поле пустым. Код учителя выдаёт администратор платформы.
             </p>
           </div>
           <Button className="w-full">Создать аккаунт</Button>

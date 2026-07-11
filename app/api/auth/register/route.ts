@@ -4,6 +4,7 @@ import { setSession } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { isValidTeacherInvite } from "@/lib/teacherInvite";
 
 const MIN_PASSWORD_LENGTH = 6;
 // Грубая проверка формата: атрибут type="email" работает только на клиенте,
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "");
+  const inviteCode = String(formData.get("inviteCode") ?? "").trim();
 
   if (!name || !email || !password || (role !== Role.TEACHER && role !== Role.STUDENT)) {
     return redirectWithError(request, "/register", "Заполните все поля.");
@@ -27,6 +29,12 @@ export async function POST(request: NextRequest) {
 
   if (password.length < MIN_PASSWORD_LENGTH) {
     return redirectWithError(request, "/register", `Пароль должен быть не короче ${MIN_PASSWORD_LENGTH} символов.`);
+  }
+
+  // Роль учителя выдаётся только по коду-приглашению (проверка на сервере: без неё
+  // прямой POST с role=TEACHER создал бы учительский аккаунт в обход интерфейса).
+  if (role === Role.TEACHER && !isValidTeacherInvite(inviteCode)) {
+    return redirectWithError(request, "/register", "Неверный код учителя. Получите код у администратора платформы.");
   }
 
   try {
