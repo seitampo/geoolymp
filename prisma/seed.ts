@@ -1,7 +1,6 @@
 import { MaterialType, PrismaClient, Role, SubmissionStatus, TaskType } from "@prisma/client";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { hashPassword } from "../lib/password";
+import { r2PutObject } from "../lib/r2";
 
 const prisma = new PrismaClient();
 
@@ -190,25 +189,29 @@ async function main() {
 }
 
 async function createSeedFiles() {
-  const materialsDirectory = path.join(process.cwd(), "uploads", "materials");
-  const tasksDirectory = path.join(process.cwd(), "uploads", "tasks");
+  // Демо-файлы кладём в R2 под те же ключи, что хранятся в БД (uploads/<папка>/<имя>),
+  // чтобы после сидирования материалы открывались и на задеплоенном сайте.
+  const physicalGeographyPdf = "uploads/materials/physical_geography_kz.pdf";
+  const climatePptx = "uploads/materials/climate_kz.pptx";
+  const hydrographyDocx = "uploads/materials/hydrography_tasks.docx";
+  const kazakhstanMapPng = "uploads/materials/kazakhstan_map.png";
+  const practiceZip = "uploads/materials/kazakhstan_geography_practice.zip";
+  const taskMapPng = "uploads/tasks/kazakhstan_task_map.png";
 
-  await mkdir(materialsDirectory, { recursive: true });
-  await mkdir(tasksDirectory, { recursive: true });
-
-  const physicalGeographyPdf = path.join("uploads", "materials", "physical_geography_kz.pdf");
-  const climatePptx = path.join("uploads", "materials", "climate_kz.pptx");
-  const hydrographyDocx = path.join("uploads", "materials", "hydrography_tasks.docx");
-  const kazakhstanMapPng = path.join("uploads", "materials", "kazakhstan_map.png");
-  const practiceZip = path.join("uploads", "materials", "kazakhstan_geography_practice.zip");
-  const taskMapPng = path.join("uploads", "tasks", "kazakhstan_task_map.png");
-
-  await writeFile(path.join(process.cwd(), physicalGeographyPdf), createSimplePdf());
-  await writeFile(path.join(process.cwd(), climatePptx), createSimplePptx());
-  await writeFile(path.join(process.cwd(), hydrographyDocx), createSimpleDocx());
-  await writeFile(path.join(process.cwd(), kazakhstanMapPng), createDemoMapPng());
-  await writeFile(
-    path.join(process.cwd(), practiceZip),
+  await r2PutObject(physicalGeographyPdf, createSimplePdf(), "application/pdf");
+  await r2PutObject(
+    climatePptx,
+    createSimplePptx(),
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  );
+  await r2PutObject(
+    hydrographyDocx,
+    createSimpleDocx(),
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  await r2PutObject(kazakhstanMapPng, createDemoMapPng(), "image/png");
+  await r2PutObject(
+    practiceZip,
     createZip([
       {
         name: "readme.txt",
@@ -219,8 +222,9 @@ async function createSeedFiles() {
         content: Buffer.from("1. Сравните природные зоны Казахстана.\n2. Определите бассейн реки Иртыш.\n", "utf8"),
       },
     ]),
+    "application/zip",
   );
-  await writeFile(path.join(process.cwd(), taskMapPng), createDemoMapPng());
+  await r2PutObject(taskMapPng, createDemoMapPng(), "image/png");
 
   return {
     physicalGeographyPdf,

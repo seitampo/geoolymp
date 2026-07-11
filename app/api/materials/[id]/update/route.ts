@@ -1,10 +1,8 @@
 import { MaterialType, Role } from "@prisma/client";
-import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import {
-  getAbsoluteMaterialPath,
   isAllowedFileName,
   isFileMaterial,
   isValidExternalUrl,
@@ -13,7 +11,7 @@ import {
 } from "@/lib/materials";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { isUploadTooLarge, maxUploadLabel } from "@/lib/uploads";
+import { deleteUploadedFile, hasStorageRoom, isUploadTooLarge, maxUploadLabel, storageLimitLabel } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     if (material.filePath) {
-      await unlink(getAbsoluteMaterialPath(material.filePath)).catch(() => undefined);
+      await deleteUploadedFile(material.filePath);
     }
 
     return redirectAfterPost(request, backTo);
@@ -85,6 +83,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, "Файл не соответствует выбранному типу материала.");
   }
 
+  if (newFileSelected && !(await hasStorageRoom(file.size))) {
+    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Удалите ненужные файлы.`);
+  }
+
   const savedFile = newFileSelected ? await saveMaterialFile(file) : null;
 
   await prisma.material.update({
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   if (savedFile && material.filePath) {
-    await unlink(getAbsoluteMaterialPath(material.filePath)).catch(() => undefined);
+    await deleteUploadedFile(material.filePath);
   }
 
   return redirectAfterPost(request, backTo);

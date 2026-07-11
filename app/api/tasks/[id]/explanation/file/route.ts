@@ -1,10 +1,9 @@
-import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { contentDisposition, getAbsoluteUploadPath } from "@/lib/uploads";
+import { contentDisposition, readUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -41,7 +40,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  const file = await readFile(getAbsoluteUploadPath(task.explanationFilePath));
+  const file = await readUploadedFile(task.explanationFilePath);
+  if (!file) {
+    return NextResponse.json({ error: "Разбор не найден." }, { status: 404 });
+  }
 
   return new NextResponse(file, {
     headers: {
