@@ -1,9 +1,16 @@
 import { randomUUID } from "crypto";
-import { copyFile, mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { r2CopyObject, r2DeleteObject, r2GetObject, r2PutObject, r2TotalBytes } from "./r2";
 
 /** Максимальный размер одного загружаемого файла (10 МБ). */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Потолок суммарного объёма хранилища (5 ГБ). Держим заметно ниже бесплатного
+ * лимита R2 (10 ГБ), чтобы исключить любые списания: при достижении потолка новые
+ * загрузки блокируются, а не оплачиваются.
+ */
+export const MAX_TOTAL_STORAGE_BYTES = 5 * 1024 * 1024 * 1024;
 
 /** Расширения изображений, которые принимаем и отдаём с image/* Content-Type. */
 export const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
@@ -16,55 +23,58 @@ export function maxUploadLabel() {
   return `${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} МБ`;
 }
 
+export function storageLimitLabel() {
+  return `${Math.round(MAX_TOTAL_STORAGE_BYTES / (1024 * 1024 * 1024))} ГБ`;
+}
+
+/** Есть ли место под новый файл в пределах потолка хранилища. */
+export async function hasStorageRoom(incomingBytes: number): Promise<boolean> {
+  const used = await r2TotalBytes();
+  return used + incomingBytes <= MAX_TOTAL_STORAGE_BYTES;
+}
+
 export function isAllowedImageFileName(fileName: string) {
   return allowedImageExtensions.includes(path.extname(fileName).toLowerCase());
 }
 
-export async function saveUploadedFile(file: File, folder: "materials" | "tasks" | "submissions") {
-  const uploadsDirectory = path.join(process.cwd(), "uploads", folder);
-  await mkdir(uploadsDirectory, { recursive: true });
-
-  const originalFileName = sanitizeFileName(file.name);
-  const extension = path.extname(originalFileName).toLowerCase();
-  const storedFileName = `${randomUUID()}${extension}`;
-  const absolutePath = path.join(uploadsDirectory, storedFileName);
-
-  await writeFile(absolutePath, Buffer.from(await file.arrayBuffer()));
-
-  return {
-    // В БД путь храним всегда с "/": path.join на Windows даёт "\", и такие записи
-    // ломаются после переезда на Linux-хостинг. path.join при чтении понимает оба вида.
-    filePath: ["uploads", folder, storedFileName].join("/"),
-    originalFileName,
-  };
+/** Ключ объекта в R2: uploads/<папка>/<uuid><расширение>. Тот же формат, что раньше
+ *  хранился в БД для локального диска, — данные и логика роутов не меняются. */
+function buildObjectKey(folder: string, fileName: string) {
+  const extension = path.extname(sanitizeFileName(fileName)).toLowerCase();
+  return ["uploads", folder, `${randomUUID()}${extension}`].join("/");
 }
 
-export function getAbsoluteUploadPath(filePath: string) {
-  return path.join(process.cwd(), filePath);
+export async function saveUploadedFile(file: File, folder: "materials" | "tasks" | "submissions") {
+  const originalFileName = sanitizeFileName(file.name);
+  const filePath = buildObjectKey(folder, originalFileName);
+  const body = Buffer.from(await file.arrayBuffer());
+  await r2PutObject(filePath, body, file.type || undefined);
+
+  return { filePath, originalFileName };
+}
+
+/** Читает загруженный файл из R2. Возвращает null, если объекта нет. */
+export function readUploadedFile(filePath: string) {
+  return r2GetObject(filePath);
+}
+
+/** Удаляет загруженный файл из R2. Отсутствие объекта не считается ошибкой. */
+export async function deleteUploadedFile(filePath: string): Promise<void> {
+  await r2DeleteObject(filePath);
 }
 
 /**
- * Физическая копия загруженного файла под новым именем — для дублирования
- * материалов и задач: у копии свой файл, удаление оригинала её не ломает.
- * Возвращает null, если исходного файла нет на диске.
+ * Физическая копия загруженного файла под новым ключом — для дублирования
+ * материалов и задач: у копии свой объект, удаление оригинала её не ломает.
+ * Возвращает null, если исходного объекта нет.
  */
 export async function copyUploadedFile(
   sourceFilePath: string,
   folder: "materials" | "tasks",
 ): Promise<string | null> {
-  const uploadsDirectory = path.join(process.cwd(), "uploads", folder);
-  await mkdir(uploadsDirectory, { recursive: true });
-
-  const extension = path.extname(sourceFilePath).toLowerCase();
-  const storedFileName = `${randomUUID()}${extension}`;
-
-  try {
-    await copyFile(getAbsoluteUploadPath(sourceFilePath), path.join(uploadsDirectory, storedFileName));
-  } catch {
-    return null;
-  }
-
-  return ["uploads", folder, storedFileName].join("/");
+  const destinationKey = buildObjectKey(folder, sourceFilePath);
+  const copied = await r2CopyObject(sourceFilePath, destinationKey);
+  return copied ? destinationKey : null;
 }
 
 export function sanitizeFileName(fileName: string) {

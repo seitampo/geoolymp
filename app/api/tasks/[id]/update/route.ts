@@ -1,5 +1,4 @@
 import { Role } from "@prisma/client";
-import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
@@ -19,11 +18,13 @@ import {
   validateTaskType,
 } from "@/lib/tasks";
 import {
-  getAbsoluteUploadPath,
+  deleteUploadedFile,
+  hasStorageRoom,
   isAllowedImageFileName,
   isUploadTooLarge,
   maxUploadLabel,
   saveUploadedFile,
+  storageLimitLabel,
 } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -129,6 +130,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, "Изображение должно быть в формате JPG, PNG или WebP.");
   }
 
+  if (image instanceof File && image.size > 0 && !(await hasStorageRoom(image.size))) {
+    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Удалите ненужные файлы.`);
+  }
+
   const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;
 
   await prisma.task.update({
@@ -156,7 +161,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   if (savedImage && task.imagePath) {
-    await unlink(getAbsoluteUploadPath(task.imagePath)).catch(() => undefined);
+    await deleteUploadedFile(task.imagePath);
   }
 
   return redirectAfterPost(request, backTo);

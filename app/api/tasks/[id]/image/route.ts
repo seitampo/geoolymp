@@ -1,4 +1,3 @@
-import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
@@ -6,7 +5,7 @@ import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isTaskVisibleToStudents } from "@/lib/tasks";
 import { hasTrainingAttemptForTask, isTaskInTrainingSet } from "@/lib/training";
-import { getAbsoluteUploadPath } from "@/lib/uploads";
+import { readUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -47,7 +46,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
   }
 
-  const image = await readFile(getAbsoluteUploadPath(task.imagePath));
+  const image = await readUploadedFile(task.imagePath);
+  if (!image) {
+    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+  }
 
   return new NextResponse(image, {
     headers: {

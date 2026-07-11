@@ -1,11 +1,10 @@
 import { Role } from "@prisma/client";
-import { unlink } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithSuccess } from "@/lib/formResponse";
+import { redirectWithSuccess } from "@/lib/formResponse";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { getAbsoluteUploadPath } from "@/lib/uploads";
+import { deleteUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -37,12 +36,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await prisma.task.delete({ where: { id: taskId } });
 
   if (task.imagePath) {
-    await unlink(getAbsoluteUploadPath(task.imagePath)).catch(() => undefined);
+    await deleteUploadedFile(task.imagePath);
   }
 
   for (const submission of task.submissions) {
     if (submission.filePath) {
-      await unlink(getAbsoluteUploadPath(submission.filePath)).catch(() => undefined);
+      await deleteUploadedFile(submission.filePath);
     }
   }
 
