@@ -258,3 +258,13 @@ model Review {
   seenByStudentAt DateTime?
   submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 }
+
+// Попытки входа для защиты от перебора пароля (rate limit). key — источник запроса
+// (scope:IP). Считаем записи в окне; старые чистятся при записи новых.
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
