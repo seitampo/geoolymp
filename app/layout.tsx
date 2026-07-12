@@ -18,7 +18,7 @@ const unbounded = Unbounded({
 });
 
 export const metadata: Metadata = {
-  title: "GeoOlymp",
+  title: "Olympic Meridian",
   description: "Платформа подготовки школьников Казахстана к олимпиадам по географии",
 };
 

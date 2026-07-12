@@ -12,7 +12,7 @@ export function Header({ user }: { user: User }) {
           className="flex shrink-0 items-center gap-2 font-heading text-base font-semibold tracking-tight text-ink"
         >
           <Compass className="h-7 w-7 text-rust" />
-          GeoOlymp
+          Olympic Meridian
         </Link>
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           {user.role === "STUDENT" && (

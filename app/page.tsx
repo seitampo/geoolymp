@@ -17,7 +17,7 @@ export default async function HomePage() {
       <div className="relative">
         <div className="flex items-center gap-2 text-rust">
           <Compass className="h-9 w-9" />
-          <span className="font-heading text-sm font-semibold tracking-wide text-ink">GeoOlymp</span>
+          <span className="font-heading text-sm font-semibold tracking-wide text-ink">Olympic Meridian</span>
         </div>
 
         <h1 className="mt-8 max-w-2xl font-heading text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">
