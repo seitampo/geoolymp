@@ -56,6 +56,7 @@ model User {
   materialViews    MaterialView[]
   trainingAttempts TrainingAttempt[]
   earnedBadges     EarnedBadge[]
+  resetTokens      PasswordResetToken[]
 }
 
 // Полученный значок достижения. Каталог значков живёт в коде (lib/achievements.ts);
@@ -267,4 +268,18 @@ model LoginAttempt {
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
+}
+
+// Токен для восстановления пароля: одноразовый, с ограниченным сроком.
+// usedAt != null — токен уже использован (повторно применить нельзя).
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
+  userId    Int
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
