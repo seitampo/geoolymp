@@ -262,6 +262,90 @@ export const ru = {
   "member.actions": "Действия",
   "member.remove": "Удалить из группы",
   "member.removeConfirm": "Удалить ученика из группы вместе с его решениями?",
+
+  // Статусы задачи у ученика (бейдж)
+  "taskStatus.solved": "Решено",
+  "taskStatus.pending": "Проверяется",
+  "taskStatus.overdue": "Просрочено",
+  "taskStatus.notSubmitted": "Не отправлено",
+
+  // Копирование
+  "copy.toGroup": "Копировать в группу",
+  "copy.thisGroup": "эта группа",
+  "copy.button": "Копировать",
+
+  // Форма задачи (селекты)
+  "taskForm.typeLabel": "Тип задачи",
+  "taskForm.publishStatus": "Статус публикации",
+  "taskForm.published": "Опубликована",
+  "taskForm.draft": "Черновик (виден только вам)",
+  "taskForm.grade": "Класс",
+  "taskForm.level": "Уровень олимпиады",
+  "taskForm.difficulty": "Сложность",
+  "taskForm.notSetM": "Не указан",
+  "taskForm.notSetF": "Не указана",
+  "taskForm.of5": "из 5",
+
+  // Карточка задачи
+  "taskCard.newResult": "Новый результат",
+  "taskCard.onlyTraining": "Только в тренировке",
+  "taskCard.publishAt": "Публикация",
+  "taskCard.draft": "Черновик",
+  "taskCard.maxScore": "Макс. балл",
+  "taskCard.opensLabel": "Открытие",
+  "taskCard.dueLabel": "Срок сдачи",
+  "taskCard.correctZone": "Правильная зона (видна только вам):",
+  "taskCard.correctAnswer": "Правильный ответ",
+  "taskCard.editTask": "Редактировать задачу",
+  "taskCard.newImage": "Новое изображение к условию",
+  "taskCard.deleteTask": "Удалить задачу",
+  "taskCard.deleteTaskConfirm": "Удалить задачу вместе с решениями учеников? Это необратимо.",
+  "stats.submitted": "Сдали",
+  "stats.avgScore": "Средний балл",
+  "stats.of": "из",
+
+  // Разбор решения
+  "explanation.summary": "Разбор решения",
+  "explanation.added": "добавлен",
+  "explanation.hint": "Ученик увидит разбор после того, как его решение будет проверено.",
+  "explanation.text": "Текст разбора",
+  "explanation.textPlaceholder": "Ход решения, типичные ошибки, на что обратить внимание",
+  "explanation.replaceFile": "Заменить файл разбора",
+  "explanation.file": "Файл разбора (необязательно)",
+  "explanation.fileHintPrefix": "PDF, JPG, PNG или WebP, до",
+  "explanation.currentFile": "Текущий файл",
+  "explanation.openShort": "открыть",
+  "explanation.save": "Сохранить разбор",
+  "explanation.delete": "Удалить разбор",
+  "explanation.deleteConfirm": "Удалить разбор задачи?",
+
+  // Блок решения ученика
+  "student.notYetOpenPrefix": "Задача откроется",
+  "student.notYetOpenSuffix": "— отправка пока недоступна.",
+  "student.overduePrefix": "Срок сдачи истёк",
+  "student.overdueSuffix": "— отправка недоступна.",
+  "student.yourAnswer": "Ваш ответ",
+  "student.mapHintYour": "Красная метка — ваш ответ",
+  "student.mapHintCorrect": ", зелёная зона — правильная область",
+  "student.score": "Балл",
+  "student.none": "нет",
+  "student.comment": "Комментарий",
+  "student.notChecked": "Учитель ещё не проверил решение.",
+  "student.explanationTitle": "Разбор задачи",
+  "student.openExplanation": "Открыть файл разбора",
+  "student.oneShot": "В подборке задача решается один раз — ответ уже отправлен и не меняется.",
+  "student.resubmit": "Изменить ответ и отправить заново",
+  "student.cantResubmit": "Срок сдачи истёк — изменить ответ уже нельзя.",
+
+  // Форма отправки решения
+  "answerForm.answer": "Ответ",
+  "answerForm.image": "Изображение",
+  "answerForm.file": "Файл",
+  "answerForm.fileComment": "Комментарий к файлу",
+  "answerForm.hint": "Ответ засчитывается только после нажатия «Отправить». Каждую задачу нужно отправить отдельно.",
+  "answerForm.submit": "Отправить",
+  "answerForm.fileHintImg": "JPG, PNG или WebP, до",
+  "answerForm.fileHintAny": "До",
 } as const;
 
 export type Dictionary = Record<keyof typeof ru, string>;

@@ -4,10 +4,9 @@ import { Button } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { MapAnswerInput, MapPointEditor } from "@/components/MapPoint";
+import { getT, type TFunction, type TranslationKey } from "@/lib/i18n";
 import {
   formatDateTime,
-  getOlympiadLevelLabel,
-  getTaskTypeLabel,
   isAutoGradedTask,
   isMapTask,
   isTaskNotYetOpen,
@@ -31,8 +30,13 @@ export type TaskWithStudentSubmission = Task & {
 
 export type TeacherGroupOption = { id: number; name: string };
 
+/** Ключ перевода для значения enum (тип задачи, уровень олимпиады). */
+function enumKey(prefix: string, value: string): TranslationKey {
+  return `${prefix}.${value}` as TranslationKey;
+}
+
 /** Форма «Копировать в группу…» — общая для материалов и задач. */
-export function CopyForm({
+export async function CopyForm({
   action,
   teacherGroups,
   currentGroupId,
@@ -41,72 +45,84 @@ export function CopyForm({
   teacherGroups: TeacherGroupOption[];
   currentGroupId: number;
 }) {
+  const t = await getT();
   return (
     <form className="mt-4 flex flex-col gap-2 border-t border-line/70 pt-3 sm:flex-row sm:items-end" action={action} method="post">
       <div className="flex-1">
         <SelectField
-          label="Копировать в группу"
+          label={t("copy.toGroup")}
           name="targetGroupId"
           defaultValue={String(currentGroupId)}
           options={teacherGroups.map((option) => ({
             value: String(option.id),
-            label: option.id === currentGroupId ? `${option.name} (эта группа)` : option.name,
+            label: option.id === currentGroupId ? `${option.name} (${t("copy.thisGroup")})` : option.name,
           }))}
         />
       </div>
       <Button variant="secondary" className="shrink-0">
-        Копировать
+        {t("copy.button")}
       </Button>
     </form>
   );
 }
 
-export function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
+export async function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
+  const t = await getT();
   return (
-    <SelectField label="Тип задачи" name="type" defaultValue={defaultValue ?? "TEXT"} options={taskTypes} />
+    <SelectField
+      label={t("taskForm.typeLabel")}
+      name="type"
+      defaultValue={defaultValue ?? "TEXT"}
+      options={taskTypes.map((type) => ({ value: type.value, label: t(enumKey("taskType", type.value)) }))}
+    />
   );
 }
 
-export function PublishSelect({ defaultValue }: { defaultValue?: string }) {
+export async function PublishSelect({ defaultValue }: { defaultValue?: string }) {
+  const t = await getT();
   return (
     <SelectField
-      label="Статус публикации"
+      label={t("taskForm.publishStatus")}
       name="published"
       defaultValue={defaultValue ?? "published"}
       options={[
-        { value: "published", label: "Опубликована" },
-        { value: "draft", label: "Черновик (виден только вам)" },
+        { value: "published", label: t("taskForm.published") },
+        { value: "draft", label: t("taskForm.draft") },
       ]}
     />
   );
 }
 
 /** Класс, уровень олимпиады и сложность — в формах создания и редактирования задачи. */
-export function TaskClassificationFields({ task }: { task?: Task }) {
+export async function TaskClassificationFields({ task }: { task?: Task }) {
+  const t = await getT();
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <SelectField
-        label="Класс"
+        label={t("taskForm.grade")}
         name="grade"
         defaultValue={task?.grade ? String(task.grade) : ""}
         options={[
-          { value: "", label: "Не указан" },
-          ...taskGrades.map((grade) => ({ value: String(grade), label: `${grade} класс` })),
+          { value: "", label: t("taskForm.notSetM") },
+          ...taskGrades.map((grade) => ({ value: String(grade), label: `${grade} ${t("filter.gradeSuffix")}` })),
         ]}
       />
       <SelectField
-        label="Уровень олимпиады"
+        label={t("taskForm.level")}
         name="olympiadLevel"
         defaultValue={task?.olympiadLevel ?? ""}
-        options={[{ value: "", label: "Не указан" }, ...olympiadLevels]}
+        options={[
+          { value: "", label: t("taskForm.notSetM") },
+          ...olympiadLevels.map((level) => ({ value: level.value, label: t(enumKey("olympiadLevel", level.value)) })),
+        ]}
       />
       <SelectField
-        label="Сложность"
+        label={t("taskForm.difficulty")}
         name="difficulty"
         defaultValue={task?.difficulty ? String(task.difficulty) : ""}
         options={[
-          { value: "", label: "Не указана" },
-          ...taskDifficulties.map((level) => ({ value: String(level), label: `${level} из 5` })),
+          { value: "", label: t("taskForm.notSetF") },
+          ...taskDifficulties.map((level) => ({ value: String(level), label: `${level} ${t("taskForm.of5")}` })),
         ]}
       />
     </div>
@@ -114,18 +130,19 @@ export function TaskClassificationFields({ task }: { task?: Task }) {
 }
 
 /** Бейджи классификации — на карточке задачи и в библиотеке. */
-export function TaskClassificationBadges({ task }: { task: Task }) {
+export async function TaskClassificationBadges({ task }: { task: Task }) {
+  const t = await getT();
   return (
     <>
-      {task.grade && <Badge>{task.grade} класс</Badge>}
-      {task.olympiadLevel && <Badge>{getOlympiadLevelLabel(task.olympiadLevel)}</Badge>}
-      {task.difficulty && <Badge>Сложность {task.difficulty}/5</Badge>}
+      {task.grade && <Badge>{task.grade} {t("filter.gradeSuffix")}</Badge>}
+      {task.olympiadLevel && <Badge>{t(enumKey("olympiadLevel", task.olympiadLevel))}</Badge>}
+      {task.difficulty && <Badge>{t("filter.difficultyPrefix")} {task.difficulty}/5</Badge>}
     </>
   );
 }
 
 /** Статистика по задаче для учителя: сдачи, средний балл, частота вариантов. */
-function TaskStats({
+async function TaskStats({
   task,
   options,
   membersCount,
@@ -134,6 +151,7 @@ function TaskStats({
   options: string[];
   membersCount: number;
 }) {
+  const t = await getT();
   const submitted = task.submissions.length;
   const reviewed = task.submissions.filter((submission) => submission.review);
   const averageScore =
@@ -161,10 +179,10 @@ function TaskStats({
   return (
     <div className="mt-4 rounded-lg bg-paper px-4 py-3 text-sm">
       <p className="text-ink-soft">
-        Сдали: <span className="font-semibold text-ink">{submitted} из {membersCount}</span>
-        {" · "}Средний балл:{" "}
+        {t("stats.submitted")}: <span className="font-semibold text-ink">{submitted} {t("stats.of")} {membersCount}</span>
+        {" · "}{t("stats.avgScore")}:{" "}
         <span className="font-semibold text-ink">
-          {averageScore === null ? "—" : `${formatScore(averageScore)} из ${task.maxScore}`}
+          {averageScore === null ? "—" : `${formatScore(averageScore)} ${t("stats.of")} ${task.maxScore}`}
         </span>
       </p>
       {optionStats.length > 0 && (
@@ -197,7 +215,7 @@ function formatScore(value: number) {
 /** Контекст решения на странице подборки: куда вернуться и режим «один ответ». */
 export type SubmissionContext = { returnTo: string; oneShot: boolean };
 
-export function TaskCard({
+export async function TaskCard({
   task,
   isTeacher,
   teacherGroups,
@@ -214,6 +232,7 @@ export function TaskCard({
   /** Задан на странице подборки — возврат туда и запрет переотправки (контест). */
   submissionContext?: SubmissionContext;
 }) {
+  const t = await getT();
   const submission = task.submissions[0];
   const options = parseTaskOptions(task.options);
   const notYetOpen = isTaskNotYetOpen(task);
@@ -226,26 +245,26 @@ export function TaskCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-semibold text-ink">{task.title}</h3>
         <div className="flex flex-wrap gap-1.5">
-          {hasNewResult && <Badge tone="emerald">Новый результат</Badge>}
+          {hasNewResult && <Badge tone="emerald">{t("taskCard.newResult")}</Badge>}
           {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
-          {isTeacher && inTraining && <Badge tone="amber">Только в тренировке</Badge>}
+          {isTeacher && inTraining && <Badge tone="amber">{t("taskCard.onlyTraining")}</Badge>}
           {isTeacher && !visibleToStudents &&
             (task.publishAt ? (
-              <Badge tone="amber">Публикация: {formatDateTime(task.publishAt)}</Badge>
+              <Badge tone="amber">{t("taskCard.publishAt")}: {formatDateTime(task.publishAt)}</Badge>
             ) : (
-              <Badge tone="amber">Черновик</Badge>
+              <Badge tone="amber">{t("taskCard.draft")}</Badge>
             ))}
-          <Badge>{getTaskTypeLabel(task.type)}</Badge>
+          <Badge>{t(enumKey("taskType", task.type))}</Badge>
           <TaskClassificationBadges task={task} />
-          <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
+          <Badge tone="emerald">{t("taskCard.maxScore")}: {task.maxScore}</Badge>
         </div>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
       {(task.opensAt || task.dueAt) && (
         <p className="mt-2 text-xs text-ink-mute">
-          {task.opensAt && <>Открытие: {formatDateTime(task.opensAt)}</>}
+          {task.opensAt && <>{t("taskCard.opensLabel")}: {formatDateTime(task.opensAt)}</>}
           {task.opensAt && task.dueAt && " · "}
-          {task.dueAt && <>Срок сдачи: {formatDateTime(task.dueAt)}</>}
+          {task.dueAt && <>{t("taskCard.dueLabel")}: {formatDateTime(task.dueAt)}</>}
         </p>
       )}
       {task.imagePath && !isMapTask(task.type) && (
@@ -259,7 +278,7 @@ export function TaskCard({
       {isTeacher && isMapTask(task.type) && task.imagePath &&
         task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null && (
           <div className="mt-3">
-            <p className="mb-2 text-xs text-ink-mute">Правильная зона (видна только вам):</p>
+            <p className="mb-2 text-xs text-ink-mute">{t("taskCard.correctZone")}</p>
             <MapAnswerInput
               imageUrl={`/api/tasks/${task.id}/image`}
               readOnly
@@ -269,7 +288,7 @@ export function TaskCard({
         )}
       {isTeacher && task.correctAnswer && (
         <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
-          Правильный ответ: {task.correctAnswer}
+          {t("taskCard.correctAnswer")}: {task.correctAnswer}
         </p>
       )}
 
@@ -278,7 +297,7 @@ export function TaskCard({
       {isTeacher && (
         <details className="mt-4 border-t border-line/70 pt-3">
           <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
-            Редактировать задачу
+            {t("taskCard.editTask")}
           </summary>
           <form
             className="mt-4 grid gap-3"
@@ -286,35 +305,35 @@ export function TaskCard({
             method="post"
             encType="multipart/form-data"
           >
-            <TextInput label="Название" name="title" defaultValue={task.title} />
-            <TextArea label="Условие" name="description" defaultValue={task.description} />
+            <TextInput label={t("field.title")} name="title" defaultValue={task.title} />
+            <TextArea label={t("task.condition")} name="description" defaultValue={task.description} />
             <TaskTypeSelect defaultValue={task.type} />
             <TextArea
-              label="Варианты ответов"
+              label={t("task.options")}
               name="options"
               required={false}
               defaultValue={task.options ?? ""}
-              placeholder="Каждый вариант с новой строки"
+              placeholder={t("task.optionsPlaceholder")}
             />
             <TextInput
-              label="Правильный ответ"
+              label={t("task.correctAnswer")}
               name="correctAnswer"
               required={false}
               defaultValue={task.correctAnswer ?? ""}
-              placeholder="Для вариантов — точный текст; несколько ответов через «;»"
+              placeholder={t("task.correctAnswerPlaceholder")}
             />
-            <TextInput label="Максимальный балл" name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
+            <TextInput label={t("task.maxScore")} name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
             <TaskClassificationFields task={task} />
             <div className="grid gap-3 sm:grid-cols-2">
               <TextInput
-                label="Дата открытия (необязательно)"
+                label={t("task.opensAt")}
                 name="opensAt"
                 type="datetime-local"
                 required={false}
                 defaultValue={toDateTimeLocalValue(task.opensAt)}
               />
               <TextInput
-                label="Срок сдачи (необязательно)"
+                label={t("task.dueAt")}
                 name="dueAt"
                 type="datetime-local"
                 required={false}
@@ -324,30 +343,30 @@ export function TaskCard({
             <div className="grid gap-3 sm:grid-cols-2">
               <PublishSelect defaultValue={task.isPublished ? "published" : "draft"} />
               <TextInput
-                label="Дата публикации (для черновика)"
+                label={t("task.publishAt")}
                 name="publishAt"
                 type="datetime-local"
                 required={false}
                 defaultValue={toDateTimeLocalValue(task.publishAt)}
               />
             </div>
-            <FileInput label="Новое изображение к условию" name="image" accept="image/*" />
+            <FileInput label={t("taskCard.newImage")} name="image" accept="image/*" />
             <MapPointEditor
               existingImageUrl={task.imagePath ? `/api/tasks/${task.id}/image` : undefined}
               initialX={task.mapTargetX ?? undefined}
               initialY={task.mapTargetY ?? undefined}
               initialRadius={task.mapRadius ?? undefined}
             />
-            <Button className="w-fit">Сохранить</Button>
+            <Button className="w-fit">{t("action.save")}</Button>
           </form>
           <form
             className="mt-3"
             action={`/api/tasks/${task.id}/delete`}
             method="post"
-            data-confirm="Удалить задачу вместе с решениями учеников? Это необратимо."
+            data-confirm={t("taskCard.deleteTaskConfirm")}
           >
             <Button variant="danger" size="sm">
-              Удалить задачу
+              {t("taskCard.deleteTask")}
             </Button>
           </form>
           <CopyForm
@@ -364,7 +383,7 @@ export function TaskCard({
         <div className="mt-4">
           {notYetOpen ? (
             <p className="rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink-soft">
-              Задача откроется {formatDateTime(task.opensAt!)} — отправка пока недоступна.
+              {t("student.notYetOpenPrefix")} {formatDateTime(task.opensAt!)} {t("student.notYetOpenSuffix")}
             </p>
           ) : submission ? (
             <StudentSubmissionBlock
@@ -376,7 +395,7 @@ export function TaskCard({
             />
           ) : overdue ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              Срок сдачи истёк {formatDateTime(task.dueAt!)} — отправка недоступна.
+              {t("student.overduePrefix")} {formatDateTime(task.dueAt!)} {t("student.overdueSuffix")}
             </p>
           ) : (
             <SubmissionForm task={task} options={options} submissionContext={submissionContext} />
@@ -388,17 +407,16 @@ export function TaskCard({
 }
 
 /** Форма разбора решения (учитель): текст и/или файл PDF/картинка. */
-function ExplanationEditor({ task }: { task: Task }) {
+async function ExplanationEditor({ task }: { task: Task }) {
+  const t = await getT();
   const hasExplanation = Boolean(task.explanationText || task.explanationFilePath);
 
   return (
     <details className="mt-4 border-t border-line/70 pt-3">
       <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
-        Разбор решения{hasExplanation ? " · добавлен" : ""}
+        {t("explanation.summary")}{hasExplanation ? ` · ${t("explanation.added")}` : ""}
       </summary>
-      <p className="mt-2 text-xs text-ink-mute">
-        Ученик увидит разбор после того, как его решение будет проверено.
-      </p>
+      <p className="mt-2 text-xs text-ink-mute">{t("explanation.hint")}</p>
       <form
         className="mt-3 grid gap-3"
         action={`/api/tasks/${task.id}/explanation`}
@@ -406,17 +424,17 @@ function ExplanationEditor({ task }: { task: Task }) {
         encType="multipart/form-data"
       >
         <TextArea
-          label="Текст разбора"
+          label={t("explanation.text")}
           name="explanationText"
           required={false}
           defaultValue={task.explanationText ?? ""}
-          placeholder="Ход решения, типичные ошибки, на что обратить внимание"
+          placeholder={t("explanation.textPlaceholder")}
         />
         <FileInput
-          label={task.explanationFilePath ? "Заменить файл разбора" : "Файл разбора (необязательно)"}
+          label={task.explanationFilePath ? t("explanation.replaceFile") : t("explanation.file")}
           name="file"
           accept=".pdf,image/*"
-          hint={`PDF, JPG, PNG или WebP, до ${maxUploadLabel()}`}
+          hint={`${t("explanation.fileHintPrefix")} ${maxUploadLabel()}`}
         />
         {task.explanationFilePath && (
           <a
@@ -425,20 +443,20 @@ function ExplanationEditor({ task }: { task: Task }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Текущий файл: {task.explanationFileName ?? "открыть"}
+            {t("explanation.currentFile")}: {task.explanationFileName ?? t("explanation.openShort")}
           </a>
         )}
-        <Button className="w-fit">Сохранить разбор</Button>
+        <Button className="w-fit">{t("explanation.save")}</Button>
       </form>
       {hasExplanation && (
         <form
           className="mt-3"
           action={`/api/tasks/${task.id}/explanation/delete`}
           method="post"
-          data-confirm="Удалить разбор задачи?"
+          data-confirm={t("explanation.deleteConfirm")}
         >
           <Button variant="danger" size="sm">
-            Удалить разбор
+            {t("explanation.delete")}
           </Button>
         </form>
       )}
@@ -446,7 +464,7 @@ function ExplanationEditor({ task }: { task: Task }) {
   );
 }
 
-function StudentSubmissionBlock({
+async function StudentSubmissionBlock({
   task,
   submission,
   options,
@@ -459,13 +477,14 @@ function StudentSubmissionBlock({
   canResubmit: boolean;
   submissionContext?: SubmissionContext;
 }) {
+  const t = await getT();
   const isReviewed = submission.status === "REVIEWED";
 
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-line bg-paper p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-ink">Ваш ответ</p>
+          <p className="text-sm font-semibold text-ink">{t("student.yourAnswer")}</p>
           <SubmissionStatusBadge status={submission.status} />
         </div>
 
@@ -485,7 +504,7 @@ function StudentSubmissionBlock({
               }
             />
             <p className="mt-1.5 text-xs text-ink-mute">
-              Красная метка — ваш ответ{isReviewed ? ", зелёная зона — правильная область" : ""}.
+              {t("student.mapHintYour")}{isReviewed ? t("student.mapHintCorrect") : ""}.
             </p>
           </div>
         ) : (
@@ -505,21 +524,21 @@ function StudentSubmissionBlock({
         {isReviewed ? (
           <div className="mt-3 space-y-1 border-t border-line pt-3 text-sm text-ink-soft">
             <p>
-              Балл:{" "}
+              {t("student.score")}:{" "}
               <span className="font-semibold text-ink">
-                {submission.review?.score ?? "нет"} из {task.maxScore}
+                {submission.review?.score ?? t("student.none")} {t("stats.of")} {task.maxScore}
               </span>
             </p>
-            <p>Комментарий: {submission.review?.feedback || "нет"}</p>
+            <p>{t("student.comment")}: {submission.review?.feedback || t("student.none")}</p>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-ink-mute">Учитель ещё не проверил решение.</p>
+          <p className="mt-3 text-sm text-ink-mute">{t("student.notChecked")}</p>
         )}
       </div>
 
       {isReviewed && (task.explanationText || task.explanationFilePath) && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-semibold text-green-900">Разбор задачи</p>
+          <p className="text-sm font-semibold text-green-900">{t("student.explanationTitle")}</p>
           {task.explanationText && (
             <p className="mt-1.5 whitespace-pre-wrap text-sm text-green-900">{task.explanationText}</p>
           )}
@@ -530,33 +549,31 @@ function StudentSubmissionBlock({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Открыть файл разбора{task.explanationFileName ? ` (${task.explanationFileName})` : ""}
+              {t("student.openExplanation")}{task.explanationFileName ? ` (${task.explanationFileName})` : ""}
             </a>
           )}
         </div>
       )}
 
       {submissionContext?.oneShot ? (
-        <p className="text-xs text-ink-mute">
-          В подборке задача решается один раз — ответ уже отправлен и не меняется.
-        </p>
+        <p className="text-xs text-ink-mute">{t("student.oneShot")}</p>
       ) : canResubmit ? (
         <details className="rounded-lg border border-line p-4">
           <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
-            Изменить ответ и отправить заново
+            {t("student.resubmit")}
           </summary>
           <div className="mt-3">
             <SubmissionForm task={task} options={options} submission={submission} submissionContext={submissionContext} />
           </div>
         </details>
       ) : (
-        <p className="text-xs text-ink-mute">Срок сдачи истёк — изменить ответ уже нельзя.</p>
+        <p className="text-xs text-ink-mute">{t("student.cantResubmit")}</p>
       )}
     </div>
   );
 }
 
-function SubmissionForm({
+async function SubmissionForm({
   task,
   options,
   submission,
@@ -567,6 +584,7 @@ function SubmissionForm({
   submission?: Submission;
   submissionContext?: SubmissionContext;
 }) {
+  const t = await getT();
   const selectedAnswers = submission?.answer
     ? submission.answer.split(";").map((answer) => answer.trim())
     : [];
@@ -582,7 +600,7 @@ function SubmissionForm({
         <input type="hidden" name="returnTo" value={submissionContext.returnTo} />
       )}
       {submissionContext?.oneShot && <input type="hidden" name="once" value="1" />}
-      {task.type === "TEXT" && <TextArea label="Ответ" name="answer" defaultValue={submission?.answer ?? ""} />}
+      {task.type === "TEXT" && <TextArea label={t("answerForm.answer")} name="answer" defaultValue={submission?.answer ?? ""} />}
       {task.type === "MAP_POINT" && task.imagePath && (
         <MapAnswerInput imageUrl={`/api/tasks/${task.id}/image`} initialAnswer={submission?.answer} />
       )}
@@ -621,23 +639,21 @@ function SubmissionForm({
         ))}
       {task.type === "IMAGE_UPLOAD" && (
         <FileInput
-          label="Изображение"
+          label={t("answerForm.image")}
           name="file"
           accept="image/*"
           required={!submission?.filePath}
-          hint={`JPG, PNG или WebP, до ${maxUploadLabel()}`}
+          hint={`${t("answerForm.fileHintImg")} ${maxUploadLabel()}`}
         />
       )}
       {task.type === "FILE_UPLOAD" && (
-        <FileInput label="Файл" name="file" required={!submission?.filePath} hint={`До ${maxUploadLabel()}`} />
+        <FileInput label={t("answerForm.file")} name="file" required={!submission?.filePath} hint={`${t("answerForm.fileHintAny")} ${maxUploadLabel()}`} />
       )}
       {(task.type === "IMAGE_UPLOAD" || task.type === "FILE_UPLOAD") && (
-        <TextArea label="Комментарий к файлу" name="answer" required={false} defaultValue={submission?.answer ?? ""} />
+        <TextArea label={t("answerForm.fileComment")} name="answer" required={false} defaultValue={submission?.answer ?? ""} />
       )}
-      <p className="text-xs text-ink-mute">
-        Ответ засчитывается только после нажатия «Отправить». Каждую задачу нужно отправить отдельно.
-      </p>
-      <Button className="w-fit">Отправить</Button>
+      <p className="text-xs text-ink-mute">{t("answerForm.hint")}</p>
+      <Button className="w-fit">{t("answerForm.submit")}</Button>
     </form>
   );
 }
