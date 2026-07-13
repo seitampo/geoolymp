@@ -26,7 +26,7 @@ export default async function LoginPage({
       <div className="mb-6 text-center">
         <Compass className="mx-auto mb-3 h-9 w-9 text-rust" />
         <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">Вход</h1>
-        <p className="mt-1 text-sm text-ink-mute">С возвращением в GeoOlymp</p>
+        <p className="mt-1 text-sm text-ink-mute">С возвращением в Olympic Meridian</p>
       </div>
       <Card>
         <ErrorBanner message={error} />

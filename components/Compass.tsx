@@ -1,5 +1,5 @@
 /**
- * Знак GeoOlymp — компасная роза (stroke-SVG). Наследует цвет через currentColor,
+ * Знак Olympic Meridian — компасная роза (stroke-SVG). Наследует цвет через currentColor,
  * размер задаётся className. Один знак на весь продукт вместо глобуса-в-квадрате.
  */
 export function Compass({ className = "h-6 w-6" }: { className?: string }) {

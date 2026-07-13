@@ -16,7 +16,7 @@ export async function sendEmail(options: {
 
   // Без верифицированного домена Resend разрешает слать только с onboarding@resend.dev
   // и только на email владельца аккаунта. После верификации geoolymp.kz — задать RESEND_FROM.
-  const from = process.env.RESEND_FROM || "GeoOlymp <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM || "Olympic Meridian <onboarding@resend.dev>";
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
