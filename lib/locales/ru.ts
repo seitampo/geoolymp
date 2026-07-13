@@ -74,6 +74,27 @@ export const ru = {
   // Шапка
   "header.toDashboard": "В кабинет",
 
+  // Кабинет
+  "dashboard.title": "Личный кабинет",
+  "dashboard.createGroup": "Создать группу",
+  "dashboard.groupName": "Название",
+  "dashboard.groupNamePlaceholder": "Например: Сборная 9-х классов",
+  "dashboard.groupDesc": "Описание",
+  "dashboard.groupDescPlaceholder": "Чем занимается группа",
+  "dashboard.joinGroup": "Вступить в группу",
+  "dashboard.joinCodePlaceholder": "Код приглашения, например GEO-ABC12345",
+  "dashboard.join": "Вступить",
+  "dashboard.newBadges": "Новых",
+  "dashboard.badges": "Значков",
+  "dashboard.streak": "стрик",
+  "dashboard.days": "дн.",
+  "dashboard.groups": "Группы",
+  "dashboard.newResult": "Новый результат",
+  "dashboard.code": "Код",
+  "dashboard.emptyTitle": "Групп пока нет",
+  "dashboard.emptyTeacher": "Создайте первую группу и отправьте ученикам код приглашения.",
+  "dashboard.emptyStudent": "Попросите у учителя код приглашения и вступите в группу.",
+
   // 404
   "notFound.code": "Ошибка 404",
   "notFound.title": "Вы сошли с маршрута",

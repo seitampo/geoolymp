@@ -10,6 +10,7 @@ import { Header } from "@/components/Header";
 import { inputClasses, TextArea, TextInput } from "@/components/FormFields";
 import { awardEarnedBadges, badgeCatalog, computeAchievementStats } from "@/lib/achievements";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage({
@@ -24,6 +25,7 @@ export default async function DashboardPage({
   }
 
   const { error, ok } = await searchParams;
+  const t = await getT();
 
   const groups =
     user.role === "TEACHER"
@@ -61,30 +63,30 @@ export default async function DashboardPage({
     <>
       <Header user={user} />
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <h1 className="mb-6 font-heading text-xl font-semibold tracking-tight text-ink">Личный кабинет</h1>
+        <h1 className="mb-6 font-heading text-xl font-semibold tracking-tight text-ink">{t("dashboard.title")}</h1>
         <ErrorBanner message={error} />
         <SuccessBanner message={ok} />
 
         {user.role === "TEACHER" ? (
           <section className={`${cardClasses} mb-8`}>
-            <h2 className="mb-4 text-base font-semibold text-ink">Создать группу</h2>
+            <h2 className="mb-4 text-base font-semibold text-ink">{t("dashboard.createGroup")}</h2>
             <form className="grid gap-4" action="/api/groups" method="post">
-              <TextInput label="Название" name="name" placeholder="Например: Сборная 9-х классов" />
-              <TextArea label="Описание" name="description" placeholder="Чем занимается группа" />
-              <Button className="w-fit">Создать группу</Button>
+              <TextInput label={t("dashboard.groupName")} name="name" placeholder={t("dashboard.groupNamePlaceholder")} />
+              <TextArea label={t("dashboard.groupDesc")} name="description" placeholder={t("dashboard.groupDescPlaceholder")} />
+              <Button className="w-fit">{t("dashboard.createGroup")}</Button>
             </form>
           </section>
         ) : (
           <section className={`${cardClasses} mb-8`}>
-            <h2 className="mb-4 text-base font-semibold text-ink">Вступить в группу</h2>
+            <h2 className="mb-4 text-base font-semibold text-ink">{t("dashboard.joinGroup")}</h2>
             <form className="flex max-w-md flex-col gap-2 sm:flex-row" action="/api/groups/join" method="post">
               <input
                 className={`flex-1 ${inputClasses}`}
                 name="inviteCode"
-                placeholder="Код приглашения, например GEO-ABC12345"
+                placeholder={t("dashboard.joinCodePlaceholder")}
                 required
               />
-              <Button className="shrink-0">Вступить</Button>
+              <Button className="shrink-0">{t("dashboard.join")}</Button>
             </form>
           </section>
         )}
@@ -96,21 +98,23 @@ export default async function DashboardPage({
           >
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-ink">Достижения</h2>
+                <h2 className="text-base font-semibold text-ink">{t("common.achievements")}</h2>
                 {achievements.unseenCount > 0 && (
-                  <Badge tone="emerald">Новых: {achievements.unseenCount}</Badge>
+                  <Badge tone="emerald">
+                    {t("dashboard.newBadges")}: {achievements.unseenCount}
+                  </Badge>
                 )}
               </div>
               <p className="mt-1 text-sm text-ink-soft">
-                Значков: {achievements.earnedCount} из {badgeCatalog.length} · стрик{" "}
-                {achievements.streak} дн.
+                {t("dashboard.badges")}: {achievements.earnedCount} / {badgeCatalog.length} ·{" "}
+                {t("dashboard.streak")} {achievements.streak} {t("dashboard.days")}
               </p>
             </div>
             <BadgeGlyph family="streak" className="h-8 w-8 text-rust/70" />
           </Link>
         )}
 
-        <h2 className="mb-4 font-heading text-base font-semibold text-ink">Группы</h2>
+        <h2 className="mb-4 font-heading text-base font-semibold text-ink">{t("dashboard.groups")}</h2>
         {groups.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {groups.map((group) => (
@@ -121,13 +125,13 @@ export default async function DashboardPage({
               >
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-semibold text-ink">{group.name}</h2>
-                  {groupsWithNewResults.has(group.id) && <Badge tone="emerald">Новый результат</Badge>}
+                  {groupsWithNewResults.has(group.id) && <Badge tone="emerald">{t("dashboard.newResult")}</Badge>}
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">{group.description}</p>
                 {user.role === "TEACHER" && (
                   <div className="mt-3">
                     <Badge tone="emerald">
-                      Код: <span className="font-mono">{group.inviteCode}</span>
+                      {t("dashboard.code")}: <span className="font-mono">{group.inviteCode}</span>
                     </Badge>
                   </div>
                 )}
@@ -136,11 +140,9 @@ export default async function DashboardPage({
           </div>
         ) : (
           <EmptyState
-            title="Групп пока нет"
+            title={t("dashboard.emptyTitle")}
             description={
-              user.role === "TEACHER"
-                ? "Создайте первую группу и отправьте ученикам код приглашения."
-                : "Попросите у учителя код приглашения и вступите в группу."
+              user.role === "TEACHER" ? t("dashboard.emptyTeacher") : t("dashboard.emptyStudent")
             }
           />
         )}

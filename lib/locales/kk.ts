@@ -75,6 +75,27 @@ export const kk: Dictionary = {
   // Шапка
   "header.toDashboard": "Кабинетке",
 
+  // Кабинет
+  "dashboard.title": "Жеке кабинет",
+  "dashboard.createGroup": "Топ құру",
+  "dashboard.groupName": "Атауы",
+  "dashboard.groupNamePlaceholder": "Мысалы: 9-сынып құрамасы",
+  "dashboard.groupDesc": "Сипаттама",
+  "dashboard.groupDescPlaceholder": "Топ немен айналысады",
+  "dashboard.joinGroup": "Топқа қосылу",
+  "dashboard.joinCodePlaceholder": "Шақыру коды, мысалы GEO-ABC12345",
+  "dashboard.join": "Қосылу",
+  "dashboard.newBadges": "Жаңа",
+  "dashboard.badges": "Белгілер",
+  "dashboard.streak": "серпін",
+  "dashboard.days": "күн",
+  "dashboard.groups": "Топтар",
+  "dashboard.newResult": "Жаңа нәтиже",
+  "dashboard.code": "Код",
+  "dashboard.emptyTitle": "Әзірге топтар жоқ",
+  "dashboard.emptyTeacher": "Алғашқы топты құрып, оқушыларға шақыру кодын жіберіңіз.",
+  "dashboard.emptyStudent": "Мұғалімнен шақыру кодын сұрап, топқа қосылыңыз.",
+
   // 404
   "notFound.code": "404 қатесі",
   "notFound.title": "Бағыттан адастыңыз",
