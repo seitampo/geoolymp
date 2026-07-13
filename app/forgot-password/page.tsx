@@ -6,6 +6,8 @@ import { Card } from "@/components/Card";
 import { Compass } from "@/components/Compass";
 import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { TextInput } from "@/components/FormFields";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getLocale, getT } from "@/lib/i18n";
 
 export default async function ForgotPasswordPage({
   searchParams,
@@ -19,26 +21,31 @@ export default async function ForgotPasswordPage({
   }
 
   const { error, ok } = await searchParams;
+  const t = await getT();
+  const locale = await getLocale();
 
   return (
     <main className="mx-auto w-full max-w-sm px-4 py-12 sm:px-0 sm:py-16">
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher locale={locale} aria={t("lang.aria")} />
+      </div>
       <div className="mb-6 text-center">
         <Compass className="mx-auto mb-3 h-9 w-9 text-rust" />
-        <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">Забыли пароль?</h1>
-        <p className="mt-1 text-sm text-ink-mute">Пришлём ссылку для сброса на email</p>
+        <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{t("forgot.title")}</h1>
+        <p className="mt-1 text-sm text-ink-mute">{t("forgot.subtitle")}</p>
       </div>
       <Card>
         <ErrorBanner message={error} />
         <SuccessBanner message={ok} />
         <form className="space-y-4" action="/api/auth/forgot-password" method="post">
-          <TextInput label="Email" name="email" type="email" placeholder="you@example.com" />
-          <Button className="w-full">Отправить ссылку</Button>
+          <TextInput label={t("common.email")} name="email" type="email" placeholder={t("common.emailPlaceholder")} />
+          <Button className="w-full">{t("forgot.submit")}</Button>
         </form>
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">
-        Вспомнили пароль?{" "}
+        {t("forgot.remembered")}{" "}
         <Link className="font-medium text-sea hover:underline" href="/login">
-          Войти
+          {t("common.login")}
         </Link>
       </p>
     </main>

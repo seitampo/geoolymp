@@ -3,15 +3,24 @@
 import { useState } from "react";
 import { inputClasses } from "@/components/FormFields";
 
-/** Поле пароля с переключателем видимости (для входа и регистрации). */
+/** Поле пароля с переключателем видимости. Подписи переключателя переводятся через пропсы
+ *  (компонент клиентский, поэтому строки приходят уже переведёнными со страницы). */
 export function PasswordInput({
   label = "Пароль",
   name = "password",
   placeholder,
+  showLabel = "Показать",
+  hideLabel = "Скрыть",
+  showAria = "Показать пароль",
+  hideAria = "Скрыть пароль",
 }: {
   label?: string;
   name?: string;
   placeholder?: string;
+  showLabel?: string;
+  hideLabel?: string;
+  showAria?: string;
+  hideAria?: string;
 }) {
   const [visible, setVisible] = useState(false);
 
@@ -31,9 +40,9 @@ export function PasswordInput({
           type="button"
           className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-ink-mute transition-colors hover:text-ink"
           onClick={() => setVisible((value) => !value)}
-          aria-label={visible ? "Скрыть пароль" : "Показать пароль"}
+          aria-label={visible ? hideAria : showAria}
         >
-          {visible ? "Скрыть" : "Показать"}
+          {visible ? hideLabel : showLabel}
         </button>
       </div>
     </label>

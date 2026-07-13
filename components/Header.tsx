@@ -2,8 +2,13 @@ import Link from "next/link";
 import { User } from "@prisma/client";
 import { Button } from "@/components/Button";
 import { Compass } from "@/components/Compass";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getLocale, getT } from "@/lib/i18n";
 
-export function Header({ user }: { user: User }) {
+export async function Header({ user }: { user: User }) {
+  const t = await getT();
+  const locale = await getLocale();
+
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-paper/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -20,16 +25,19 @@ export function Header({ user }: { user: User }) {
               href="/achievements"
               className="hidden shrink-0 text-sm font-medium text-ink-soft transition-colors hover:text-rust sm:inline"
             >
-              Достижения
+              {t("common.achievements")}
             </Link>
           )}
+          <LanguageSwitcher locale={locale} aria={t("lang.aria")} />
           <div className="min-w-0 text-right leading-tight">
             <p className="truncate text-sm font-medium text-ink">{user.name}</p>
-            <p className="text-xs text-ink-mute">{user.role === "TEACHER" ? "Учитель" : "Ученик"}</p>
+            <p className="text-xs text-ink-mute">
+              {user.role === "TEACHER" ? t("common.teacher") : t("common.student")}
+            </p>
           </div>
           <form action="/api/auth/logout" method="post">
             <Button variant="secondary" size="sm">
-              Выйти
+              {t("common.logout")}
             </Button>
           </form>
         </div>
