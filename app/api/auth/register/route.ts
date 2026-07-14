@@ -2,6 +2,7 @@ import { Prisma, Role } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { setSession } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { isValidTeacherInvite } from "@/lib/teacherInvite";
@@ -12,6 +13,7 @@ const MIN_PASSWORD_LENGTH = 6;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
+  const t = await getT();
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -20,21 +22,25 @@ export async function POST(request: NextRequest) {
   const inviteCode = String(formData.get("inviteCode") ?? "").trim();
 
   if (!name || !email || !password || (role !== Role.TEACHER && role !== Role.STUDENT)) {
-    return redirectWithError(request, "/register", "Заполните все поля.");
+    return redirectWithError(request, "/register", t("err.fillAllFields"));
   }
 
   if (!EMAIL_PATTERN.test(email)) {
-    return redirectWithError(request, "/register", "Введите корректный email.");
+    return redirectWithError(request, "/register", t("err.enterValidEmail"));
   }
 
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return redirectWithError(request, "/register", `Пароль должен быть не короче ${MIN_PASSWORD_LENGTH} символов.`);
+    return redirectWithError(
+      request,
+      "/register",
+      `${t("err.pwdLenPre")} ${MIN_PASSWORD_LENGTH}${t("err.pwdLenPost")}`,
+    );
   }
 
   // Роль учителя выдаётся только по коду-приглашению (проверка на сервере: без неё
   // прямой POST с role=TEACHER создал бы учительский аккаунт в обход интерфейса).
   if (role === Role.TEACHER && !isValidTeacherInvite(inviteCode)) {
-    return redirectWithError(request, "/register", "Неверный код учителя. Получите код у администратора платформы.");
+    return redirectWithError(request, "/register", t("err.invalidTeacherCode"));
   }
 
   try {
@@ -53,7 +59,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // P2002 — нарушение уникальности email. Без обработки Prisma бросает 500.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return redirectWithError(request, "/register", "Пользователь с таким email уже существует.");
+      return redirectWithError(request, "/register", t("err.emailTaken"));
     }
     throw error;
   }

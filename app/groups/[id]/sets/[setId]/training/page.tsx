@@ -9,10 +9,12 @@ import { TextArea } from "@/components/FormFields";
 import { Header } from "@/components/Header";
 import { TrainingTimer } from "@/components/TrainingTimer";
 import { getCurrentUser } from "@/lib/auth";
+import { getT, type TFunction } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { MapAnswerInput } from "@/components/MapPoint";
+import { mapAnswerLabels } from "@/lib/mapLabels";
 import { isAutoCheckedTask, isMapTask, isTaskVisibleToStudents, parseTaskOptions } from "@/lib/tasks";
 import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/training";
 
@@ -29,6 +31,7 @@ export default async function TrainingPage({
     redirect("/login");
   }
 
+  const t = await getT();
   const { id, setId } = await params;
   const { error } = await searchParams;
   const groupId = parseEntityId(id);
@@ -89,13 +92,13 @@ export default async function TrainingPage({
           className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
           href={`/groups/${groupId}/sets/${set.id}`}
         >
-          <span aria-hidden="true">←</span> К подборке
+          <span aria-hidden="true">←</span> {t("training.backToSet")}
         </Link>
 
         {attempt.finishedAt ? (
-          <TrainingResult set={set} tasks={trainingTasks} attempt={attempt} groupId={groupId} />
+          <TrainingResult set={set} tasks={trainingTasks} attempt={attempt} groupId={groupId} t={t} />
         ) : (
-          <ActiveTraining set={set} tasks={trainingTasks} attempt={attempt} answerByTaskId={answerByTaskId} />
+          <ActiveTraining set={set} tasks={trainingTasks} attempt={attempt} answerByTaskId={answerByTaskId} t={t} />
         )}
       </main>
     </>
@@ -107,11 +110,13 @@ function ActiveTraining({
   tasks,
   attempt,
   answerByTaskId,
+  t,
 }: {
   set: { id: number; title: string; trainingMinutes: number | null };
   tasks: Task[];
   attempt: { id: number; expiresAt: Date };
   answerByTaskId: Map<number, TrainingAnswer>;
+  t: TFunction;
 }) {
   const answeredCount = tasks.filter((task) => answerByTaskId.has(task.id)).length;
 
@@ -121,22 +126,21 @@ function ActiveTraining({
         <div className="min-w-0">
           <h1 className="font-heading text-base font-semibold tracking-tight text-ink">{set.title}</h1>
           <p className="mt-0.5 text-xs text-ink-mute">
-            Отвечено: {answeredCount} из {tasks.length}
+            {t("training.answeredPre")} {answeredCount} {t("stats.of")} {tasks.length}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <TrainingTimer expiresAt={attempt.expiresAt.toISOString()} />
           <form action={`/api/training/${attempt.id}/finish`} method="post">
             <Button variant="secondary" size="sm">
-              Завершить
+              {t("training.finish")}
             </Button>
           </form>
         </div>
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        Каждый ответ сохраняйте отдельно — кнопкой «Сохранить ответ» под задачей. Несохранённые
-        ответы не засчитываются при завершении. Ответ можно менять до конца тренировки.
+        {t("training.warning")}
       </div>
 
       {tasks.map((task, index) => {
@@ -150,8 +154,8 @@ function ActiveTraining({
                 {index + 1}. {task.title}
               </h2>
               <div className="flex gap-1.5">
-                {savedAnswer && <Badge tone="green">Сохранено</Badge>}
-                <Badge tone="emerald">Макс. балл: {task.maxScore}</Badge>
+                {savedAnswer && <Badge tone="green">{t("training.saved")}</Badge>}
+                <Badge tone="emerald">{t("training.maxScorePre")} {task.maxScore}</Badge>
               </div>
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
@@ -167,12 +171,13 @@ function ActiveTraining({
             <form className="mt-4 grid gap-3" action={`/api/training/${attempt.id}/answers`} method="post">
               <input type="hidden" name="taskId" value={task.id} />
               {task.type === "TEXT" && (
-                <TextArea label="Ответ" name="answer" defaultValue={savedAnswer?.answer ?? ""} />
+                <TextArea label={t("answerForm.answer")} name="answer" defaultValue={savedAnswer?.answer ?? ""} />
               )}
               {task.type === "MAP_POINT" && task.imagePath && (
                 <MapAnswerInput
                   imageUrl={`/api/tasks/${task.id}/image`}
                   initialAnswer={savedAnswer?.answer}
+                  labels={mapAnswerLabels(t)}
                 />
               )}
               {task.type === "SINGLE_CHOICE" &&
@@ -214,7 +219,7 @@ function ActiveTraining({
                   );
                 })}
               <Button className="w-fit" variant="secondary" size="sm">
-                {savedAnswer ? "Обновить ответ" : "Сохранить ответ"}
+                {savedAnswer ? t("training.updateAnswer") : t("training.saveAnswer")}
               </Button>
             </form>
           </article>
@@ -222,7 +227,7 @@ function ActiveTraining({
       })}
 
       <form className="text-center" action={`/api/training/${attempt.id}/finish`} method="post">
-        <Button variant="primary">Завершить тренировку</Button>
+        <Button variant="primary">{t("training.finishTraining")}</Button>
       </form>
     </div>
   );
@@ -233,11 +238,13 @@ function TrainingResult({
   tasks,
   attempt,
   groupId,
+  t,
 }: {
   set: { id: number; title: string };
   tasks: Task[];
   attempt: { startedAt: Date; finishedAt: Date | null; answers: TrainingAnswer[] };
   groupId: number;
+  t: TFunction;
 }) {
   const answerByTaskId = new Map(attempt.answers.map((answer) => [answer.taskId, answer]));
 
@@ -259,18 +266,19 @@ function TrainingResult({
   return (
     <div className="space-y-5">
       <section className={`${cardClasses} text-center`}>
-        <p className="text-sm font-medium text-green-700">Тренировка завершена</p>
+        <p className="text-sm font-medium text-green-700">{t("training.finished")}</p>
         <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight text-ink">{set.title}</h1>
         <p className="mt-4 text-4xl font-bold text-ink">
           {earnedScore}
-          <span className="text-xl font-medium text-ink-mute"> из {possibleScore}</span>
+          <span className="text-xl font-medium text-ink-mute"> {t("stats.of")} {possibleScore}</span>
         </p>
         <p className="mt-1 text-sm text-ink-mute">
-          баллов по автопроверке · время: {durationMinutes}:{String(durationSeconds).padStart(2, "0")}
+          {t("training.autoScoreSuffix")} · {t("training.timeWord")} {durationMinutes}:
+          {String(durationSeconds).padStart(2, "0")}
         </p>
         <div className="mt-5">
           <LinkButton href={`/groups/${groupId}?tab=sets`} variant="secondary">
-            К подборкам группы
+            {t("setPage.backToSets")}
           </LinkButton>
         </div>
       </section>
@@ -288,14 +296,14 @@ function TrainingResult({
               <div className="flex gap-1.5">
                 {isAuto ? (
                   answer?.isCorrect ? (
-                    <Badge tone="green">Верно · {answer.score} из {task.maxScore}</Badge>
+                    <Badge tone="green">{t("training.correctPre")} {answer.score} {t("stats.of")} {task.maxScore}</Badge>
                   ) : answer ? (
-                    <Badge tone="red">Неверно · 0 из {task.maxScore}</Badge>
+                    <Badge tone="red">{t("training.wrongPre")} {t("stats.of")} {task.maxScore}</Badge>
                   ) : (
-                    <Badge tone="red">Без ответа · 0 из {task.maxScore}</Badge>
+                    <Badge tone="red">{t("training.noAnswerPre")} {t("stats.of")} {task.maxScore}</Badge>
                   )
                 ) : (
-                  <Badge>Без автопроверки</Badge>
+                  <Badge>{t("training.noAutoCheck")}</Badge>
                 )}
               </div>
             </div>
@@ -311,20 +319,19 @@ function TrainingResult({
                       ? { x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }
                       : undefined
                   }
+                  labels={mapAnswerLabels(t)}
                 />
-                <p className="mt-1.5 text-xs text-ink-mute">
-                  Красная метка — ваш ответ, зелёная зона — правильная область.
-                </p>
+                <p className="mt-1.5 text-xs text-ink-mute">{t("training.mapHint")}</p>
               </div>
             ) : (
               <div className="mt-3 space-y-1 rounded-lg bg-paper px-3 py-2 text-sm">
                 <p className="text-ink-soft">
-                  Ваш ответ:{" "}
+                  {t("training.yourAnswerPre")}{" "}
                   <span className="font-medium text-ink">{answer?.answer || "—"}</span>
                 </p>
                 {isAuto && (
                   <p className="text-green-800">
-                    Правильный ответ: <span className="font-medium">{task.correctAnswer}</span>
+                    {t("training.correctAnswerPre")} <span className="font-medium">{task.correctAnswer}</span>
                   </p>
                 )}
               </div>
@@ -334,9 +341,7 @@ function TrainingResult({
       })}
 
       {manualTasks.length > 0 && (
-        <p className="text-center text-xs text-ink-mute">
-          Задачи без вариантов ответа не оцениваются автоматически и не входят в сумму баллов.
-        </p>
+        <p className="text-center text-xs text-ink-mute">{t("training.manualNote")}</p>
       )}
     </div>
   );

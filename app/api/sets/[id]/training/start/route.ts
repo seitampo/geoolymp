@@ -2,6 +2,7 @@ import { Prisma, Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +11,7 @@ import { isTrainingSupportedTaskType } from "@/lib/training";
 
 /** Старт тренировки: создаёт единственную попытку и фиксирует дедлайн. */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const setId = parseEntityId(id);
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const trainingTo = `/groups/${set.groupId}/sets/${set.id}/training`;
 
   if (!set.trainingMinutes) {
-    return redirectWithError(request, backTo, "Для этой подборки тренировка не настроена.");
+    return redirectWithError(request, backTo, t("err.trainingNotConfigured"));
   }
 
   const trainableTasks = set.items.filter(
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   );
 
   if (trainableTasks.length === 0) {
-    return redirectWithError(request, backTo, "В подборке пока нет задач для тренировки.");
+    return redirectWithError(request, backTo, t("err.trainingNoTasks"));
   }
 
   try {

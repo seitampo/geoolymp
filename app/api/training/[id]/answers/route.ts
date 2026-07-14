@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
@@ -16,6 +17,7 @@ import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/trai
 
 /** Сохранение ответа во время тренировки (до завершения можно менять). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const attemptId = parseEntityId(id);
@@ -40,20 +42,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const trainingTo = `/groups/${attempt.set.groupId}/sets/${attempt.setId}/training`;
 
   if (attempt.finishedAt) {
-    return redirectWithError(request, trainingTo, "Тренировка уже завершена.");
+    return redirectWithError(request, trainingTo, t("err.trainingFinished"));
   }
 
   // Время контролирует сервер: просроченная попытка закрывается, ответ не принимается.
   if (new Date() > attempt.expiresAt) {
     await finalizeTrainingAttempt(attempt.id);
-    return redirectWithError(request, trainingTo, "Время вышло — тренировка завершена.");
+    return redirectWithError(request, trainingTo, t("err.trainingTimeUp"));
   }
 
   const formData = await request.formData();
   const taskId = parseEntityId(String(formData.get("taskId") ?? ""));
 
   if (taskId === null) {
-    return redirectWithError(request, trainingTo, "Задача не найдена.");
+    return redirectWithError(request, trainingTo, t("err.taskNotFound"));
   }
 
   const item = await prisma.taskSetItem.findUnique({
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     !isTaskVisibleToStudents(item.task) ||
     !isTrainingSupportedTaskType(item.task.type)
   ) {
-    return redirectWithError(request, trainingTo, "Задача не найдена в тренировке.");
+    return redirectWithError(request, trainingTo, t("err.taskNotInTraining"));
   }
 
   const selectedAnswers = formData.getAll("answer").map((value) => String(value));
@@ -85,16 +87,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           : [];
 
     if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
-      return redirectWithError(request, trainingTo, "Выберите вариант ответа из списка.");
+      return redirectWithError(request, trainingTo, t("err.selectAnswerOption"));
     }
   }
 
   if (isMapTask(item.task.type) && parseMapPoint(answer) === null) {
-    return redirectWithError(request, trainingTo, "Отметьте точку на карте.");
+    return redirectWithError(request, trainingTo, t("err.mapPointStudent"));
   }
 
   if (!answer) {
-    return redirectWithError(request, trainingTo, "Введите ответ.");
+    return redirectWithError(request, trainingTo, t("err.enterAnswer"));
   }
 
   await prisma.trainingAnswer.upsert({

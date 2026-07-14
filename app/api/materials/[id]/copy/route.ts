@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { copyUploadedFile } from "@/lib/uploads";
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
 
 /** Дублирование материала в выбранную группу учителя (включая копию файла). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const materialId = parseEntityId(id);
@@ -32,18 +34,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const targetGroupId = parseEntityId(String(formData.get("targetGroupId") ?? ""));
 
   if (targetGroupId === null) {
-    return redirectWithError(request, backTo, "Выберите группу для копирования.");
+    return redirectWithError(request, backTo, t("err.selectGroup"));
   }
 
   const targetGroup = await prisma.group.findUnique({ where: { id: targetGroupId } });
   if (!targetGroup || targetGroup.teacherId !== user.id) {
-    return redirectWithError(request, backTo, "Группа для копирования не найдена.");
+    return redirectWithError(request, backTo, t("err.copyGroupNotFound"));
   }
 
   // Файл копируется физически: удаление оригинала не должно ломать копию.
   const copiedFilePath = material.filePath ? await copyUploadedFile(material.filePath, "materials") : null;
   if (material.filePath && copiedFilePath === null) {
-    return redirectWithError(request, backTo, "Файл материала не найден на диске — копирование отменено.");
+    return redirectWithError(request, backTo, t("err.materialFileMissing"));
   }
 
   await prisma.material.create({

@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -31,6 +32,7 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const taskId = parseEntityId(id);
@@ -57,16 +59,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Тренировочные задачи решаются только внутри попытки (/api/training/*):
   // обычная отправка раскрыла бы правильный ответ автопроверкой до тренировки.
   if (await isTaskInTrainingSet(task.id)) {
-    return redirectWithError(request, backTo, "Эта задача решается только в режиме тренировки.");
+    return redirectWithError(request, backTo, t("err.taskOnlyTraining"));
   }
 
   // Сроки проверяются на сервере: скрытая форма в интерфейсе не защищает от прямого POST.
   if (isTaskNotYetOpen(task)) {
-    return redirectWithError(request, backTo, `Задача ещё не открыта — станет доступна ${formatDateTime(task.opensAt!)}.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.notOpenPre")} ${formatDateTime(task.opensAt!)}${t("err.notOpenPost")}`,
+    );
   }
 
   if (isTaskOverdue(task)) {
-    return redirectWithError(request, backTo, `Срок сдачи истёк ${formatDateTime(task.dueAt!)} — отправка недоступна.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.dueExpiredPre")} ${formatDateTime(task.dueAt!)}${t("err.dueExpiredPost")}`,
+    );
   }
 
   const selectedAnswers = formData.getAll("answer").map((value) => String(value));
@@ -82,11 +92,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // В подборке (контест) переотправка недоступна: задача решается один раз.
   if (submitOnce && oldSubmission) {
-    return redirectWithError(
-      request,
-      backTo,
-      "В подборке задача решается один раз — переотправка недоступна.",
-    );
+    return redirectWithError(request, backTo, t("err.oneShotResubmit"));
   }
 
   // Для задач с вариантами принимаем только ответы из списка — иначе прямой POST
@@ -101,16 +107,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           : [];
 
     if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
-      return redirectWithError(request, backTo, "Выберите вариант ответа из списка.");
+      return redirectWithError(request, backTo, t("err.selectAnswerOption"));
     }
   }
 
   if (isMapTask(task.type) && parseMapPoint(answer) === null) {
-    return redirectWithError(request, backTo, "Отметьте точку на карте.");
+    return redirectWithError(request, backTo, t("err.mapPointStudent"));
   }
 
   if (file instanceof File && isUploadTooLarge(file.size)) {
-    return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
+    return redirectWithError(request, backTo, `${t("err.fileTooBig")} ${maxUploadLabel()}.`);
   }
 
   if (
@@ -119,17 +125,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     file.size > 0 &&
     !isAllowedImageFileName(file.name)
   ) {
-    return redirectWithError(request, backTo, "Изображение должно быть в формате JPG, PNG или WebP.");
+    return redirectWithError(request, backTo, t("err.imageFormat"));
   }
 
   if (file instanceof File && file.size > 0 && !(await hasStorageRoom(file.size))) {
-    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Обратитесь к учителю.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.storagePre")} (${storageLimitLabel()})${t("err.storageTeacherPost")}`,
+    );
   }
 
   const savedFile = file instanceof File && file.size > 0 ? await saveUploadedFile(file, "submissions") : null;
 
   if (!answer && !savedFile && !oldSubmission?.filePath) {
-    return redirectWithError(request, backTo, "Добавьте ответ или файл.");
+    return redirectWithError(request, backTo, t("err.answerContent"));
   }
 
   // Автопроверка (варианты и картозадачи): балл выставляется сразу при отправке,
@@ -140,8 +150,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     verdict === null
       ? null
       : verdict
-        ? { score: task.maxScore, feedback: "Автопроверка: ответ верный." }
-        : { score: 0, feedback: "Автопроверка: ответ неверный." };
+        ? { score: task.maxScore, feedback: t("feedback.autoCorrect") }
+        : { score: 0, feedback: t("feedback.autoWrong") };
 
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
   await prisma.$transaction(async (transaction) => {
@@ -178,7 +188,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   });
 
-  return redirectWithSuccess(request, backTo, "Ответ отправлен.");
+  return redirectWithSuccess(request, backTo, t("ok.answerSubmitted"));
 }
 
 /**

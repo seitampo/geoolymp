@@ -3,6 +3,7 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
@@ -21,6 +22,7 @@ const allowedExplanationExtensions = [".pdf", ...allowedImageExtensions];
 
 /** Сохранение разбора решения: текст и/или файл (PDF или изображение). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const taskId = parseEntityId(id);
@@ -45,22 +47,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const newFileSelected = file instanceof File && file.size > 0;
 
   if (!explanationText && !newFileSelected && !task.explanationFilePath) {
-    return redirectWithError(request, backTo, "Добавьте текст разбора или файл.");
+    return redirectWithError(request, backTo, t("err.explanationContent"));
   }
 
   if (newFileSelected && isUploadTooLarge(file.size)) {
-    return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
+    return redirectWithError(request, backTo, `${t("err.fileTooBig")} ${maxUploadLabel()}.`);
   }
 
   if (
     newFileSelected &&
     !allowedExplanationExtensions.includes(path.extname(file.name).toLowerCase())
   ) {
-    return redirectWithError(request, backTo, "Файл разбора — PDF, JPG, PNG или WebP.");
+    return redirectWithError(request, backTo, t("err.explanationFile"));
   }
 
   if (newFileSelected && !(await hasStorageRoom(file.size))) {
-    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Удалите ненужные файлы.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.storagePre")} (${storageLimitLabel()})${t("err.storageDeletePost")}`,
+    );
   }
 
   const savedFile = newFileSelected ? await saveUploadedFile(file, "tasks") : null;

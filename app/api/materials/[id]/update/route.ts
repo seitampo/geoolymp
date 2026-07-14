@@ -9,6 +9,7 @@ import {
   saveMaterialFile,
   validateMaterialType,
 } from "@/lib/materials";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { deleteUploadedFile, hasStorageRoom, isUploadTooLarge, maxUploadLabel, storageLimitLabel } from "@/lib/uploads";
@@ -16,6 +17,7 @@ import { deleteUploadedFile, hasStorageRoom, isUploadTooLarge, maxUploadLabel, s
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const materialId = parseEntityId(id);
@@ -42,12 +44,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const file = formData.get("file");
 
   if (!title || !description || !type) {
-    return redirectWithError(request, backTo, "Заполните название, описание и тип материала.");
+    return redirectWithError(request, backTo, t("err.materialFields"));
   }
 
   if (!isFileMaterial(type)) {
     if (type === MaterialType.LINK && (!url || !isValidExternalUrl(url))) {
-      return redirectWithError(request, backTo, "Добавьте корректную ссылку (http:// или https://).");
+      return redirectWithError(request, backTo, t("err.addValidLink"));
     }
 
     await prisma.material.update({
@@ -72,19 +74,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const newFileSelected = file instanceof File && file.size > 0;
 
   if (!newFileSelected && (!material.filePath || material.type !== type)) {
-    return redirectWithError(request, backTo, "Загрузите файл для выбранного типа материала.");
+    return redirectWithError(request, backTo, t("err.materialFile"));
   }
 
   if (newFileSelected && isUploadTooLarge(file.size)) {
-    return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
+    return redirectWithError(request, backTo, `${t("err.fileTooBig")} ${maxUploadLabel()}.`);
   }
 
   if (newFileSelected && !isAllowedFileName(type, file.name)) {
-    return redirectWithError(request, backTo, "Файл не соответствует выбранному типу материала.");
+    return redirectWithError(request, backTo, t("err.materialFileType"));
   }
 
   if (newFileSelected && !(await hasStorageRoom(file.size))) {
-    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Удалите ненужные файлы.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.storagePre")} (${storageLimitLabel()})${t("err.storageDeletePost")}`,
+    );
   }
 
   const savedFile = newFileSelected ? await saveMaterialFile(file) : null;

@@ -2,11 +2,13 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { notifyStudentAboutReview } from "@/lib/notifications";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const submissionId = parseEntityId(id);
@@ -37,7 +39,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const feedback = String(formData.get("feedback") ?? "").trim();
 
   if (!Number.isInteger(score) || score < 0 || score > submission.task.maxScore) {
-    return redirectWithError(request, backTo, `Балл должен быть целым числом от 0 до ${submission.task.maxScore}.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.scoreRangePre")} ${submission.task.maxScore}${t("err.scoreRangePost")}`,
+    );
   }
 
   await prisma.submission.update({
@@ -62,5 +68,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     maxScore: submission.task.maxScore,
   });
 
-  return redirectWithSuccess(request, backTo, "Оценка сохранена.");
+  return redirectWithSuccess(request, backTo, t("ok.reviewSaved"));
 }

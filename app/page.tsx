@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LinkButton } from "@/components/Button";
 import { Compass, ContourLines } from "@/components/Compass";
@@ -61,6 +62,12 @@ export default async function HomePage() {
             <dd className="mt-1.5 text-sm leading-relaxed text-ink-soft">{t("landing.feature3Desc")}</dd>
           </div>
         </dl>
+
+        <footer className="mt-12 border-t border-line pt-6 text-sm text-ink-mute">
+          <Link className="transition-colors hover:text-ink" href="/privacy">
+            {t("privacy.link")}
+          </Link>
+        </footer>
       </div>
     </main>
   );

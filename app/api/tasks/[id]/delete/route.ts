@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { deleteUploadedFile } from "@/lib/uploads";
@@ -9,6 +10,7 @@ import { deleteUploadedFile } from "@/lib/uploads";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const taskId = parseEntityId(id);
@@ -45,5 +47,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  return redirectWithSuccess(request, `/groups/${task.groupId}?tab=tasks`, "Задача удалена.");
+  return redirectWithSuccess(request, `/groups/${task.groupId}?tab=tasks`, t("ok.taskDeleted"));
 }

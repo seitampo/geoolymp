@@ -10,10 +10,10 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   awardEarnedBadges,
   badgeCatalog,
-  badgeFamilyLabels,
   computeAchievementStats,
   type BadgeFamily,
 } from "@/lib/achievements";
+import { getT, type TranslationKey } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/tasks";
 
@@ -23,6 +23,8 @@ export default async function AchievementsPage() {
   if (!user) {
     redirect("/login");
   }
+
+  const t = await getT();
 
   const stats = await computeAchievementStats(user.id);
   await awardEarnedBadges(user.id, stats);
@@ -50,42 +52,44 @@ export default async function AchievementsPage() {
           className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
           href="/dashboard"
         >
-          <span aria-hidden="true">←</span> В личный кабинет
+          <span aria-hidden="true">←</span> {t("ach.toDashboard")}
         </Link>
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">Достижения</h1>
+            <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{t("common.achievements")}</h1>
             <p className="mt-1 text-sm text-ink-soft">
-              Получено значков: {earnedCount} из {badgeCatalog.length}
+              {t("ach.earnedPrefix")} {earnedCount} {t("stats.of")} {badgeCatalog.length}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
-            <Badge tone="emerald">Задач решено: {stats.solvedTasks}</Badge>
-            <Badge tone="emerald">Картозадач: {stats.solvedMaps}</Badge>
+            <Badge tone="emerald">{t("ach.solvedTasks")} {stats.solvedTasks}</Badge>
+            <Badge tone="emerald">{t("ach.solvedMaps")} {stats.solvedMaps}</Badge>
             <Badge tone={stats.currentStreak > 0 ? "green" : "gray"}>
-              Стрик: {stats.currentStreak} дн.
+              {t("ach.streak")} {stats.currentStreak} {t("ach.days")}
             </Badge>
           </div>
         </div>
 
         {newlyEarnedCodes.size > 0 && (
           <div className="mb-6 rounded-lg border border-rust/30 bg-rust-soft px-4 py-3 text-sm text-rust-deep">
-            <span className="font-semibold">Поздравляем!</span> Новых значков: {newlyEarnedCodes.size}.
-            Они отмечены ниже.
+            <span className="font-semibold">{t("ach.congrats")}</span> {t("ach.newBadgesPre")} {newlyEarnedCodes.size}.{" "}
+            {t("ach.newBadgesPost")}
           </div>
         )}
 
         {user.role === "TEACHER" && earnedCount === 0 ? (
           <EmptyState
-            title="Значки — для учеников"
-            description="Достижения начисляются за решённые задачи, картозадачи и стрики."
+            title={t("ach.teacherEmptyTitle")}
+            description={t("ach.teacherEmptyDesc")}
           />
         ) : (
           <div className="space-y-8">
             {families.map((family) => (
               <section key={family}>
-                <h2 className="mb-3 font-heading text-[15px] font-semibold text-ink">{badgeFamilyLabels[family]}</h2>
+                <h2 className="mb-3 font-heading text-[15px] font-semibold text-ink">
+                  {t(`badgeFamily.${family}` as TranslationKey)}
+                </h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {badgeCatalog
                     .filter((badge) => badge.family === family)
@@ -108,9 +112,9 @@ export default async function AchievementsPage() {
                             />
                             {earnedBadge ? (
                               isNew ? (
-                                <Badge tone="emerald">Новый</Badge>
+                                <Badge tone="emerald">{t("ach.new")}</Badge>
                               ) : (
-                                <Badge tone="green">Получен</Badge>
+                                <Badge tone="green">{t("ach.received")}</Badge>
                               )
                             ) : (
                               <Badge tone="gray">
@@ -118,11 +122,15 @@ export default async function AchievementsPage() {
                               </Badge>
                             )}
                           </div>
-                          <h3 className="mt-2 font-semibold text-ink">{badge.title}</h3>
-                          <p className="mt-0.5 text-sm text-ink-soft">{badge.description}</p>
+                          <h3 className="mt-2 font-semibold text-ink">
+                            {t(`badge.${badge.code}.title` as TranslationKey)}
+                          </h3>
+                          <p className="mt-0.5 text-sm text-ink-soft">
+                            {t(`badge.${badge.code}.desc` as TranslationKey)}
+                          </p>
                           {earnedBadge ? (
                             <p className="mt-3 text-xs text-ink-mute">
-                              Получен: {formatDateTime(earnedBadge.earnedAt)}
+                              {t("ach.receivedAtPre")} {formatDateTime(earnedBadge.earnedAt)}
                             </p>
                           ) : (
                             <div className="mt-3">

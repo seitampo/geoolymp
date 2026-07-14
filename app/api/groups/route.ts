@@ -2,10 +2,12 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { createInviteCode } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
 
   if (!user || user.role !== Role.TEACHER) {
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
   const description = String(formData.get("description") ?? "").trim();
 
   if (!name || !description) {
-    return redirectWithError(request, "/dashboard", "Заполните название и описание группы.");
+    return redirectWithError(request, "/dashboard", t("err.groupFields"));
   }
 
   const group = await prisma.group.create({
@@ -29,5 +31,5 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return redirectWithSuccess(request, `/groups/${group.id}`, "Группа создана. Отправьте ученикам код приглашения.");
+  return redirectWithSuccess(request, `/groups/${group.id}`, t("ok.groupCreated"));
 }
