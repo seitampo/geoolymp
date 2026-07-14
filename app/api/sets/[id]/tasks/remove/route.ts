@@ -2,11 +2,13 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
 /** Убрать задачу из подборки (сама задача в группе остаётся). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const setId = parseEntityId(id);
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const taskId = parseEntityId(String(formData.get("taskId") ?? ""));
 
   if (taskId === null) {
-    return redirectWithError(request, backTo, "Задача не найдена.");
+    return redirectWithError(request, backTo, t("err.taskNotFound"));
   }
 
   await prisma.taskSetItem.deleteMany({ where: { setId, taskId } });

@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { setSession } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { clearAttempts, getClientKey, isRateLimited, rateLimitWindowMinutes, recordAttempt } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
+  const t = await getT();
   const key = getClientKey(request, "login");
 
   // Защита от перебора пароля: слишком много попыток с одного адреса — временная блокировка.
@@ -13,7 +15,7 @@ export async function POST(request: NextRequest) {
     return redirectWithError(
       request,
       "/login",
-      `Слишком много попыток входа. Попробуйте через ${rateLimitWindowMinutes()} минут.`,
+      `${t("err.rateLimitLoginPre")} ${rateLimitWindowMinutes()}${t("err.rateLimitPost")}`,
     );
   }
 
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   if (!user || !(await verifyPassword(password, user.password))) {
     await recordAttempt(key);
-    return redirectWithError(request, "/login", "Неверный email или пароль.");
+    return redirectWithError(request, "/login", t("err.invalidCredentials"));
   }
 
   // Успешный вход сбрасывает счётчик попыток по адресу.

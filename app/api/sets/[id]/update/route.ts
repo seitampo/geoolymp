@@ -2,11 +2,13 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { parseTrainingMinutes } from "@/lib/training";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const setId = parseEntityId(id);
@@ -31,11 +33,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const trainingMinutes = parseTrainingMinutes(String(formData.get("trainingMinutes") ?? ""));
 
   if (!title || !description) {
-    return redirectWithError(request, backTo, "Заполните название и описание подборки.");
+    return redirectWithError(request, backTo, t("err.setFields"));
   }
 
   if (trainingMinutes === undefined) {
-    return redirectWithError(request, backTo, "Лимит тренировки — целое число минут от 1 до 600.");
+    return redirectWithError(request, backTo, t("err.trainingLimit"));
   }
 
   await prisma.taskSet.update({ where: { id: setId }, data: { title, description, trainingMinutes } });

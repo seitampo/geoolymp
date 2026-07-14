@@ -9,6 +9,7 @@ import { SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
 import { TaskCard, type TeacherGroupOption } from "@/components/TaskCard";
 import { getCurrentUser } from "@/lib/auth";
+import { getT, type TFunction } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -21,22 +22,24 @@ function SetProgressChip({
   index,
   status,
   title,
+  t,
 }: {
   index: number;
   status: SetTaskStatus;
   title: string;
+  t: TFunction;
 }) {
   const styles: Record<SetTaskStatus, { className: string; glyph: string; label: string }> = {
-    solved: { className: "bg-green-100 text-green-800", glyph: "✓", label: "решено" },
-    wrong: { className: "bg-red-100 text-red-800", glyph: "✗", label: "неверно" },
-    pending: { className: "bg-amber-100 text-amber-800", glyph: "⏳", label: "на проверке" },
-    none: { className: "bg-ink/5 text-ink-mute/70", glyph: "—", label: "не решалось" },
+    solved: { className: "bg-green-100 text-green-800", glyph: "✓", label: t("setChip.solved") },
+    wrong: { className: "bg-red-100 text-red-800", glyph: "✗", label: t("setChip.wrong") },
+    pending: { className: "bg-amber-100 text-amber-800", glyph: "⏳", label: t("setChip.pending") },
+    none: { className: "bg-ink/5 text-ink-mute/70", glyph: "—", label: t("setChip.none") },
   };
   const style = styles[status];
 
   return (
     <span
-      title={`Задача ${index}: ${title} — ${style.label}`}
+      title={`${t("setChip.taskPrefix")} ${index}: ${title} — ${style.label}`}
       className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${style.className}`}
     >
       {index} {style.glyph}
@@ -57,6 +60,7 @@ export default async function TaskSetPage({
     redirect("/login");
   }
 
+  const t = await getT();
   const { id, setId } = await params;
   const { error } = await searchParams;
   const groupId = parseEntityId(id);
@@ -241,21 +245,22 @@ export default async function TaskSetPage({
             className="mb-4 inline-flex items-center gap-1 text-sm text-ink-mute transition-colors hover:text-ink"
             href={`/groups/${groupId}?tab=sets`}
           >
-            <span aria-hidden="true">←</span> К подборкам группы
+            <span aria-hidden="true">←</span> {t("setPage.backToSets")}
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{set.title}</h1>
-                <Badge tone="emerald">Задач: {visibleItems.length}</Badge>
-                {isTrainingMode && <Badge tone="amber">Тренировка · {set.trainingMinutes} мин</Badge>}
+                <Badge tone="emerald">{t("setPage.tasksCount")} {visibleItems.length}</Badge>
+                {isTrainingMode && (
+                  <Badge tone="amber">
+                    {t("setPage.trainingBadgePre")} {set.trainingMinutes} {t("set.minShort")}
+                  </Badge>
+                )}
               </div>
               <p className="mt-1 text-sm text-ink-soft">{set.description}</p>
               {!isTeacher && !isTrainingMode && visibleItems.length > 0 && (
-                <p className="mt-2 text-xs text-ink-mute">
-                  Решайте задачи по порядку. Каждая задача отправляется один раз — переотправка
-                  недоступна.
-                </p>
+                <p className="mt-2 text-xs text-ink-mute">{t("setPage.orderHint")}</p>
               )}
             </div>
             {isTeacher && (
@@ -263,10 +268,10 @@ export default async function TaskSetPage({
                 className="shrink-0"
                 action={`/api/sets/${set.id}/delete`}
                 method="post"
-                data-confirm="Удалить подборку? Задачи останутся в группе, но результаты подборки пропадут."
+                data-confirm={t("setPage.deleteSetConfirm")}
               >
                 <Button variant="danger" size="sm">
-                  Удалить подборку
+                  {t("setPage.deleteSet")}
                 </Button>
               </form>
             )}
@@ -277,13 +282,13 @@ export default async function TaskSetPage({
           <div className="mb-6 space-y-4">
             <details className={cardClasses}>
               <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
-                Редактировать название и описание
+                {t("setPage.editTitleDesc")}
               </summary>
               <form className="mt-4 grid gap-3" action={`/api/sets/${set.id}/update`} method="post">
-                <TextInput label="Название" name="title" defaultValue={set.title} />
-                <TextArea label="Описание" name="description" defaultValue={set.description} />
+                <TextInput label={t("field.title")} name="title" defaultValue={set.title} />
+                <TextArea label={t("field.description")} name="description" defaultValue={set.description} />
                 <TextInput
-                  label="Лимит тренировки в минутах (пусто — обычная подборка)"
+                  label={t("setPage.trainingMinutesLabel")}
                   name="trainingMinutes"
                   type="number"
                   min={1}
@@ -291,7 +296,7 @@ export default async function TaskSetPage({
                   required={false}
                   defaultValue={set.trainingMinutes ?? ""}
                 />
-                <Button className="w-fit">Сохранить</Button>
+                <Button className="w-fit">{t("action.save")}</Button>
               </form>
             </details>
 
@@ -303,7 +308,7 @@ export default async function TaskSetPage({
               >
                 <div className="flex-1">
                   <SelectField
-                    label="Добавить задачу из группы"
+                    label={t("setPage.addTaskFromGroup")}
                     name="taskId"
                     options={availableTasks.map((task) => ({
                       value: String(task.id),
@@ -311,21 +316,21 @@ export default async function TaskSetPage({
                     }))}
                   />
                 </div>
-                <Button className="shrink-0">Добавить в подборку</Button>
+                <Button className="shrink-0">{t("setPage.addToSet")}</Button>
               </form>
             )}
 
             {isTrainingMode && attempts.length > 0 && (
               <div className={cardClasses}>
-                <h2 className="font-heading text-[15px] font-semibold text-ink">Попытки учеников</h2>
+                <h2 className="font-heading text-[15px] font-semibold text-ink">{t("setPage.attemptsTitle")}</h2>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[420px] text-sm">
                     <thead>
                       <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-ink-mute">
-                        <th className="py-2 pr-3">Ученик</th>
-                        <th className="py-2 pr-3">Результат</th>
-                        <th className="py-2 pr-3">Статус</th>
-                        <th className="py-2">Начата</th>
+                        <th className="py-2 pr-3">{t("member.student")}</th>
+                        <th className="py-2 pr-3">{t("setPage.thResult")}</th>
+                        <th className="py-2 pr-3">{t("setPage.thStatus")}</th>
+                        <th className="py-2">{t("setPage.thStarted")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line/70">
@@ -335,13 +340,13 @@ export default async function TaskSetPage({
                           <tr key={attempt.id}>
                             <td className="py-2 pr-3 font-medium text-ink">{attempt.student.name}</td>
                             <td className="py-2 pr-3 text-ink-soft">
-                              {attempt.finishedAt ? `${earned} из ${possibleScore}` : "—"}
+                              {attempt.finishedAt ? `${earned} ${t("stats.of")} ${possibleScore}` : "—"}
                             </td>
                             <td className="py-2 pr-3">
                               {attempt.finishedAt ? (
-                                <Badge tone="green">Завершена</Badge>
+                                <Badge tone="green">{t("setPage.attemptFinished")}</Badge>
                               ) : (
-                                <Badge tone="amber">Идёт</Badge>
+                                <Badge tone="amber">{t("setPage.attemptOngoing")}</Badge>
                               )}
                             </td>
                             <td className="py-2 text-ink-soft">{formatDateTime(attempt.startedAt)}</td>
@@ -357,10 +362,8 @@ export default async function TaskSetPage({
             {members.length > 0 && (
               <div className={cardClasses}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="font-heading text-[15px] font-semibold text-ink">Прогресс учеников</h2>
-                  <p className="text-xs text-ink-mute">
-                    ✓ решено · ⏳ на проверке · ✗ неверно · — не решалось
-                  </p>
+                  <h2 className="font-heading text-[15px] font-semibold text-ink">{t("setPage.progressTitle")}</h2>
+                  <p className="text-xs text-ink-mute">{t("setPage.legend")}</p>
                 </div>
                 <div className="mt-4 space-y-4">
                   {memberProgress.map((member) => (
@@ -368,7 +371,7 @@ export default async function TaskSetPage({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-sm font-medium text-ink">{member.name}</span>
                         <Badge tone={member.solved > 0 ? "green" : "gray"}>
-                          Решено {member.solved} из {set.items.length}
+                          {t("setPage.solvedOf")} {member.solved} {t("stats.of")} {set.items.length}
                         </Badge>
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -378,6 +381,7 @@ export default async function TaskSetPage({
                             index={index + 1}
                             status={entry.status}
                             title={entry.title}
+                            t={t}
                           />
                         ))}
                       </div>
@@ -391,39 +395,34 @@ export default async function TaskSetPage({
 
         {!isTeacher && isTrainingMode ? (
           <section className={`${cardClasses} text-center`}>
-            <h2 className="font-heading font-heading text-[15px] font-semibold text-ink">Тренировка</h2>
+            <h2 className="font-heading font-heading text-[15px] font-semibold text-ink">{t("setPage.trainingTitle")}</h2>
             <p className="mt-2 text-sm text-ink-soft">
-              {trainableCount} задач · {set.trainingMinutes} минут · одна попытка · без подсказок
+              {trainableCount} {t("setPage.tasksWord")} · {set.trainingMinutes} {t("setPage.minutesWord")} ·{" "}
+              {t("setPage.oneAttemptNoHints")}
             </p>
-            <p className="mt-1 text-xs text-ink-mute">
-              Задачи откроются после старта, таймер запустится сразу — подготовьтесь заранее.
-            </p>
+            <p className="mt-1 text-xs text-ink-mute">{t("setPage.trainingStartHint")}</p>
             <div className="mt-4 flex justify-center">
               {studentAttempt?.finishedAt ? (
                 <LinkButton href={`/groups/${groupId}/sets/${set.id}/training`} variant="secondary">
-                  Посмотреть результат
+                  {t("setPage.viewResult")}
                 </LinkButton>
               ) : studentAttempt ? (
                 <LinkButton href={`/groups/${groupId}/sets/${set.id}/training`} variant="primary">
-                  Продолжить тренировку
+                  {t("setPage.continueTraining")}
                 </LinkButton>
               ) : trainableCount > 0 ? (
                 <form action={`/api/sets/${set.id}/training/start`} method="post">
-                  <Button variant="primary">Начать тренировку</Button>
+                  <Button variant="primary">{t("setPage.startTraining")}</Button>
                 </form>
               ) : (
-                <p className="text-sm text-ink-mute">Учитель ещё не добавил задачи для тренировки.</p>
+                <p className="text-sm text-ink-mute">{t("setPage.noTrainingTasks")}</p>
               )}
             </div>
           </section>
         ) : visibleItems.length === 0 ? (
           <EmptyState
-            title="В подборке пока нет задач"
-            description={
-              isTeacher
-                ? "Добавьте задачи группы через форму выше."
-                : "Учитель ещё не добавил задачи в эту подборку."
-            }
+            title={t("setPage.emptyTitle")}
+            description={isTeacher ? t("setPage.emptyTeacher") : t("setPage.emptyStudent")}
           />
         ) : (
           <div className="space-y-6">
@@ -431,13 +430,13 @@ export default async function TaskSetPage({
               <div key={item.id}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm font-medium text-ink-mute">
-                    Задача {index + 1} из {visibleItems.length}
+                    {t("setPage.taskWord")} {index + 1} {t("stats.of")} {visibleItems.length}
                   </p>
                   {isTeacher && (
                     <form action={`/api/sets/${set.id}/tasks/remove`} method="post">
                       <input type="hidden" name="taskId" value={item.taskId} />
                       <Button variant="danger" size="sm">
-                        Убрать из подборки
+                        {t("setPage.removeFromSet")}
                       </Button>
                     </form>
                   )}

@@ -11,6 +11,21 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 type Point = { x: number; y: number };
 
+export type MapEditorLabels = {
+  title: string;
+  hint: string;
+  alt: string;
+  placeholder: string;
+  tolerance: string;
+  toleranceSuffix: string;
+};
+
+export type MapAnswerLabels = {
+  clickToAnswer: string;
+  clickToMove: string;
+  alt: string;
+};
+
 function clickToWidthPercent(event: MouseEvent<HTMLElement>): Point {
   const rect = event.currentTarget.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -59,11 +74,13 @@ export function MapPointEditor({
   initialX,
   initialY,
   initialRadius,
+  labels,
 }: {
   existingImageUrl?: string;
   initialX?: number;
   initialY?: number;
   initialRadius?: number;
+  labels: MapEditorLabels;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(existingImageUrl ?? null);
@@ -95,18 +112,15 @@ export function MapPointEditor({
 
   return (
     <div ref={wrapperRef} className="rounded-lg border border-line p-3">
-      <p className="text-sm font-medium text-ink-soft">Цель картозадачи</p>
-      <p className="mt-0.5 text-xs text-ink-mute">
-        Для типа «Клик по карте»: загрузите карту в поле изображения, затем кликните по ней,
-        чтобы отметить правильную точку, и подберите допуск.
-      </p>
+      <p className="text-sm font-medium text-ink-soft">{labels.title}</p>
+      <p className="mt-0.5 text-xs text-ink-mute">{labels.hint}</p>
 
       {imageUrl ? (
         <div className="relative mt-3 cursor-crosshair overflow-hidden rounded-lg border border-line">
           <img
             className="block w-full select-none"
             src={imageUrl}
-            alt="Карта задачи"
+            alt={labels.alt}
             draggable={false}
             onLoad={(event) =>
               setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)
@@ -116,14 +130,12 @@ export function MapPointEditor({
           {point && <TargetCircle point={point} radius={radius} aspect={aspect} />}
         </div>
       ) : (
-        <p className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink-mute">
-          Карта появится здесь после выбора изображения.
-        </p>
+        <p className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink-mute">{labels.placeholder}</p>
       )}
 
       {imageUrl && (
         <label className="mt-3 block text-xs text-ink-soft">
-          Допуск (радиус зоны): <span className="font-medium">{radius}%</span> ширины карты
+          {labels.tolerance} <span className="font-medium">{radius}%</span> {labels.toleranceSuffix}
           <input
             className="mt-1 block w-full accent-rust"
             type="range"
@@ -153,11 +165,13 @@ export function MapAnswerInput({
   initialAnswer,
   readOnly = false,
   target,
+  labels,
 }: {
   imageUrl: string;
   initialAnswer?: string;
   readOnly?: boolean;
   target?: { x: number; y: number; radius: number };
+  labels: MapAnswerLabels;
 }) {
   const [point, setPoint] = useState<Point | null>(() => {
     if (!initialAnswer) {
@@ -172,7 +186,8 @@ export function MapAnswerInput({
     <div>
       {!readOnly && (
         <p className="mb-2 text-sm text-ink-soft">
-          Кликните по карте, чтобы отметить ответ{point ? " (можно передвинуть новым кликом)" : ""}.
+          {labels.clickToAnswer}
+          {point ? labels.clickToMove : ""}.
         </p>
       )}
       <div
@@ -183,7 +198,7 @@ export function MapAnswerInput({
         <img
           className="block w-full select-none"
           src={imageUrl}
-          alt="Карта задачи"
+          alt={labels.alt}
           draggable={false}
           onLoad={(event) =>
             setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)

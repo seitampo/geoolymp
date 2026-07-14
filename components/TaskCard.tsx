@@ -4,6 +4,7 @@ import { Button } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { MapAnswerInput, MapPointEditor } from "@/components/MapPoint";
+import { mapAnswerLabels, mapEditorLabels } from "@/lib/mapLabels";
 import { getT, type TFunction, type TranslationKey } from "@/lib/i18n";
 import {
   formatDateTime,
@@ -283,6 +284,7 @@ export async function TaskCard({
               imageUrl={`/api/tasks/${task.id}/image`}
               readOnly
               target={{ x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }}
+              labels={mapAnswerLabels(t)}
             />
           </div>
         )}
@@ -356,6 +358,7 @@ export async function TaskCard({
               initialX={task.mapTargetX ?? undefined}
               initialY={task.mapTargetY ?? undefined}
               initialRadius={task.mapRadius ?? undefined}
+              labels={mapEditorLabels(t)}
             />
             <Button className="w-fit">{t("action.save")}</Button>
           </form>
@@ -502,6 +505,7 @@ async function StudentSubmissionBlock({
                   ? { x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }
                   : undefined
               }
+              labels={mapAnswerLabels(t)}
             />
             <p className="mt-1.5 text-xs text-ink-mute">
               {t("student.mapHintYour")}{isReviewed ? t("student.mapHintCorrect") : ""}.
@@ -602,7 +606,11 @@ async function SubmissionForm({
       {submissionContext?.oneShot && <input type="hidden" name="once" value="1" />}
       {task.type === "TEXT" && <TextArea label={t("answerForm.answer")} name="answer" defaultValue={submission?.answer ?? ""} />}
       {task.type === "MAP_POINT" && task.imagePath && (
-        <MapAnswerInput imageUrl={`/api/tasks/${task.id}/image`} initialAnswer={submission?.answer} />
+        <MapAnswerInput
+          imageUrl={`/api/tasks/${task.id}/image`}
+          initialAnswer={submission?.answer}
+          labels={mapAnswerLabels(t)}
+        />
       )}
       {task.type === "SINGLE_CHOICE" &&
         options.map((option) => (

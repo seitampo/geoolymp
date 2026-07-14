@@ -10,6 +10,7 @@ import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
 import { MapPointEditor } from "@/components/MapPoint";
+import { mapEditorLabels } from "@/lib/mapLabels";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   CopyForm,
@@ -1008,7 +1009,7 @@ function TasksTab({
             accept="image/*"
             hint={`${t("task.imageHintPrefix")} ${maxUploadLabel()}`}
           />
-          <MapPointEditor />
+          <MapPointEditor labels={mapEditorLabels(t)} />
             <Button className="w-fit">{t("action.create")}</Button>
           </form>
         </details>

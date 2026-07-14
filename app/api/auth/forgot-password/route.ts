@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { sendEmail } from "@/lib/email";
 import { createResetToken, resetTokenTtlMinutes } from "@/lib/passwordReset";
 import { prisma } from "@/lib/prisma";
@@ -8,13 +9,14 @@ import { getClientKey, isRateLimited, rateLimitWindowMinutes, recordAttempt } fr
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const t = await getT();
   // Ограничиваем частоту, чтобы нельзя было заваливать чужой ящик письмами.
   const key = getClientKey(request, "forgot");
   if (await isRateLimited(key)) {
     return redirectWithError(
       request,
       "/forgot-password",
-      `Слишком много запросов. Попробуйте через ${rateLimitWindowMinutes()} минут.`,
+      `${t("err.rateLimitForgotPre")} ${rateLimitWindowMinutes()}${t("err.rateLimitPost")}`,
     );
   }
   await recordAttempt(key);
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
   if (!email) {
-    return redirectWithError(request, "/forgot-password", "Введите email.");
+    return redirectWithError(request, "/forgot-password", t("err.enterEmail"));
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
@@ -48,9 +50,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return redirectWithSuccess(
-    request,
-    "/forgot-password",
-    "Если аккаунт с таким email существует, мы отправили письмо со ссылкой для сброса пароля.",
-  );
+  return redirectWithSuccess(request, "/forgot-password", t("ok.forgotSent"));
 }

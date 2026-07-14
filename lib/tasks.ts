@@ -220,17 +220,23 @@ export function isAnswerCorrect(type: TaskType, answer: string, correctAnswer: s
  * Для задач с вариантами правильный ответ обязателен (по нему работает автопроверка)
  * и должен дословно совпадать с вариантами. Возвращает текст ошибки или null.
  */
+/**
+ * Результат проверки правильного ответа. Возвращаем код ошибки (не готовый текст),
+ * чтобы сообщение перевести в роуте через t() — см. i18n этап C.
+ */
+export type CorrectAnswerError = { code: "required" } | { code: "mismatch"; missing: string[] };
+
 export function validateChoiceCorrectAnswer(
   type: TaskType,
   options: string[],
   correctAnswer: string,
-): string | null {
+): CorrectAnswerError | null {
   if (!requiresOptions(type)) {
     return null;
   }
 
   if (!correctAnswer.trim()) {
-    return "Для задачи с вариантами укажите правильный ответ — по нему работает автопроверка.";
+    return { code: "required" };
   }
 
   const answers =
@@ -240,7 +246,7 @@ export function validateChoiceCorrectAnswer(
   const missing = answers.filter((value) => !options.includes(value));
 
   if (missing.length > 0) {
-    return `Правильный ответ должен дословно совпадать с вариантами. Нет в списке: ${missing.join(", ")}.`;
+    return { code: "mismatch", missing };
   }
 
   return null;

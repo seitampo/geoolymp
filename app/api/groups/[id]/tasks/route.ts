@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
@@ -29,6 +30,7 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const groupId = parseEntityId(id);
@@ -71,62 +73,70 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const mapRadius = parseMapNumber(String(formData.get("mapRadius") ?? ""), 0.5, 50);
 
   if (!title || !description || !Number.isInteger(maxScore) || maxScore <= 0 || !type) {
-    return redirectWithError(request, backTo, "Заполните название, условие, тип и максимальный балл (больше 0).");
+    return redirectWithError(request, backTo, t("err.taskFields"));
   }
 
   const parsedOptions = parseTaskOptions(options);
 
   if (requiresOptions(type) && parsedOptions.length < 2) {
-    return redirectWithError(request, backTo, "Для задачи с вариантами укажите минимум два варианта ответа (каждый с новой строки).");
+    return redirectWithError(request, backTo, t("err.taskOptions"));
   }
 
   const correctAnswerError = validateChoiceCorrectAnswer(type, parsedOptions, correctAnswer);
   if (correctAnswerError) {
-    return redirectWithError(request, backTo, correctAnswerError);
+    const message =
+      correctAnswerError.code === "required"
+        ? t("err.correctRequired")
+        : `${t("err.correctMismatchPre")} ${correctAnswerError.missing.join(", ")}.`;
+    return redirectWithError(request, backTo, message);
   }
 
   if (opensAt === undefined || dueAt === undefined) {
-    return redirectWithError(request, backTo, "Неверный формат даты открытия или срока сдачи.");
+    return redirectWithError(request, backTo, t("err.openDueDate"));
   }
 
   if (publishAt === undefined) {
-    return redirectWithError(request, backTo, "Неверный формат даты публикации.");
+    return redirectWithError(request, backTo, t("err.publishDate"));
   }
 
   if (grade === undefined || difficulty === undefined || (olympiadLevelRaw !== "" && olympiadLevel === null)) {
-    return redirectWithError(request, backTo, "Неверные значения классификации (класс, уровень или сложность).");
+    return redirectWithError(request, backTo, t("err.classification"));
   }
 
   if (mapTargetX === undefined || mapTargetY === undefined || mapRadius === undefined) {
-    return redirectWithError(request, backTo, "Неверные координаты цели картозадачи.");
+    return redirectWithError(request, backTo, t("err.mapCoords"));
   }
 
   if (isMapTask(type)) {
     if (!(image instanceof File) || image.size === 0) {
-      return redirectWithError(request, backTo, "Для картозадачи загрузите изображение карты.");
+      return redirectWithError(request, backTo, t("err.mapImage"));
     }
 
     if (mapTargetX === null || mapTargetY === null || mapRadius === null) {
-      return redirectWithError(request, backTo, "Отметьте правильную точку на карте и задайте допуск.");
+      return redirectWithError(request, backTo, t("err.mapPointTeacher"));
     }
   }
 
   if (opensAt && dueAt && opensAt >= dueAt) {
-    return redirectWithError(request, backTo, "Дата открытия должна быть раньше срока сдачи.");
+    return redirectWithError(request, backTo, t("err.openBeforeDue"));
   }
 
   if (image instanceof File && isUploadTooLarge(image.size)) {
-    return redirectWithError(request, backTo, `Изображение слишком большое. Максимум — ${maxUploadLabel()}.`);
+    return redirectWithError(request, backTo, `${t("err.imageTooBig")} ${maxUploadLabel()}.`);
   }
 
   // accept="image/*" в форме — только клиентская подсказка; проверяем расширение на сервере,
   // потому что файл отдаётся ученикам с image/* Content-Type.
   if (image instanceof File && image.size > 0 && !isAllowedImageFileName(image.name)) {
-    return redirectWithError(request, backTo, "Изображение должно быть в формате JPG, PNG или WebP.");
+    return redirectWithError(request, backTo, t("err.imageFormat"));
   }
 
   if (image instanceof File && image.size > 0 && !(await hasStorageRoom(image.size))) {
-    return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Удалите ненужные файлы.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.storagePre")} (${storageLimitLabel()})${t("err.storageDeletePost")}`,
+    );
   }
 
   const savedImage = image instanceof File && image.size > 0 ? await saveUploadedFile(image, "tasks") : null;
@@ -155,5 +165,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     },
   });
 
-  return redirectWithSuccess(request, backTo, "Задача создана.");
+  return redirectWithSuccess(request, backTo, t("ok.taskCreated"));
 }

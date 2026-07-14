@@ -2,6 +2,7 @@ import { MaterialType, Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { getT } from "@/lib/i18n";
 import {
   isAllowedFileName,
   isFileMaterial,
@@ -16,6 +17,7 @@ import { hasStorageRoom, isUploadTooLarge, maxUploadLabel, storageLimitLabel } f
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const groupId = parseEntityId(id);
@@ -42,24 +44,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const file = formData.get("file");
 
   if (!title || !description || !type) {
-    return redirectWithError(request, backTo, "Заполните название, описание и тип материала.");
+    return redirectWithError(request, backTo, t("err.materialFields"));
   }
 
   if (isFileMaterial(type)) {
     if (!(file instanceof File) || file.size === 0) {
-      return redirectWithError(request, backTo, "Загрузите файл для выбранного типа материала.");
+      return redirectWithError(request, backTo, t("err.materialFile"));
     }
 
     if (isUploadTooLarge(file.size)) {
-      return redirectWithError(request, backTo, `Файл слишком большой. Максимум — ${maxUploadLabel()}.`);
+      return redirectWithError(request, backTo, `${t("err.fileTooBig")} ${maxUploadLabel()}.`);
     }
 
     if (!isAllowedFileName(type, file.name)) {
-      return redirectWithError(request, backTo, "Файл не соответствует выбранному типу материала.");
+      return redirectWithError(request, backTo, t("err.materialFileType"));
     }
 
     if (!(await hasStorageRoom(file.size))) {
-      return redirectWithError(request, backTo, `Достигнут лимит хранилища (${storageLimitLabel()}). Удалите ненужные файлы.`);
+      return redirectWithError(
+        request,
+        backTo,
+        `${t("err.storagePre")} (${storageLimitLabel()})${t("err.storageDeletePost")}`,
+      );
     }
 
     const savedFile = await saveMaterialFile(file);
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
   } else if (type === MaterialType.LINK) {
     if (!url || !isValidExternalUrl(url)) {
-      return redirectWithError(request, backTo, "Добавьте корректную ссылку (http:// или https://).");
+      return redirectWithError(request, backTo, t("err.addValidLink"));
     }
 
     await prisma.material.create({ data: { groupId, title, description, type, url } });
@@ -85,5 +91,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await prisma.material.create({ data: { groupId, title, description, type } });
   }
 
-  return redirectWithSuccess(request, backTo, "Материал добавлен.");
+  return redirectWithSuccess(request, backTo, t("ok.materialAdded"));
 }
