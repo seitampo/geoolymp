@@ -544,4 +544,25 @@ export const kk: Dictionary = {
   "ok.taskDeleted": "Тапсырма жойылды.",
   "ok.reviewSaved": "Баға сақталды.",
   "ok.answerSubmitted": "Жауап жіберілді.",
+
+  // Автотексеру (мәтін шешімде сақталады және оқушыға көрсетіледі)
+  "feedback.autoCorrect": "Автотексеру: жауап дұрыс.",
+  "feedback.autoWrong": "Автотексеру: жауап қате.",
+
+  // Құпия сөзді қалпына келтіру хаты
+  "email.resetSubject": "Құпия сөзді қалпына келтіру — Olympic Meridian",
+  "email.resetHeading": "Құпия сөзді қалпына келтіру",
+  "email.resetIntro":
+    "Сіз Olympic Meridian-де құпия сөзді қалпына келтіруді сұрадыңыз. Жаңа құпия сөз орнату үшін төмендегі батырманы басыңыз:",
+  "email.resetButton": "Құпия сөзді қалпына келтіру",
+  "email.resetTtlPre": "Сілтеме",
+  "email.resetTtlPost": "минут бойы жарамды. Егер сіз қалпына келтіруді сұрамаған болсаңыз — бұл хатты елемеңіз.",
+
+  // Құпиялылық саясаты
+  "privacy.link": "Құпиялылық саясаты",
+  "privacy.title": "Құпиялылық саясаты",
+  "privacy.back": "Басты бетке",
+  "privacy.updatedPre": "Жаңартылды:",
+  "register.consentPre": "Аккаунт жасау арқылы сіз",
+  "register.consentLink": "құпиялылық саясатымен",
 };

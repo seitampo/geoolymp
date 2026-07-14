@@ -38,13 +38,13 @@ export async function POST(request: NextRequest) {
 
     await sendEmail({
       to: email,
-      subject: "Восстановление пароля — Olympic Meridian",
+      subject: t("email.resetSubject"),
       html: `
         <div style="font-family: sans-serif; color: #16232b;">
-          <h2>Восстановление пароля</h2>
-          <p>Вы запросили сброс пароля в Olympic Meridian. Нажмите на ссылку ниже, чтобы задать новый пароль:</p>
-          <p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#b0380f;color:#fff;text-decoration:none;border-radius:6px;">Сбросить пароль</a></p>
-          <p style="color:#5b6b73;font-size:14px;">Ссылка действует ${resetTokenTtlMinutes()} минут. Если вы не запрашивали сброс — просто проигнорируйте это письмо.</p>
+          <h2>${t("email.resetHeading")}</h2>
+          <p>${t("email.resetIntro")}</p>
+          <p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#b0380f;color:#fff;text-decoration:none;border-radius:6px;">${t("email.resetButton")}</a></p>
+          <p style="color:#5b6b73;font-size:14px;">${t("email.resetTtlPre")} ${resetTokenTtlMinutes()} ${t("email.resetTtlPost")}</p>
         </div>
       `,
     });

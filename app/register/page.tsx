@@ -70,6 +70,13 @@ export default async function RegisterPage({
             <p className="mt-1.5 text-xs text-ink-mute">{t("register.inviteHint")}</p>
           </div>
           <Button className="w-full">{t("register.submit")}</Button>
+          <p className="text-center text-xs text-ink-mute">
+            {t("register.consentPre")}{" "}
+            <Link className="font-medium text-sea hover:underline" href="/privacy">
+              {t("register.consentLink")}
+            </Link>
+            .
+          </p>
         </form>
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">

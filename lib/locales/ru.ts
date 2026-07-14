@@ -543,6 +543,27 @@ export const ru = {
   "ok.taskDeleted": "Задача удалена.",
   "ok.reviewSaved": "Оценка сохранена.",
   "ok.answerSubmitted": "Ответ отправлен.",
+
+  // Автопроверка (текст сохраняется в решении и показывается ученику)
+  "feedback.autoCorrect": "Автопроверка: ответ верный.",
+  "feedback.autoWrong": "Автопроверка: ответ неверный.",
+
+  // Письмо о сбросе пароля
+  "email.resetSubject": "Восстановление пароля — Olympic Meridian",
+  "email.resetHeading": "Восстановление пароля",
+  "email.resetIntro":
+    "Вы запросили сброс пароля в Olympic Meridian. Нажмите на кнопку ниже, чтобы задать новый пароль:",
+  "email.resetButton": "Сбросить пароль",
+  "email.resetTtlPre": "Ссылка действует",
+  "email.resetTtlPost": "минут. Если вы не запрашивали сброс — просто проигнорируйте это письмо.",
+
+  // Политика конфиденциальности
+  "privacy.link": "Политика конфиденциальности",
+  "privacy.title": "Политика конфиденциальности",
+  "privacy.back": "На главную",
+  "privacy.updatedPre": "Обновлено:",
+  "register.consentPre": "Создавая аккаунт, вы соглашаетесь с",
+  "register.consentLink": "политикой конфиденциальности",
 } as const;
 
 export type Dictionary = Record<keyof typeof ru, string>;

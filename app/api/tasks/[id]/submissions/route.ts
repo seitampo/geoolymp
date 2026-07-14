@@ -150,8 +150,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     verdict === null
       ? null
       : verdict
-        ? { score: task.maxScore, feedback: "Автопроверка: ответ верный." }
-        : { score: 0, feedback: "Автопроверка: ответ неверный." };
+        ? { score: task.maxScore, feedback: t("feedback.autoCorrect") }
+        : { score: 0, feedback: t("feedback.autoWrong") };
 
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
   await prisma.$transaction(async (transaction) => {
