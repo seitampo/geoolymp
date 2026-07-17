@@ -1,27 +1,11 @@
 /**
- * Знак Olympic Meridian — компасная роза (stroke-SVG). Наследует цвет через currentColor,
- * размер задаётся className. Один знак на весь продукт вместо глобуса-в-квадрате.
+ * Эмблема Olympic Meridian — фирменный знак (глобус с золотым меридианом, компасная
+ * звезда и книга). Растровый логотип с прозрачным фоном лежит в /public/logo.png,
+ * размер задаётся className. Имя Compass историческое: раньше знаком была компасная роза.
  */
 export function Compass({ className = "h-6 w-6" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="9.25" />
-      <path d="M12 1.5v2.6M12 19.9v2.6M1.5 12h2.6M19.9 12h2.6" strokeWidth="1.2" />
-      {/* Стрелка N–S: северный луч залит */}
-      <path d="M12 5.4 14.1 12l-2.1 6.6L9.9 12Z" strokeWidth="1.2" />
-      <path d="M12 5.4 14.1 12H9.9Z" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/logo.png" alt="" aria-hidden="true" className={`${className} object-contain`} />;
 }
 
 /** Тонкие горизонтали рельефа — фоновая графика для hero и пустых состояний. */
