@@ -137,7 +137,7 @@ export function MapPointEditor({
         <label className="mt-3 block text-xs text-ink-soft">
           {labels.tolerance} <span className="font-medium">{radius}%</span> {labels.toleranceSuffix}
           <input
-            className="mt-1 block w-full accent-rust"
+            className="mt-1 block w-full accent-navy"
             type="range"
             min={1}
             max={25}

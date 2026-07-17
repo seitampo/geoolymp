@@ -4,10 +4,10 @@ import { getT } from "@/lib/i18n";
 
 type BadgeTone = "gray" | "emerald" | "green" | "amber" | "red";
 
-// «emerald» исторически — фирменный акцент; в новой палитре это терракота.
+// «emerald» исторически — фирменный акцент; в палитре «Атлас» это золото наград.
 const toneClasses: Record<BadgeTone, string> = {
   gray: "bg-ink/5 text-ink-soft",
-  emerald: "bg-rust-soft text-rust-deep",
+  emerald: "bg-gold-soft text-gold-text",
   green: "bg-green-100 text-green-800",
   amber: "bg-amber-100 text-amber-800",
   red: "bg-red-100 text-red-800",

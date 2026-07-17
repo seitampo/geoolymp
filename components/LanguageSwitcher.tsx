@@ -13,7 +13,7 @@ export function LanguageSwitcher({ locale, aria }: { locale: "ru" | "kk"; aria: 
   }
 
   const base = "px-2 py-0.5 text-xs font-semibold rounded transition-colors";
-  const active = "bg-rust text-white";
+  const active = "bg-navy text-white";
   const idle = "text-ink-mute hover:text-ink";
 
   return (

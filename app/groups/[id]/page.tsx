@@ -608,7 +608,7 @@ function TaskFilterChips({
             key={filter.value}
             className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               isActive
-                ? "border-rust bg-rust text-white"
+                ? "border-navy bg-navy text-white"
                 : "border-line bg-white text-ink-soft hover:border-ink/25 hover:text-ink"
             }`}
             href={`/groups/${groupId}?${params.toString()}`}
@@ -643,7 +643,7 @@ function TabLink({
     <Link
       className={`inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         isActive
-          ? "bg-rust text-white"
+          ? "bg-navy text-white"
           : "border border-line bg-white text-ink-soft hover:border-ink/25 hover:text-ink"
       }`}
       href={`/groups/${groupId}?tab=${tab}`}
@@ -652,7 +652,7 @@ function TabLink({
       {label}
       {showDot && (
         <span
-          className="ml-1.5 inline-block h-2 w-2 rounded-full bg-rust"
+          className="ml-1.5 inline-block h-2 w-2 rounded-full bg-gold"
           title={dotTitle}
         />
       )}
@@ -692,7 +692,7 @@ function MaterialsTab({
       )}
       {isTeacher && (
         <details className={cardClasses}>
-          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-rust">
+          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-navy">
             {t("material.add")}
           </summary>
           <form
@@ -969,7 +969,7 @@ function TasksTab({
       )}
       {isTeacher && (
         <details className={cardClasses}>
-          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-rust">
+          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-navy">
             {t("task.create")}
           </summary>
           <form
@@ -1053,7 +1053,7 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
     <section className="space-y-5">
       {isTeacher && (
         <details className={cardClasses}>
-          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-rust">
+          <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-navy">
             {t("set.create")}
           </summary>
           <form className="mt-4 grid gap-4" action={`/api/groups/${group.id}/sets`} method="post">
@@ -1078,7 +1078,7 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
           {group.taskSets.map((set) => (
             <Link
               key={set.id}
-              className={`${cardClasses} block transition hover:border-rust/40 hover:shadow-md`}
+              className={`${cardClasses} block transition hover:border-navy/40 hover:shadow-md`}
               href={`/groups/${group.id}/sets/${set.id}`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -1138,7 +1138,7 @@ function SubmissionsTab({
             key={chip.value}
             className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               isActive
-                ? "border-rust bg-rust text-white"
+                ? "border-navy bg-navy text-white"
                 : "border-line bg-white text-ink-soft hover:border-ink/25 hover:text-ink"
             }`}
             href={`/groups/${groupId}?tab=submissions${chip.value === "pending" ? "&filter=pending" : ""}`}
@@ -1213,7 +1213,7 @@ function SubmissionsTab({
             )}
             {submission.originalFileName && (
               <a
-                className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
+                className="mt-2 inline-block break-all text-sm font-medium text-navy hover:underline"
                 href={`/api/submissions/${submission.id}/file`}
               >
                 {t("sub.downloadFile")}: {submission.originalFileName}
@@ -1305,7 +1305,7 @@ function ReviewQueue({
         )}
         {current.originalFileName && (
           <a
-            className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
+            className="mt-2 inline-block break-all text-sm font-medium text-navy hover:underline"
             href={`/api/submissions/${current.id}/file`}
           >
             {t("sub.downloadFile")}: {current.originalFileName}

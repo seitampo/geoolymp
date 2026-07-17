@@ -50,15 +50,15 @@ export default async function HomePage() {
 
         <dl className="mt-14 grid gap-6 border-t border-line pt-8 sm:grid-cols-3">
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-wider text-rust">{t("landing.feature1Title")}</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wider text-gold-text">{t("landing.feature1Title")}</dt>
             <dd className="mt-1.5 text-sm leading-relaxed text-ink-soft">{t("landing.feature1Desc")}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-wider text-rust">{t("landing.feature2Title")}</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wider text-gold-text">{t("landing.feature2Title")}</dt>
             <dd className="mt-1.5 text-sm leading-relaxed text-ink-soft">{t("landing.feature2Desc")}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-wider text-rust">{t("landing.feature3Title")}</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wider text-gold-text">{t("landing.feature3Title")}</dt>
             <dd className="mt-1.5 text-sm leading-relaxed text-ink-soft">{t("landing.feature3Desc")}</dd>
           </div>
         </dl>

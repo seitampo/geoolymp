@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 /*
- * Палитра «Экспедиционная карта»:
- * бумага + чернила + терракотовый акцент (rust) + морской тил для ссылок.
+ * Палитра «Атлас»: бумага + чернила + нейви и золото фирменной эмблемы.
+ * Нейви — цвет действия (кнопки, ссылки, фокус), золото — награды и декор
+ * (значки, стрики, прогресс). Золотом не красим мелкий текст на бумаге —
+ * для текстовых акцентов есть затемнённый gold-text.
  * Семантика статусов (green/amber/red) остаётся из Tailwind.
  */
 @theme {
@@ -11,10 +13,12 @@
   --color-ink-soft: #45535c;
   --color-ink-mute: #6d7a82;
   --color-line: #e5dfd2;
-  --color-rust: #b0380f;
-  --color-rust-deep: #922e0c;
-  --color-rust-soft: #f7e7dd;
-  --color-sea: #0f5e63;
+  --color-navy: #1c3a5a;
+  --color-navy-deep: #14304b;
+  --color-navy-soft: #e8eef5;
+  --color-gold: #c08a2d;
+  --color-gold-text: #8a6114;
+  --color-gold-soft: #f3e7cd;
 
   --font-sans: var(--font-body), system-ui, sans-serif;
   --font-heading: var(--font-heading), var(--font-body), sans-serif;
@@ -35,7 +39,7 @@ select {
 /* Единый видимый фокус для доступности (навигация с клавиатуры).
    Утилиты focus:* на полях ввода перекрывают это правило за счёт специфичности. */
 :focus-visible {
-  outline: 2px solid #b0380f;
+  outline: 2px solid #1c3a5a;
   outline-offset: 2px;
 }
 
@@ -44,14 +48,14 @@ button {
 }
 
 ::selection {
-  background: #f2d7c9;
+  background: #d9e4ef;
 }
 
 /* Авторская деталь: пунктирная «линия маршрута» из точек — подчёркивание
-   заголовков разделов и след в пустых состояниях. */
+   заголовков разделов и след в пустых состояниях. Золото эмблемы. */
 .route-dash {
   height: 3px;
-  background-image: radial-gradient(circle, #b0380f 1.5px, transparent 1.6px);
+  background-image: radial-gradient(circle, #c08a2d 1.5px, transparent 1.6px);
   background-size: 11px 3px;
   background-repeat: repeat-x;
 }

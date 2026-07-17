@@ -183,11 +183,11 @@ function ActiveTraining({
               {task.type === "SINGLE_CHOICE" &&
                 options.map((option) => (
                   <label
-                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-navy/40"
                     key={option}
                   >
                     <input
-                      className="h-4 w-4 accent-rust"
+                      className="h-4 w-4 accent-navy"
                       name="answer"
                       type="radio"
                       value={option}
@@ -204,11 +204,11 @@ function ActiveTraining({
                     : [];
                   return (
                     <label
-                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
+                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-navy/40"
                       key={option}
                     >
                       <input
-                        className="h-4 w-4 accent-rust"
+                        className="h-4 w-4 accent-navy"
                         name="answer"
                         type="checkbox"
                         value={option}

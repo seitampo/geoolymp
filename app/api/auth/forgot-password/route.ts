@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         <div style="font-family: sans-serif; color: #16232b;">
           <h2>${t("email.resetHeading")}</h2>
           <p>${t("email.resetIntro")}</p>
-          <p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#b0380f;color:#fff;text-decoration:none;border-radius:6px;">${t("email.resetButton")}</a></p>
+          <p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#1c3a5a;color:#fff;text-decoration:none;border-radius:6px;">${t("email.resetButton")}</a></p>
           <p style="color:#5b6b73;font-size:14px;">${t("email.resetTtlPre")} ${resetTokenTtlMinutes()} ${t("email.resetTtlPost")}</p>
         </div>
       `,

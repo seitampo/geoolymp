@@ -72,7 +72,7 @@ export default async function RegisterPage({
           <Button className="w-full">{t("register.submit")}</Button>
           <p className="text-center text-xs text-ink-mute">
             {t("register.consentPre")}{" "}
-            <Link className="font-medium text-sea hover:underline" href="/privacy">
+            <Link className="font-medium text-navy hover:underline" href="/privacy">
               {t("register.consentLink")}
             </Link>
             .
@@ -81,7 +81,7 @@ export default async function RegisterPage({
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">
         {t("register.haveAccount")}{" "}
-        <Link className="font-medium text-sea hover:underline" href="/login">
+        <Link className="font-medium text-navy hover:underline" href="/login">
           {t("common.login")}
         </Link>
       </p>

@@ -52,7 +52,7 @@ export default async function ResetPasswordPage({
         ) : (
           <p className="text-sm text-ink-soft">
             {t("reset.invalidBefore")}{" "}
-            <Link className="font-medium text-sea hover:underline" href="/forgot-password">
+            <Link className="font-medium text-navy hover:underline" href="/forgot-password">
               {t("reset.invalidLink")}
             </Link>
             .
@@ -60,7 +60,7 @@ export default async function ResetPasswordPage({
         )}
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">
-        <Link className="font-medium text-sea hover:underline" href="/login">
+        <Link className="font-medium text-navy hover:underline" href="/login">
           {t("common.backToLogin")}
         </Link>
       </p>

@@ -48,7 +48,7 @@ export default async function LoginPage({
             hideAria={t("password.hideAria")}
           />
           <div className="text-right">
-            <Link className="text-sm font-medium text-sea hover:underline" href="/forgot-password">
+            <Link className="text-sm font-medium text-navy hover:underline" href="/forgot-password">
               {t("login.forgot")}
             </Link>
           </div>
@@ -57,7 +57,7 @@ export default async function LoginPage({
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">
         {t("login.noAccount")}{" "}
-        <Link className="font-medium text-sea hover:underline" href="/register">
+        <Link className="font-medium text-navy hover:underline" href="/register">
           {t("common.register")}
         </Link>
       </p>
