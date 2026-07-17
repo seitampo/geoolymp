@@ -4,6 +4,9 @@ out/
 *.tsbuildinfo
 
 .env
+.env.local
+.env.development
+.env.production
 .env*.local
 
 prisma/dev.db
