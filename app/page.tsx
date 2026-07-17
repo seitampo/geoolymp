@@ -25,8 +25,8 @@ export default async function HomePage() {
       </div>
 
       <div className="relative">
-        <div className="flex items-center gap-2 text-rust">
-          <Compass className="h-9 w-9" />
+        <div className="flex items-center gap-2.5">
+          <Compass className="h-11 w-11" />
           <span className="font-heading text-sm font-semibold tracking-wide text-ink">Olympic Meridian</span>
         </div>
 
