@@ -10,7 +10,7 @@ export async function Header({ user }: { user: User }) {
   const locale = await getLocale();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-paper/95 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b border-line bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link
           href="/dashboard"
