@@ -4,6 +4,7 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { getClientKey, isRateLimited, rateLimitWindowMinutes, recordAttempt } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   const t = await getT();
@@ -11,6 +12,17 @@ export async function POST(request: NextRequest) {
 
   if (!user || user.role !== Role.STUDENT) {
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
+  }
+
+  // Код-приглашение — фактически пароль группы. Без ограничения частоты его можно
+  // перебирать через этот роут; лимитируем по IP (успешные входы не считаются).
+  const key = getClientKey(request, "join");
+  if (await isRateLimited(key)) {
+    return redirectWithError(
+      request,
+      "/dashboard",
+      `${t("err.rateLimitForgotPre")} ${rateLimitWindowMinutes()}${t("err.rateLimitPost")}`,
+    );
   }
 
   const formData = await request.formData();
@@ -23,6 +35,8 @@ export async function POST(request: NextRequest) {
   const group = await prisma.group.findUnique({ where: { inviteCode } });
 
   if (!group) {
+    // Неверный код считаем попыткой подбора.
+    await recordAttempt(key);
     return redirectWithError(request, "/dashboard", t("err.groupCodeNotFound"));
   }
 

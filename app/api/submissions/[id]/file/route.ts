@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
-import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { contentDisposition, readUploadedFile } from "@/lib/uploads";
 
@@ -22,10 +21,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    include: { task: true },
+    include: { task: { include: { group: true } } },
   });
 
-  if (!submission || !submission.filePath || !(await canOpenGroup(user.id, submission.task.groupId))) {
+  if (!submission || !submission.filePath) {
+    return NextResponse.json({ error: "Файл не найден." }, { status: 404 });
+  }
+
+  // Решение — приватная работа ученика. Файл доступен только автору решения и
+  // учителю группы. Проверки «состоит в группе» недостаточно: иначе любой
+  // одногруппник скачал бы чужую работу, перебирая id решений.
+  const isGroupTeacher = submission.task.group.teacherId === user.id;
+  const isOwner = submission.studentId === user.id;
+  if (!isGroupTeacher && !isOwner) {
     return NextResponse.json({ error: "Файл не найден." }, { status: 404 });
   }
 
