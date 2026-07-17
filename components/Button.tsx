@@ -7,10 +7,10 @@ type ButtonSize = "md" | "sm";
 const baseClasses =
   "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 
-// Терракотовая заливка (белый текст на #b0380f — контраст > 4.5:1),
+// Нейви-заливка (белый текст на #1c3a5a — контраст > 4.5:1),
 // второстепенная — чернильный контур, опасная — красный контур.
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-rust text-white hover:bg-rust-deep active:bg-rust-deep",
+  primary: "bg-navy text-white hover:bg-navy-deep active:bg-navy-deep",
   secondary: "border border-ink/25 bg-white text-ink hover:border-ink/50 hover:bg-paper",
   danger: "border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50",
 };

@@ -23,7 +23,7 @@ export async function Header({ user }: { user: User }) {
           {user.role === "STUDENT" && (
             <Link
               href="/achievements"
-              className="hidden shrink-0 text-sm font-medium text-ink-soft transition-colors hover:text-rust sm:inline"
+              className="hidden shrink-0 text-sm font-medium text-ink-soft transition-colors hover:text-navy sm:inline"
             >
               {t("common.achievements")}
             </Link>

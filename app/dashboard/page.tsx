@@ -94,7 +94,7 @@ export default async function DashboardPage({
         {achievements && (
           <Link
             href="/achievements"
-            className={`${cardClasses} mb-8 flex flex-wrap items-center justify-between gap-3 transition hover:border-rust/40 hover:shadow-md`}
+            className={`${cardClasses} mb-8 flex flex-wrap items-center justify-between gap-3 transition hover:border-navy/40 hover:shadow-md`}
           >
             <div>
               <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export default async function DashboardPage({
                 {t("dashboard.streak")} {achievements.streak} {t("dashboard.days")}
               </p>
             </div>
-            <BadgeGlyph family="streak" className="h-8 w-8 text-rust/70" />
+            <BadgeGlyph family="streak" className="h-8 w-8 text-gold" />
           </Link>
         )}
 
@@ -119,7 +119,7 @@ export default async function DashboardPage({
           <div className="grid gap-4 sm:grid-cols-2">
             {groups.map((group) => (
               <Link
-                className={`${cardClasses} block transition hover:border-rust/40 hover:shadow-md`}
+                className={`${cardClasses} block transition hover:border-navy/40 hover:shadow-md`}
                 href={`/groups/${group.id}`}
                 key={group.id}
               >

@@ -9,7 +9,7 @@ export function CopyButton({ value, label = "Скопировать" }: { value:
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2 py-0.5 text-xs font-medium text-ink-soft transition-colors hover:border-rust/40 hover:text-ink"
+      className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2 py-0.5 text-xs font-medium text-ink-soft transition-colors hover:border-navy/40 hover:text-ink"
       onClick={async () => {
         let ok = false;
         try {

@@ -44,7 +44,7 @@ export default async function ForgotPasswordPage({
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">
         {t("forgot.remembered")}{" "}
-        <Link className="font-medium text-sea hover:underline" href="/login">
+        <Link className="font-medium text-navy hover:underline" href="/login">
           {t("common.login")}
         </Link>
       </p>

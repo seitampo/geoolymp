@@ -72,7 +72,7 @@ export default async function AchievementsPage() {
         </div>
 
         {newlyEarnedCodes.size > 0 && (
-          <div className="mb-6 rounded-lg border border-rust/30 bg-rust-soft px-4 py-3 text-sm text-rust-deep">
+          <div className="mb-6 rounded-lg border border-gold/40 bg-gold-soft px-4 py-3 text-sm text-gold-text">
             <span className="font-semibold">{t("ach.congrats")}</span> {t("ach.newBadgesPre")} {newlyEarnedCodes.size}.{" "}
             {t("ach.newBadgesPost")}
           </div>
@@ -103,12 +103,12 @@ export default async function AchievementsPage() {
                           key={badge.code}
                           className={`${cardClasses} ${
                             earnedBadge ? "" : "opacity-70"
-                          } ${isNew ? "ring-2 ring-rust/60" : ""}`}
+                          } ${isNew ? "ring-2 ring-gold/70" : ""}`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <BadgeGlyph
                               family={badge.family}
-                              className={`h-9 w-9 ${earnedBadge ? "text-rust" : "text-ink-mute/50"}`}
+                              className={`h-9 w-9 ${earnedBadge ? "text-gold" : "text-ink-mute/50"}`}
                             />
                             {earnedBadge ? (
                               isNew ? (

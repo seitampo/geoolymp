@@ -441,7 +441,7 @@ async function ExplanationEditor({ task }: { task: Task }) {
         />
         {task.explanationFilePath && (
           <a
-            className="break-all text-sm font-medium text-sea hover:underline"
+            className="break-all text-sm font-medium text-navy hover:underline"
             href={`/api/tasks/${task.id}/explanation/file`}
             target="_blank"
             rel="noopener noreferrer"
@@ -518,7 +518,7 @@ async function StudentSubmissionBlock({
         )}
         {submission.originalFileName && (
           <a
-            className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
+            className="mt-2 inline-block break-all text-sm font-medium text-navy hover:underline"
             href={`/api/submissions/${submission.id}/file`}
           >
             {submission.originalFileName}
@@ -548,7 +548,7 @@ async function StudentSubmissionBlock({
           )}
           {task.explanationFilePath && (
             <a
-              className="mt-2 inline-block break-all text-sm font-medium text-sea hover:underline"
+              className="mt-2 inline-block break-all text-sm font-medium text-navy hover:underline"
               href={`/api/tasks/${task.id}/explanation/file`}
               target="_blank"
               rel="noopener noreferrer"
@@ -615,11 +615,11 @@ async function SubmissionForm({
       {task.type === "SINGLE_CHOICE" &&
         options.map((option) => (
           <label
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-navy/40"
             key={option}
           >
             <input
-              className="h-4 w-4 accent-rust"
+              className="h-4 w-4 accent-navy"
               name="answer"
               type="radio"
               value={option}
@@ -632,11 +632,11 @@ async function SubmissionForm({
       {task.type === "MULTIPLE_CHOICE" &&
         options.map((option) => (
           <label
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-rust/40"
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-navy/40"
             key={option}
           >
             <input
-              className="h-4 w-4 accent-rust"
+              className="h-4 w-4 accent-navy"
               name="answer"
               type="checkbox"
               value={option}

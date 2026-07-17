@@ -1,7 +1,7 @@
 const labelClasses = "mb-1.5 block text-sm font-medium text-ink-soft";
 
 export const inputClasses =
-  "w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-sm text-ink shadow-sm transition-colors placeholder:text-ink-mute/70 focus:border-rust focus:outline-none focus:ring-2 focus:ring-rust/15";
+  "w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-sm text-ink shadow-sm transition-colors placeholder:text-ink-mute/70 focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15";
 
 export function TextInput({
   label,
@@ -111,7 +111,7 @@ export function FileInput({
     <label className="block">
       <span className={labelClasses}>{label}</span>
       <input
-        className="block w-full cursor-pointer text-sm text-ink-mute file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-rust-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-rust-deep hover:file:bg-rust-soft/70"
+        className="block w-full cursor-pointer text-sm text-ink-mute file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-navy-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-navy-deep hover:file:bg-navy-soft/70"
         name={name}
         type="file"
         accept={accept}
