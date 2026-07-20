@@ -1,6 +1,6 @@
 import { TaskType } from "@prisma/client";
 import { prisma } from "./prisma";
-import { autoCheckAnswer } from "./tasks";
+import { autoCheckAnswer, scoreMultipleChoice } from "./tasks";
 
 /**
  * В тренировке (и олимпиаде) участвуют задачи с текстовым ответом, с вариантами
@@ -96,9 +96,17 @@ export async function finalizeTrainingAttempt(attemptId: number) {
         continue;
       }
 
+      // MULTIPLE_CHOICE — частичный балл (та же схема, что при отправке решения).
+      const score =
+        !correct && task.type === TaskType.MULTIPLE_CHOICE && task.correctAnswer
+          ? scoreMultipleChoice(answer.answer, task.correctAnswer, task.maxScore).score
+          : correct
+            ? task.maxScore
+            : 0;
+
       await transaction.trainingAnswer.update({
         where: { id: answer.id },
-        data: { isCorrect: correct, score: correct ? task.maxScore : 0 },
+        data: { isCorrect: correct, score },
       });
     }
 

@@ -202,6 +202,36 @@ export function autoCheckAnswer(task: AutoCheckableTask, answer: string): boolea
 }
 
 /**
+ * Частичный балл для MULTIPLE_CHOICE (олимпиадная схема):
+ * (верно отмеченные − лишние) / всего верных, не ниже нуля, доля от maxScore.
+ * Полный балл достижим только при точном совпадении множеств; из-за округления
+ * неполный ответ никогда не получает maxScore (кап maxScore − 1).
+ */
+export function scoreMultipleChoice(answer: string, correctAnswer: string, maxScore: number) {
+  const toSet = (value: string) =>
+    new Set(value.split(";").map((part) => part.trim()).filter(Boolean));
+  const given = toSet(answer);
+  const correct = toSet(correctAnswer);
+
+  let hit = 0;
+  for (const value of given) {
+    if (correct.has(value)) {
+      hit += 1;
+    }
+  }
+  const extra = given.size - hit;
+  const exact = extra === 0 && hit === correct.size;
+
+  if (exact) {
+    return { score: maxScore, hit, extra, total: correct.size, exact };
+  }
+
+  const ratio = Math.max(0, hit - extra) / Math.max(1, correct.size);
+  const score = Math.min(maxScore - 1, Math.round(maxScore * ratio));
+  return { score: Math.max(0, score), hit, extra, total: correct.size, exact };
+}
+
+/**
  * Сравнение ответа ученика с правильным. Для MULTIPLE_CHOICE обе стороны
  * нормализуются как множества (сортировка, обрезка пробелов) — порядок не важен.
  */
