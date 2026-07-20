@@ -36,17 +36,32 @@ export async function SubmissionStatusBadge({ status }: { status: SubmissionStat
 /**
  * Статус задачи для ученика на карточке задачи. «Просрочено» показывается
  * только при пропущенном сроке сдачи без отправленного решения.
+ * Если известен балл проверенного решения, статус честный: полный балл —
+ * «Решено», часть баллов — «Частично решено», ноль — «Неверно».
  */
 export async function TaskStatusBadge({
   status,
   overdue = false,
+  score = null,
+  maxScore = null,
 }: {
   status: SubmissionStatus | null;
   overdue?: boolean;
+  score?: number | null;
+  maxScore?: number | null;
 }) {
   const t = await getT();
 
   if (status === SubmissionStatus.REVIEWED) {
+    if (score !== null && maxScore !== null && maxScore > 0) {
+      if (score >= maxScore) {
+        return <Badge tone="green">{t("taskStatus.solved")}</Badge>;
+      }
+      if (score > 0) {
+        return <Badge tone="emerald">{t("taskStatus.partial")}</Badge>;
+      }
+      return <Badge tone="red">{t("taskStatus.wrong")}</Badge>;
+    }
     return <Badge tone="green">{t("taskStatus.solved")}</Badge>;
   }
 

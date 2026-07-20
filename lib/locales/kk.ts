@@ -267,6 +267,8 @@ export const kk: Dictionary = {
   // Статусы задачи у ученика (бейдж)
   "taskStatus.solved": "Шешілді",
   "taskStatus.pending": "Тексерілуде",
+  "taskStatus.partial": "Ішінара шешілді",
+  "taskStatus.wrong": "Қате",
   "taskStatus.overdue": "Мерзімі өткен",
   "taskStatus.notSubmitted": "Жіберілмеген",
 
@@ -548,6 +550,8 @@ export const kk: Dictionary = {
   // Автотексеру (мәтін шешімде сақталады және оқушыға көрсетіледі)
   "feedback.autoCorrect": "Автотексеру: жауап дұрыс.",
   "feedback.autoWrong": "Автотексеру: жауап қате.",
+  "feedback.autoPartialPre": "Автотексеру: дұрыс нұсқалар",
+  "feedback.autoPartialExtra": "артығы —",
 
   // Құпия сөзді қалпына келтіру хаты
   "email.resetSubject": "Құпия сөзді қалпына келтіру — Olympic Meridian",

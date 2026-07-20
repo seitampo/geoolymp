@@ -17,6 +17,7 @@ import {
   normalizeMultipleChoiceAnswer,
   parseMapPoint,
   parseTaskOptions,
+  scoreMultipleChoice,
 } from "@/lib/tasks";
 import { isTaskInTrainingSet } from "@/lib/training";
 import {
@@ -143,15 +144,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // Автопроверка (варианты и картозадачи): балл выставляется сразу при отправке,
-  // учителю такие решения вручную проверять не нужно. Частичного балла нет:
-  // полное совпадение/попадание в зону — maxScore, иначе 0.
+  // учителю такие решения вручную проверять не нужно. Для MULTIPLE_CHOICE —
+  // частичный балл по олимпиадной схеме (верные минус лишние), для остальных
+  // типов — всё или ничего.
   const verdict = autoCheckAnswer(task, answer);
-  const autoReview =
-    verdict === null
-      ? null
-      : verdict
-        ? { score: task.maxScore, feedback: t("feedback.autoCorrect") }
-        : { score: 0, feedback: t("feedback.autoWrong") };
+  let autoReview: { score: number; feedback: string } | null = null;
+
+  if (verdict !== null) {
+    if (verdict) {
+      autoReview = { score: task.maxScore, feedback: t("feedback.autoCorrect") };
+    } else if (task.type === "MULTIPLE_CHOICE" && task.correctAnswer) {
+      const partial = scoreMultipleChoice(answer, task.correctAnswer, task.maxScore);
+      const extraNote = partial.extra > 0 ? `, ${t("feedback.autoPartialExtra")} ${partial.extra}` : "";
+      autoReview = {
+        score: partial.score,
+        feedback: `${t("feedback.autoPartialPre")} ${partial.hit}/${partial.total}${extraNote}.`,
+      };
+    } else {
+      autoReview = { score: 0, feedback: t("feedback.autoWrong") };
+    }
+  }
 
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
   await prisma.$transaction(async (transaction) => {

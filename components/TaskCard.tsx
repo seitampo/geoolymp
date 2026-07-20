@@ -247,7 +247,14 @@ export async function TaskCard({
         <h3 className="font-semibold text-ink">{task.title}</h3>
         <div className="flex flex-wrap gap-1.5">
           {hasNewResult && <Badge tone="emerald">{t("taskCard.newResult")}</Badge>}
-          {!isTeacher && <TaskStatusBadge status={submission?.status ?? null} overdue={overdue} />}
+          {!isTeacher && (
+            <TaskStatusBadge
+              status={submission?.status ?? null}
+              overdue={overdue}
+              score={submission?.review?.score ?? null}
+              maxScore={task.maxScore}
+            />
+          )}
           {isTeacher && inTraining && <Badge tone="amber">{t("taskCard.onlyTraining")}</Badge>}
           {isTeacher && !visibleToStudents &&
             (task.publishAt ? (

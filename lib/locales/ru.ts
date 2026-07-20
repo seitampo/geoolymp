@@ -266,6 +266,8 @@ export const ru = {
   // Статусы задачи у ученика (бейдж)
   "taskStatus.solved": "Решено",
   "taskStatus.pending": "Проверяется",
+  "taskStatus.partial": "Частично решено",
+  "taskStatus.wrong": "Неверно",
   "taskStatus.overdue": "Просрочено",
   "taskStatus.notSubmitted": "Не отправлено",
 
@@ -547,6 +549,8 @@ export const ru = {
   // Автопроверка (текст сохраняется в решении и показывается ученику)
   "feedback.autoCorrect": "Автопроверка: ответ верный.",
   "feedback.autoWrong": "Автопроверка: ответ неверный.",
+  "feedback.autoPartialPre": "Автопроверка: верных вариантов",
+  "feedback.autoPartialExtra": "лишних —",
 
   // Письмо о сбросе пароля
   "email.resetSubject": "Восстановление пароля — Olympic Meridian",
