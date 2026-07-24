@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Golos_Text, Unbounded } from "next/font/google";
 import { SubmitGuard } from "@/components/SubmitGuard";
 import { getLocale, getT } from "@/lib/i18n";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 // Текст и интерфейс — Golos Text (кириллица родная), заголовки — Unbounded
@@ -20,9 +21,25 @@ const unbounded = Unbounded({
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
+  const locale = await getLocale();
+  const title = "Olympic Meridian";
+  const description = t("meta.description");
+
+  // metadataBase делает относительные ссылки на og-картинку абсолютными —
+  // без него соцсети и мессенджеры не покажут превью ссылки.
   return {
-    title: "Olympic Meridian",
-    description: t("meta.description"),
+    metadataBase: new URL(siteUrl()),
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      siteName: title,
+      title,
+      description,
+      locale: locale === "kk" ? "kk_KZ" : "ru_KZ",
+      url: "/",
+    },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
