@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { privacyContactEmail } from "@/lib/site";
 
 /**
  * Текст политики конфиденциальности живёт отдельно от словаря интерфейса (ru.ts/kk.ts):
@@ -12,8 +13,12 @@ import type { Locale } from "@/lib/i18n";
 export type PrivacySection = { heading: string; body: string[] };
 export type PrivacyContent = { updated: string; intro: string; sections: PrivacySection[] };
 
-/** Контактный адрес для запросов по персональным данным. TODO: подтвердить реальный ящик. */
-export const PRIVACY_CONTACT_EMAIL = "privacy@geoolymp.kz";
+/**
+ * Контактный адрес для запросов по персональным данным. Берётся из
+ * NEXT_PUBLIC_PRIVACY_EMAIL: ящик заводится вместе с доменом, поэтому боевое
+ * значение не должно требовать правки кода и релиза.
+ */
+const PRIVACY_CONTACT_EMAIL = privacyContactEmail();
 
 const ru: PrivacyContent = {
   updated: "15 июля 2026 года",
