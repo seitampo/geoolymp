@@ -33,6 +33,13 @@ export async function POST(request: NextRequest) {
   // Успешный вход сбрасывает счётчик попыток по адресу.
   await clearAttempts(key);
 
+  // Пароль верный, но адрес не подтверждён — сессию не выдаём, ведём вводить код.
+  // Новый код здесь не шлём: иначе чужой ящик можно было бы заваливать письмами,
+  // просто раз за разом вводя правильный пароль. Отправка — по кнопке на странице.
+  if (!user.emailVerified) {
+    return redirectAfterPost(request, `/verify?email=${encodeURIComponent(user.email)}`);
+  }
+
   const response = redirectAfterPost(request, "/dashboard");
   setSession(response, user.id);
   return response;
