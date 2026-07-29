@@ -133,11 +133,6 @@ export const kk: Dictionary = {
   "materialType.LINK": "Сыртқы ресурсқа сілтеме",
   "materialType.LINK_badge": "Сілтеме",
   "materialType.ZIP": "ZIP архив",
-  // Уровни олимпиад
-  "olympiadLevel.SCHOOL": "Мектептік",
-  "olympiadLevel.REGIONAL": "Облыстық",
-  "olympiadLevel.REPUBLICAN": "Республикалық",
-  "olympiadLevel.INTERNATIONAL": "Халықаралық",
   // Статусы решений
   "status.PENDING": "Тексерілуде",
   "status.REVIEWED": "Тексерілді",
@@ -172,12 +167,6 @@ export const kk: Dictionary = {
   "filter.notSubmitted": "Жіберілмеген",
   "filter.pending": "Тексерілуде",
   "filter.solved": "Шешілді",
-  "filter.overdue": "Мерзімі өткен",
-  "filter.gradeAll": "Сынып: барлығы",
-  "filter.gradeSuffix": "сынып",
-  "filter.levelAll": "Деңгей: барлығы",
-  "filter.difficultyAll": "Қиындық: кез келген",
-  "filter.difficultyPrefix": "Қиындық",
 
   // Материалы
   "material.add": "+ Материал қосу",
@@ -207,9 +196,6 @@ export const kk: Dictionary = {
   "task.correctAnswer": "Дұрыс жауап",
   "task.correctAnswerPlaceholder": "Нұсқалар үшін — нақты мәтін; бірнеше жауап «;» арқылы",
   "task.maxScore": "Максималды балл",
-  "task.opensAt": "Ашылу күні (міндетті емес)",
-  "task.dueAt": "Тапсыру мерзімі (міндетті емес)",
-  "task.publishAt": "Жариялау күні (жоба үшін)",
   "task.image": "Шартқа сурет",
   "task.imageHintPrefix": "JPG, PNG немесе WebP, дейін",
   "task.emptyTitle": "Әзірге тапсырма жоқ",
@@ -269,7 +255,6 @@ export const kk: Dictionary = {
   "taskStatus.pending": "Тексерілуде",
   "taskStatus.partial": "Ішінара шешілді",
   "taskStatus.wrong": "Қате",
-  "taskStatus.overdue": "Мерзімі өткен",
   "taskStatus.notSubmitted": "Жіберілмеген",
 
   // Копирование
@@ -279,24 +264,11 @@ export const kk: Dictionary = {
 
   // Форма задачи (селекты)
   "taskForm.typeLabel": "Тапсырма түрі",
-  "taskForm.publishStatus": "Жариялау күйі",
-  "taskForm.published": "Жарияланған",
-  "taskForm.draft": "Жоба (тек сізге көрінеді)",
-  "taskForm.grade": "Сынып",
-  "taskForm.level": "Олимпиада деңгейі",
-  "taskForm.difficulty": "Қиындық",
-  "taskForm.notSetM": "Көрсетілмеген",
-  "taskForm.notSetF": "Көрсетілмеген",
-  "taskForm.of5": "5-тен",
 
   // Карточка задачи
   "taskCard.newResult": "Жаңа нәтиже",
   "taskCard.onlyTraining": "Тек жаттығуда",
-  "taskCard.publishAt": "Жариялау",
-  "taskCard.draft": "Жоба",
   "taskCard.maxScore": "Макс. балл",
-  "taskCard.opensLabel": "Ашылуы",
-  "taskCard.dueLabel": "Тапсыру мерзімі",
   "taskCard.correctZone": "Дұрыс аймақ (тек сізге көрінеді):",
   "taskCard.correctAnswer": "Дұрыс жауап",
   "taskCard.editTask": "Тапсырманы өңдеу",
@@ -323,10 +295,6 @@ export const kk: Dictionary = {
   "explanation.deleteConfirm": "Тапсырма талдауын жою керек пе?",
 
   // Блок решения ученика
-  "student.notYetOpenPrefix": "Тапсырма ашылады:",
-  "student.notYetOpenSuffix": "— әзірге жіберу қолжетімсіз.",
-  "student.overduePrefix": "Тапсыру мерзімі өтті:",
-  "student.overdueSuffix": "— жіберу қолжетімсіз.",
   "student.yourAnswer": "Сіздің жауабыңыз",
   "student.mapHintYour": "Қызыл белгі — сіздің жауабыңыз",
   "student.mapHintCorrect": ", жасыл аймақ — дұрыс аумақ",
@@ -490,10 +458,6 @@ export const kk: Dictionary = {
   "err.mapPointTeacher": "Картада дұрыс нүктені белгілеп, рұқсатты орнатыңыз.",
   "err.mapPointStudent": "Картада нүктені белгілеңіз.",
   "err.mapCoords": "Карта тапсырмасы мақсатының координаттары қате.",
-  "err.classification": "Жіктеу мәндері қате (сынып, деңгей немесе күрделілік).",
-  "err.publishDate": "Жариялау күнінің форматы қате.",
-  "err.openDueDate": "Ашылу немесе тапсыру мерзімі күнінің форматы қате.",
-  "err.openBeforeDue": "Ашылу күні тапсыру мерзімінен ерте болуы керек.",
   "err.setFields": "Жинақтың атауы мен сипаттамасын толтырыңыз.",
   "err.trainingLimit": "Жаттығу лимиті — 1-ден 600-ге дейінгі бүтін минут саны.",
   "err.taskNotFound": "Тапсырма табылмады.",
@@ -523,10 +487,6 @@ export const kk: Dictionary = {
   "err.imageTooBig": "Сурет тым үлкен. Ең көбі —",
   "err.pwdLenPre": "Құпия сөз",
   "err.pwdLenPost": " таңбадан қысқа болмауы керек.",
-  "err.dueExpiredPre": "Тапсыру мерзімі өтті:",
-  "err.dueExpiredPost": " — жіберу қолжетімсіз.",
-  "err.notOpenPre": "Тапсырма әлі ашылмаған. Ашылу уақыты:",
-  "err.notOpenPost": ".",
   "err.scoreRangePre": "Балл — 0-ден",
   "err.scoreRangePost": "-ге дейінгі бүтін сан болуы керек.",
   "err.rateLimitLoginPre": "Кіру әрекеті тым көп. Мына уақыттан кейін қайталаңыз:",

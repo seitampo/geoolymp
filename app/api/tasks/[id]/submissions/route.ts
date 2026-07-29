@@ -1,19 +1,15 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
   autoCheckAnswer,
-  formatDateTime,
   isAutoGradedTask,
   isMapTask,
-  isTaskNotYetOpen,
-  isTaskOverdue,
-  isTaskVisibleToStudents,
   normalizeMultipleChoiceAnswer,
   parseMapPoint,
   parseTaskOptions,
@@ -47,8 +43,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const task = await prisma.task.findUnique({ where: { id: taskId } });
-  // Черновик для ученика не существует — как и задача из чужой группы.
-  if (!task || !isTaskVisibleToStudents(task) || !(await canOpenGroup(user.id, task.groupId))) {
+  // Задача из чужой группы для ученика не существует.
+  if (!task || !(await canOpenGroup(user.id, task.groupId))) {
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
@@ -61,23 +57,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // обычная отправка раскрыла бы правильный ответ автопроверкой до тренировки.
   if (await isTaskInTrainingSet(task.id)) {
     return redirectWithError(request, backTo, t("err.taskOnlyTraining"));
-  }
-
-  // Сроки проверяются на сервере: скрытая форма в интерфейсе не защищает от прямого POST.
-  if (isTaskNotYetOpen(task)) {
-    return redirectWithError(
-      request,
-      backTo,
-      `${t("err.notOpenPre")} ${formatDateTime(task.opensAt!)}${t("err.notOpenPost")}`,
-    );
-  }
-
-  if (isTaskOverdue(task)) {
-    return redirectWithError(
-      request,
-      backTo,
-      `${t("err.dueExpiredPre")} ${formatDateTime(task.dueAt!)}${t("err.dueExpiredPost")}`,
-    );
   }
 
   const selectedAnswers = formData.getAll("answer").map((value) => String(value));

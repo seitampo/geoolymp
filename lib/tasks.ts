@@ -1,4 +1,4 @@
-import { OlympiadLevel, TaskType } from "@prisma/client";
+import { TaskType } from "@prisma/client";
 
 export const taskTypes = [
   { value: TaskType.TEXT, label: "Текстовый ответ" },
@@ -11,38 +11,6 @@ export const taskTypes = [
 
 export function getTaskTypeLabel(type: TaskType) {
   return taskTypes.find((item) => item.value === type)?.label ?? type;
-}
-
-// Классификация задач: класс, уровень олимпиады, сложность.
-export const taskGrades = [7, 8, 9, 10, 11];
-export const taskDifficulties = [1, 2, 3, 4, 5];
-
-export const olympiadLevels = [
-  { value: OlympiadLevel.SCHOOL, label: "Школьная" },
-  { value: OlympiadLevel.REGIONAL, label: "Областная" },
-  { value: OlympiadLevel.REPUBLICAN, label: "Республиканская" },
-  { value: OlympiadLevel.INTERNATIONAL, label: "Международная" },
-];
-
-export function getOlympiadLevelLabel(level: OlympiadLevel) {
-  return olympiadLevels.find((item) => item.value === level)?.label ?? level;
-}
-
-export function validateOlympiadLevel(value: string): OlympiadLevel | null {
-  return olympiadLevels.some((item) => item.value === value) ? (value as OlympiadLevel) : null;
-}
-
-/**
- * Разбор необязательного числового поля классификации из формы.
- * Пустая строка → null (не указано), значение вне списка → undefined (ошибка формы).
- */
-export function parseClassificationNumber(value: string, allowed: number[]): number | null | undefined {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const parsed = Number(value);
-  return allowed.includes(parsed) ? parsed : undefined;
 }
 
 export function validateTaskType(value: string): TaskType | null {
@@ -70,51 +38,6 @@ export function normalizeMultipleChoiceAnswer(values: string[]) {
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))
     .join("; ");
-}
-
-/**
- * Видна ли задача ученикам: опубликована вручную либо наступило запланированное
- * время публикации. Время проверяется на сервере при каждой отдаче — черновик
- * с датой публикации становится доступен автоматически, без фоновых задач.
- */
-export function isTaskVisibleToStudents(
-  task: { isPublished: boolean; publishAt: Date | null },
-  now = new Date(),
-) {
-  return task.isPublished || (task.publishAt !== null && task.publishAt <= now);
-}
-
-/** Задача ещё не открыта: видна, но отправка решений недоступна. */
-export function isTaskNotYetOpen(task: { opensAt: Date | null }, now = new Date()) {
-  return task.opensAt !== null && now < task.opensAt;
-}
-
-/** Срок сдачи истёк: отправка и изменение решений блокируются. */
-export function isTaskOverdue(task: { dueAt: Date | null }, now = new Date()) {
-  return task.dueAt !== null && now > task.dueAt;
-}
-
-/**
- * Разбор необязательной даты из input[type=datetime-local].
- * Пустая строка → null (без дедлайна), нечитаемое значение → undefined (ошибка формы).
- */
-export function parseOptionalDeadline(value: string): Date | null | undefined {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
-}
-
-/** Значение для defaultValue у input[type=datetime-local] (локальное время, без секунд). */
-export function toDateTimeLocalValue(date: Date | null) {
-  if (!date) {
-    return "";
-  }
-
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function formatDateTime(date: Date) {

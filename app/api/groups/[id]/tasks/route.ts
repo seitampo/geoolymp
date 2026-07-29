@@ -1,21 +1,16 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import { redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import {
   isMapTask,
-  parseClassificationNumber,
   parseMapNumber,
-  parseOptionalDeadline,
   parseTaskOptions,
   requiresOptions,
-  taskDifficulties,
-  taskGrades,
   validateChoiceCorrectAnswer,
-  validateOlympiadLevel,
   validateTaskType,
 } from "@/lib/tasks";
 import {
@@ -57,16 +52,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const options = String(formData.get("options") ?? "").trim();
   const correctAnswer = String(formData.get("correctAnswer") ?? "").trim();
   const image = formData.get("image");
-  const opensAt = parseOptionalDeadline(String(formData.get("opensAt") ?? ""));
-  const dueAt = parseOptionalDeadline(String(formData.get("dueAt") ?? ""));
-  // Черновик может иметь запланированную дату публикации; у опубликованной задачи она не нужна.
-  const isPublished = String(formData.get("published") ?? "published") !== "draft";
-  const publishAt = isPublished ? null : parseOptionalDeadline(String(formData.get("publishAt") ?? ""));
-  // Классификация: все поля необязательные, но значения — только из списков.
-  const grade = parseClassificationNumber(String(formData.get("grade") ?? ""), taskGrades);
-  const difficulty = parseClassificationNumber(String(formData.get("difficulty") ?? ""), taskDifficulties);
-  const olympiadLevelRaw = String(formData.get("olympiadLevel") ?? "").trim();
-  const olympiadLevel = olympiadLevelRaw ? validateOlympiadLevel(olympiadLevelRaw) : null;
   // Картозадача: цель в процентах ширины (y может превышать 100 у вертикальных карт).
   const mapTargetX = parseMapNumber(String(formData.get("mapTargetX") ?? ""), 0, 100);
   const mapTargetY = parseMapNumber(String(formData.get("mapTargetY") ?? ""), 0, 300);
@@ -91,18 +76,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, message);
   }
 
-  if (opensAt === undefined || dueAt === undefined) {
-    return redirectWithError(request, backTo, t("err.openDueDate"));
-  }
-
-  if (publishAt === undefined) {
-    return redirectWithError(request, backTo, t("err.publishDate"));
-  }
-
-  if (grade === undefined || difficulty === undefined || (olympiadLevelRaw !== "" && olympiadLevel === null)) {
-    return redirectWithError(request, backTo, t("err.classification"));
-  }
-
   if (mapTargetX === undefined || mapTargetY === undefined || mapRadius === undefined) {
     return redirectWithError(request, backTo, t("err.mapCoords"));
   }
@@ -115,10 +88,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (mapTargetX === null || mapTargetY === null || mapRadius === null) {
       return redirectWithError(request, backTo, t("err.mapPointTeacher"));
     }
-  }
-
-  if (opensAt && dueAt && opensAt >= dueAt) {
-    return redirectWithError(request, backTo, t("err.openBeforeDue"));
   }
 
   if (image instanceof File && isUploadTooLarge(image.size)) {
@@ -152,13 +121,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       correctAnswer: correctAnswer || null,
       imagePath: savedImage?.filePath,
       originalImageName: savedImage?.originalFileName,
-      opensAt,
-      dueAt,
-      isPublished,
-      publishAt,
-      grade,
-      olympiadLevel,
-      difficulty,
       mapTargetX: isMapTask(type) ? mapTargetX : null,
       mapTargetY: isMapTask(type) ? mapTargetY : null,
       mapRadius: isMapTask(type) ? mapRadius : null,

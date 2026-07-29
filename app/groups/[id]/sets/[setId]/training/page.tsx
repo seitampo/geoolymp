@@ -15,7 +15,7 @@ import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { MapAnswerInput } from "@/components/MapPoint";
 import { mapAnswerLabels } from "@/lib/mapLabels";
-import { isAutoCheckedTask, isMapTask, isTaskVisibleToStudents, parseTaskOptions } from "@/lib/tasks";
+import { isAutoCheckedTask, isMapTask, parseTaskOptions } from "@/lib/tasks";
 import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/training";
 
 export default async function TrainingPage({
@@ -78,7 +78,7 @@ export default async function TrainingPage({
   }
 
   const trainingTasks = set.items
-    .filter((item) => isTaskVisibleToStudents(item.task) && isTrainingSupportedTaskType(item.task.type))
+    .filter((item) => isTrainingSupportedTaskType(item.task.type))
     .map((item) => item.task);
   const answerByTaskId = new Map(attempt.answers.map((answer) => [answer.taskId, answer]));
 
