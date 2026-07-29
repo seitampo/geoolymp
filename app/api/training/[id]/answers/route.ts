@@ -8,7 +8,6 @@ import { prisma } from "@/lib/prisma";
 import {
   isAutoGradedTask,
   isMapTask,
-  isTaskVisibleToStudents,
   normalizeMultipleChoiceAnswer,
   parseMapPoint,
   parseTaskOptions,
@@ -63,11 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     include: { task: true },
   });
 
-  if (
-    !item ||
-    !isTaskVisibleToStudents(item.task) ||
-    !isTrainingSupportedTaskType(item.task.type)
-  ) {
+  if (!item || !isTrainingSupportedTaskType(item.task.type)) {
     return redirectWithError(request, trainingTo, t("err.taskNotInTraining"));
   }
 

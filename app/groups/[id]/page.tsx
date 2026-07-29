@@ -1,4 +1,4 @@
-import { Material, Membership, OlympiadLevel, Review, Role, Submission, Task, TaskSet, User } from "@prisma/client";
+import { Material, Membership, Review, Role, Submission, Task, TaskSet, User } from "@prisma/client";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
@@ -14,10 +14,7 @@ import { mapEditorLabels } from "@/lib/mapLabels";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   CopyForm,
-  PublishSelect,
   TaskCard,
-  TaskClassificationBadges,
-  TaskClassificationFields,
   TaskTypeSelect,
   type TaskWithStudentSubmission,
   type TeacherGroupOption,
@@ -28,21 +25,13 @@ import { isPreviewableMaterial, materialTypes } from "@/lib/materials";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import {
-  isAutoCheckedTask,
-  isTaskOverdue,
-  olympiadLevels,
-  parseClassificationNumber,
-  taskDifficulties,
-  taskGrades,
-  validateOlympiadLevel,
-} from "@/lib/tasks";
+import { isAutoCheckedTask } from "@/lib/tasks";
 import { getTrainingTaskIds, notInTrainingSetFilter } from "@/lib/training";
 import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "sets" | "submissions" | "members";
 
-type StudentTaskStatus = "not-submitted" | "pending" | "solved" | "overdue";
+type StudentTaskStatus = "not-submitted" | "pending" | "solved";
 type TaskFilter = "all" | StudentTaskStatus;
 type ReviewFilter = "all" | "pending";
 type LibraryTask = Task & { group: { name: string } };
@@ -52,7 +41,6 @@ const taskFilters: { value: TaskFilter; key: TranslationKey }[] = [
   { value: "not-submitted", key: "filter.notSubmitted" },
   { value: "pending", key: "filter.pending" },
   { value: "solved", key: "filter.solved" },
-  { value: "overdue", key: "filter.overdue" },
 ];
 
 /** Ключ перевода для значения enum (тип задачи, статус, уровень, тип материала). */
@@ -75,12 +63,6 @@ type GroupForPage = {
   })[];
 };
 
-type ClassificationFilters = {
-  grade: number | null;
-  level: OlympiadLevel | null;
-  difficulty: number | null;
-};
-
 type SubmissionForTeacher = Submission & {
   student: User;
   task: Task;
@@ -100,9 +82,6 @@ export default async function GroupPage({
     status?: string;
     filter?: string;
     after?: string;
-    grade?: string;
-    level?: string;
-    difficulty?: string;
   }>;
 }) {
   const user = await getCurrentUser();
@@ -112,18 +91,12 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab, error, ok, q, status, filter, after, grade, level, difficulty } = await searchParams;
+  const { tab, error, ok, q, status, filter, after } = await searchParams;
   const t = await getT();
   const searchQuery = (q ?? "").trim();
   const statusFilter = getStatusFilter(status);
   const reviewFilter: ReviewFilter = filter === "pending" ? "pending" : "all";
   const afterId = after ? parseEntityId(after) : null;
-  // Кривые значения фильтров из URL просто игнорируем (фильтр не применяется).
-  const classification: ClassificationFilters = {
-    grade: parseClassificationNumber(grade ?? "", taskGrades) ?? null,
-    level: validateOlympiadLevel(level ?? ""),
-    difficulty: parseClassificationNumber(difficulty ?? "", taskDifficulties) ?? null,
-  };
   const groupId = parseEntityId(id);
 
   if (groupId === null || !(await canOpenGroup(user.id, groupId))) {
@@ -137,15 +110,8 @@ export default async function GroupPage({
       materials: { orderBy: { uploadedAt: "desc" } },
       tasks: {
         orderBy: { id: "asc" },
-        // Черновики видит только учитель (условие повторяет isTaskVisibleToStudents),
-        // а тренировочные задачи для ученика существуют только внутри тренировки.
-        where:
-          user.role === "STUDENT"
-            ? {
-                OR: [{ isPublished: true }, { publishAt: { lte: new Date() } }],
-                ...notInTrainingSetFilter,
-              }
-            : undefined,
+        // Тренировочные задачи для ученика существуют только внутри тренировки.
+        where: user.role === "STUDENT" ? { ...notInTrainingSetFilter } : undefined,
         include: {
           submissions: {
             where: user.role === "STUDENT" ? { studentId: user.id } : undefined,
@@ -317,7 +283,6 @@ export default async function GroupPage({
             isTeacher={isTeacher}
             searchQuery={searchQuery}
             statusFilter={statusFilter}
-            classification={classification}
             teacherGroups={teacherGroups}
             libraryTasks={libraryTasks}
             trainingTaskIds={trainingTaskIds}
@@ -435,7 +400,7 @@ function getStudentTaskStatus(task: TaskWithStudentSubmission): StudentTaskStatu
     return "pending";
   }
 
-  return isTaskOverdue(task) ? "overdue" : "not-submitted";
+  return "not-submitted";
 }
 
 function matchesSearch(item: { title: string; description: string }, normalizedQuery: string) {
@@ -493,30 +458,16 @@ function SearchForm({
   );
 }
 
-function setClassificationParams(params: URLSearchParams, classification: ClassificationFilters) {
-  if (classification.grade !== null) {
-    params.set("grade", String(classification.grade));
-  }
-  if (classification.level !== null) {
-    params.set("level", classification.level);
-  }
-  if (classification.difficulty !== null) {
-    params.set("difficulty", String(classification.difficulty));
-  }
-}
-
-/** Поиск + фильтры классификации на вкладке задач (одна GET-форма). */
+/** Поиск по задачам (одна GET-форма). */
 function TaskFiltersForm({
   groupId,
   query,
   statusFilter,
-  classification,
   t,
 }: {
   groupId: number;
   query: string;
   statusFilter?: TaskFilter;
-  classification: ClassificationFilters;
   t: TFunction;
 }) {
   const keepStatus = statusFilter && statusFilter !== "all" ? statusFilter : null;
@@ -525,47 +476,15 @@ function TaskFiltersForm({
     <form className="grid gap-3" method="get" action={`/groups/${groupId}`} role="search">
       <input type="hidden" name="tab" value="tasks" />
       {keepStatus && <input type="hidden" name="status" value={keepStatus} />}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex gap-2">
         <input
-          className={inputClasses}
+          className={`${inputClasses} flex-1`}
           type="search"
           name="q"
           defaultValue={query}
           placeholder={t("search.tasksPlaceholder")}
           aria-label={t("search.tasksPlaceholder")}
         />
-        <SelectField
-          label=""
-          name="grade"
-          defaultValue={classification.grade === null ? "" : String(classification.grade)}
-          options={[
-            { value: "", label: t("filter.gradeAll") },
-            ...taskGrades.map((grade) => ({ value: String(grade), label: `${grade} ${t("filter.gradeSuffix")}` })),
-          ]}
-        />
-        <SelectField
-          label=""
-          name="level"
-          defaultValue={classification.level ?? ""}
-          options={[
-            { value: "", label: t("filter.levelAll") },
-            ...olympiadLevels.map((level) => ({ value: level.value, label: t(enumKey("olympiadLevel", level.value)) })),
-          ]}
-        />
-        <SelectField
-          label=""
-          name="difficulty"
-          defaultValue={classification.difficulty === null ? "" : String(classification.difficulty)}
-          options={[
-            { value: "", label: t("filter.difficultyAll") },
-            ...taskDifficulties.map((level) => ({
-              value: String(level),
-              label: `${t("filter.difficultyPrefix")} ${level}/5`,
-            })),
-          ]}
-        />
-      </div>
-      <div className="flex gap-2">
         <Button variant="secondary" className="shrink-0">
           {t("action.apply")}
         </Button>
@@ -581,13 +500,11 @@ function TaskFilterChips({
   groupId,
   active,
   query,
-  classification,
   t,
 }: {
   groupId: number;
   active: TaskFilter;
   query: string;
-  classification: ClassificationFilters;
   t: TFunction;
 }) {
   return (
@@ -601,7 +518,6 @@ function TaskFilterChips({
         if (query) {
           params.set("q", query);
         }
-        setClassificationParams(params, classification);
 
         return (
           <Link
@@ -879,7 +795,6 @@ function TasksTab({
   isTeacher,
   searchQuery,
   statusFilter,
-  classification,
   teacherGroups,
   libraryTasks,
   trainingTaskIds,
@@ -889,7 +804,6 @@ function TasksTab({
   isTeacher: boolean;
   searchQuery: string;
   statusFilter: TaskFilter;
-  classification: ClassificationFilters;
   teacherGroups: TeacherGroupOption[];
   libraryTasks: LibraryTask[];
   trainingTaskIds: Set<number>;
@@ -899,18 +813,9 @@ function TasksTab({
   const visibleTasks = group.tasks.filter((task) => {
     const matchesStatus =
       isTeacher || statusFilter === "all" || getStudentTaskStatus(task) === statusFilter;
-    const matchesClassification =
-      (classification.grade === null || task.grade === classification.grade) &&
-      (classification.level === null || task.olympiadLevel === classification.level) &&
-      (classification.difficulty === null || task.difficulty === classification.difficulty);
-    return matchesStatus && matchesClassification && matchesSearch(task, normalizedQuery);
+    return matchesStatus && matchesSearch(task, normalizedQuery);
   });
-  const hasActiveFilter =
-    Boolean(searchQuery) ||
-    (!isTeacher && statusFilter !== "all") ||
-    classification.grade !== null ||
-    classification.level !== null ||
-    classification.difficulty !== null;
+  const hasActiveFilter = Boolean(searchQuery) || (!isTeacher && statusFilter !== "all");
 
   return (
     <section className="space-y-5">
@@ -920,7 +825,6 @@ function TasksTab({
             groupId={group.id}
             query={searchQuery}
             statusFilter={isTeacher ? undefined : statusFilter}
-            classification={classification}
             t={t}
           />
           {!isTeacher && (
@@ -928,7 +832,6 @@ function TasksTab({
               groupId={group.id}
               active={statusFilter}
               query={searchQuery}
-              classification={classification}
               t={t}
             />
           )}
@@ -951,9 +854,6 @@ function TasksTab({
                     <p className="mt-0.5 text-xs text-ink-mute">
                       {task.group.name} · {t(enumKey("taskType", task.type))}
                     </p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      <TaskClassificationBadges task={task} />
-                    </div>
                   </div>
                   <form action={`/api/tasks/${task.id}/copy`} method="post">
                     <input type="hidden" name="targetGroupId" value={group.id} />
@@ -994,15 +894,6 @@ function TasksTab({
             placeholder={t("task.correctAnswerPlaceholder")}
           />
           <TextInput label={t("task.maxScore")} name="maxScore" type="number" min={1} />
-          <TaskClassificationFields />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label={t("task.opensAt")} name="opensAt" type="datetime-local" required={false} />
-            <TextInput label={t("task.dueAt")} name="dueAt" type="datetime-local" required={false} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <PublishSelect />
-            <TextInput label={t("task.publishAt")} name="publishAt" type="datetime-local" required={false} />
-          </div>
           <FileInput
             label={t("task.image")}
             name="image"

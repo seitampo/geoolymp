@@ -132,11 +132,6 @@ export const ru = {
   "materialType.LINK": "Ссылка на внешний ресурс",
   "materialType.LINK_badge": "Ссылка",
   "materialType.ZIP": "ZIP архив",
-  // Уровни олимпиад
-  "olympiadLevel.SCHOOL": "Школьная",
-  "olympiadLevel.REGIONAL": "Областная",
-  "olympiadLevel.REPUBLICAN": "Республиканская",
-  "olympiadLevel.INTERNATIONAL": "Международная",
   // Статусы решений
   "status.PENDING": "На проверке",
   "status.REVIEWED": "Проверено",
@@ -171,12 +166,6 @@ export const ru = {
   "filter.notSubmitted": "Не отправлено",
   "filter.pending": "Проверяется",
   "filter.solved": "Решено",
-  "filter.overdue": "Просрочено",
-  "filter.gradeAll": "Класс: все",
-  "filter.gradeSuffix": "класс",
-  "filter.levelAll": "Уровень: все",
-  "filter.difficultyAll": "Сложность: любая",
-  "filter.difficultyPrefix": "Сложность",
 
   // Материалы
   "material.add": "+ Добавить материал",
@@ -206,9 +195,6 @@ export const ru = {
   "task.correctAnswer": "Правильный ответ",
   "task.correctAnswerPlaceholder": "Для вариантов — точный текст; несколько ответов через «;»",
   "task.maxScore": "Максимальный балл",
-  "task.opensAt": "Дата открытия (необязательно)",
-  "task.dueAt": "Срок сдачи (необязательно)",
-  "task.publishAt": "Дата публикации (для черновика)",
   "task.image": "Изображение к условию",
   "task.imageHintPrefix": "JPG, PNG или WebP, до",
   "task.emptyTitle": "Задач пока нет",
@@ -268,7 +254,6 @@ export const ru = {
   "taskStatus.pending": "Проверяется",
   "taskStatus.partial": "Частично решено",
   "taskStatus.wrong": "Неверно",
-  "taskStatus.overdue": "Просрочено",
   "taskStatus.notSubmitted": "Не отправлено",
 
   // Копирование
@@ -278,24 +263,11 @@ export const ru = {
 
   // Форма задачи (селекты)
   "taskForm.typeLabel": "Тип задачи",
-  "taskForm.publishStatus": "Статус публикации",
-  "taskForm.published": "Опубликована",
-  "taskForm.draft": "Черновик (виден только вам)",
-  "taskForm.grade": "Класс",
-  "taskForm.level": "Уровень олимпиады",
-  "taskForm.difficulty": "Сложность",
-  "taskForm.notSetM": "Не указан",
-  "taskForm.notSetF": "Не указана",
-  "taskForm.of5": "из 5",
 
   // Карточка задачи
   "taskCard.newResult": "Новый результат",
   "taskCard.onlyTraining": "Только в тренировке",
-  "taskCard.publishAt": "Публикация",
-  "taskCard.draft": "Черновик",
   "taskCard.maxScore": "Макс. балл",
-  "taskCard.opensLabel": "Открытие",
-  "taskCard.dueLabel": "Срок сдачи",
   "taskCard.correctZone": "Правильная зона (видна только вам):",
   "taskCard.correctAnswer": "Правильный ответ",
   "taskCard.editTask": "Редактировать задачу",
@@ -322,10 +294,6 @@ export const ru = {
   "explanation.deleteConfirm": "Удалить разбор задачи?",
 
   // Блок решения ученика
-  "student.notYetOpenPrefix": "Задача откроется",
-  "student.notYetOpenSuffix": "— отправка пока недоступна.",
-  "student.overduePrefix": "Срок сдачи истёк",
-  "student.overdueSuffix": "— отправка недоступна.",
   "student.yourAnswer": "Ваш ответ",
   "student.mapHintYour": "Красная метка — ваш ответ",
   "student.mapHintCorrect": ", зелёная зона — правильная область",
@@ -489,10 +457,6 @@ export const ru = {
   "err.mapPointTeacher": "Отметьте правильную точку на карте и задайте допуск.",
   "err.mapPointStudent": "Отметьте точку на карте.",
   "err.mapCoords": "Неверные координаты цели картозадачи.",
-  "err.classification": "Неверные значения классификации (класс, уровень или сложность).",
-  "err.publishDate": "Неверный формат даты публикации.",
-  "err.openDueDate": "Неверный формат даты открытия или срока сдачи.",
-  "err.openBeforeDue": "Дата открытия должна быть раньше срока сдачи.",
   "err.setFields": "Заполните название и описание подборки.",
   "err.trainingLimit": "Лимит тренировки — целое число минут от 1 до 600.",
   "err.taskNotFound": "Задача не найдена.",
@@ -522,10 +486,6 @@ export const ru = {
   "err.imageTooBig": "Изображение слишком большое. Максимум —",
   "err.pwdLenPre": "Пароль должен быть не короче",
   "err.pwdLenPost": " символов.",
-  "err.dueExpiredPre": "Срок сдачи истёк",
-  "err.dueExpiredPost": " — отправка недоступна.",
-  "err.notOpenPre": "Задача ещё не открыта — станет доступна",
-  "err.notOpenPost": ".",
   "err.scoreRangePre": "Балл должен быть целым числом от 0 до",
   "err.scoreRangePost": ".",
   "err.rateLimitLoginPre": "Слишком много попыток входа. Попробуйте через",

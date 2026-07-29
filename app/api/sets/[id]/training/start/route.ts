@@ -6,7 +6,7 @@ import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { isTaskVisibleToStudents } from "@/lib/tasks";
+
 import { isTrainingSupportedTaskType } from "@/lib/training";
 
 /** Старт тренировки: создаёт единственную попытку и фиксирует дедлайн. */
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const trainableTasks = set.items.filter(
-    (item) => isTaskVisibleToStudents(item.task) && isTrainingSupportedTaskType(item.task.type),
+    (item) => isTrainingSupportedTaskType(item.task.type),
   );
 
   if (trainableTasks.length === 0) {

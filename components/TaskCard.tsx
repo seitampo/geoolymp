@@ -5,21 +5,8 @@ import { cardClasses } from "@/components/Card";
 import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { MapAnswerInput, MapPointEditor } from "@/components/MapPoint";
 import { mapAnswerLabels, mapEditorLabels } from "@/lib/mapLabels";
-import { getT, type TFunction, type TranslationKey } from "@/lib/i18n";
-import {
-  formatDateTime,
-  isAutoGradedTask,
-  isMapTask,
-  isTaskNotYetOpen,
-  isTaskOverdue,
-  isTaskVisibleToStudents,
-  olympiadLevels,
-  parseTaskOptions,
-  taskDifficulties,
-  taskGrades,
-  taskTypes,
-  toDateTimeLocalValue,
-} from "@/lib/tasks";
+import { getT, type TranslationKey } from "@/lib/i18n";
+import { isAutoGradedTask, isMapTask, parseTaskOptions, taskTypes } from "@/lib/tasks";
 import { maxUploadLabel } from "@/lib/uploads";
 
 export type TaskWithStudentSubmission = Task & {
@@ -79,68 +66,6 @@ export async function TaskTypeSelect({ defaultValue }: { defaultValue?: string }
   );
 }
 
-export async function PublishSelect({ defaultValue }: { defaultValue?: string }) {
-  const t = await getT();
-  return (
-    <SelectField
-      label={t("taskForm.publishStatus")}
-      name="published"
-      defaultValue={defaultValue ?? "published"}
-      options={[
-        { value: "published", label: t("taskForm.published") },
-        { value: "draft", label: t("taskForm.draft") },
-      ]}
-    />
-  );
-}
-
-/** Класс, уровень олимпиады и сложность — в формах создания и редактирования задачи. */
-export async function TaskClassificationFields({ task }: { task?: Task }) {
-  const t = await getT();
-  return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <SelectField
-        label={t("taskForm.grade")}
-        name="grade"
-        defaultValue={task?.grade ? String(task.grade) : ""}
-        options={[
-          { value: "", label: t("taskForm.notSetM") },
-          ...taskGrades.map((grade) => ({ value: String(grade), label: `${grade} ${t("filter.gradeSuffix")}` })),
-        ]}
-      />
-      <SelectField
-        label={t("taskForm.level")}
-        name="olympiadLevel"
-        defaultValue={task?.olympiadLevel ?? ""}
-        options={[
-          { value: "", label: t("taskForm.notSetM") },
-          ...olympiadLevels.map((level) => ({ value: level.value, label: t(enumKey("olympiadLevel", level.value)) })),
-        ]}
-      />
-      <SelectField
-        label={t("taskForm.difficulty")}
-        name="difficulty"
-        defaultValue={task?.difficulty ? String(task.difficulty) : ""}
-        options={[
-          { value: "", label: t("taskForm.notSetF") },
-          ...taskDifficulties.map((level) => ({ value: String(level), label: `${level} ${t("taskForm.of5")}` })),
-        ]}
-      />
-    </div>
-  );
-}
-
-/** Бейджи классификации — на карточке задачи и в библиотеке. */
-export async function TaskClassificationBadges({ task }: { task: Task }) {
-  const t = await getT();
-  return (
-    <>
-      {task.grade && <Badge>{task.grade} {t("filter.gradeSuffix")}</Badge>}
-      {task.olympiadLevel && <Badge>{t(enumKey("olympiadLevel", task.olympiadLevel))}</Badge>}
-      {task.difficulty && <Badge>{t("filter.difficultyPrefix")} {task.difficulty}/5</Badge>}
-    </>
-  );
-}
 
 /** Статистика по задаче для учителя: сдачи, средний балл, частота вариантов. */
 async function TaskStats({
@@ -236,10 +161,7 @@ export async function TaskCard({
   const t = await getT();
   const submission = task.submissions[0];
   const options = parseTaskOptions(task.options);
-  const notYetOpen = isTaskNotYetOpen(task);
-  const overdue = isTaskOverdue(task);
   const hasNewResult = !isTeacher && submission?.review != null && submission.review.seenByStudentAt === null;
-  const visibleToStudents = isTaskVisibleToStudents(task);
 
   return (
     <article id={`task-${task.id}`} className={`${cardClasses} scroll-mt-20`}>
@@ -250,31 +172,16 @@ export async function TaskCard({
           {!isTeacher && (
             <TaskStatusBadge
               status={submission?.status ?? null}
-              overdue={overdue}
               score={submission?.review?.score ?? null}
               maxScore={task.maxScore}
             />
           )}
           {isTeacher && inTraining && <Badge tone="amber">{t("taskCard.onlyTraining")}</Badge>}
-          {isTeacher && !visibleToStudents &&
-            (task.publishAt ? (
-              <Badge tone="amber">{t("taskCard.publishAt")}: {formatDateTime(task.publishAt)}</Badge>
-            ) : (
-              <Badge tone="amber">{t("taskCard.draft")}</Badge>
-            ))}
           <Badge>{t(enumKey("taskType", task.type))}</Badge>
-          <TaskClassificationBadges task={task} />
           <Badge tone="emerald">{t("taskCard.maxScore")}: {task.maxScore}</Badge>
         </div>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
-      {(task.opensAt || task.dueAt) && (
-        <p className="mt-2 text-xs text-ink-mute">
-          {task.opensAt && <>{t("taskCard.opensLabel")}: {formatDateTime(task.opensAt)}</>}
-          {task.opensAt && task.dueAt && " · "}
-          {task.dueAt && <>{t("taskCard.dueLabel")}: {formatDateTime(task.dueAt)}</>}
-        </p>
-      )}
       {task.imagePath && !isMapTask(task.type) && (
         <img
           className="mt-3 max-h-80 rounded-lg border border-line object-contain"
@@ -332,33 +239,6 @@ export async function TaskCard({
               placeholder={t("task.correctAnswerPlaceholder")}
             />
             <TextInput label={t("task.maxScore")} name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
-            <TaskClassificationFields task={task} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TextInput
-                label={t("task.opensAt")}
-                name="opensAt"
-                type="datetime-local"
-                required={false}
-                defaultValue={toDateTimeLocalValue(task.opensAt)}
-              />
-              <TextInput
-                label={t("task.dueAt")}
-                name="dueAt"
-                type="datetime-local"
-                required={false}
-                defaultValue={toDateTimeLocalValue(task.dueAt)}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <PublishSelect defaultValue={task.isPublished ? "published" : "draft"} />
-              <TextInput
-                label={t("task.publishAt")}
-                name="publishAt"
-                type="datetime-local"
-                required={false}
-                defaultValue={toDateTimeLocalValue(task.publishAt)}
-              />
-            </div>
             <FileInput label={t("taskCard.newImage")} name="image" accept="image/*" />
             <MapPointEditor
               existingImageUrl={task.imagePath ? `/api/tasks/${task.id}/image` : undefined}
@@ -391,22 +271,14 @@ export async function TaskCard({
 
       {!isTeacher && (
         <div className="mt-4">
-          {notYetOpen ? (
-            <p className="rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink-soft">
-              {t("student.notYetOpenPrefix")} {formatDateTime(task.opensAt!)} {t("student.notYetOpenSuffix")}
-            </p>
-          ) : submission ? (
+          {submission ? (
             <StudentSubmissionBlock
               task={task}
               submission={submission}
               options={options}
-              canResubmit={!overdue && !submissionContext?.oneShot}
+              canResubmit={!submissionContext?.oneShot}
               submissionContext={submissionContext}
             />
-          ) : overdue ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {t("student.overduePrefix")} {formatDateTime(task.dueAt!)} {t("student.overdueSuffix")}
-            </p>
           ) : (
             <SubmissionForm task={task} options={options} submissionContext={submissionContext} />
           )}

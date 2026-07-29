@@ -13,7 +13,7 @@ import { getT, type TFunction } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, isAutoCheckedTask, isTaskVisibleToStudents } from "@/lib/tasks";
+import { formatDateTime, isAutoCheckedTask } from "@/lib/tasks";
 import { getTrainingTaskIds, isTrainingSupportedTaskType } from "@/lib/training";
 
 type SetTaskStatus = "solved" | "wrong" | "pending" | "none";
@@ -102,7 +102,7 @@ export default async function TaskSetPage({
   const visibleItems = isTeacher
     ? set.items
     : set.items.filter(
-        (item) => isTaskVisibleToStudents(item.task) && !quarantinedTaskIds.has(item.taskId),
+        (item) => !quarantinedTaskIds.has(item.taskId),
       );
 
   // Открытие подборки тоже «показывает результат» — снимаем пометку «Новый результат»

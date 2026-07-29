@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
-import { isTaskVisibleToStudents } from "@/lib/tasks";
+
 import { getTrainingTaskIds } from "@/lib/training";
 import { contentDisposition } from "@/lib/uploads";
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // строки только шумят (результаты тренировок — на странице подборки).
   const trainingTaskIds = await getTrainingTaskIds(groupId);
   const visibleTasks = group.tasks.filter(
-    (task) => isTaskVisibleToStudents(task) && !trainingTaskIds.has(task.id),
+    (task) => !trainingTaskIds.has(task.id),
   );
 
   const rows: string[][] = [["Ученик", "Email", "Задача", "Статус", "Балл", "Макс. балл"]];
