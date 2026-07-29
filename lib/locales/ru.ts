@@ -195,6 +195,7 @@ export const ru = {
   "task.correctAnswer": "Правильный ответ",
   "task.correctAnswerPlaceholder": "Для вариантов — точный текст; несколько ответов через «;»",
   "task.maxScore": "Максимальный балл",
+  "task.mapImage": "Карта для задачи",
   "task.image": "Изображение к условию",
   "task.imageHintPrefix": "JPG, PNG или WebP, до",
   "task.emptyTitle": "Задач пока нет",

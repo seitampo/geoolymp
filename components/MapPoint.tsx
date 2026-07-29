@@ -106,6 +106,10 @@ export function MapPointEditor({
       }
     };
 
+    // Редактор может появиться уже после выбора файла (учитель сначала приложил
+    // карту, потом переключил тип задачи) — тогда события change уже не будет.
+    onChange();
+
     fileInput.addEventListener("change", onChange);
     return () => fileInput.removeEventListener("change", onChange);
   }, []);
