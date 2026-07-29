@@ -1,11 +1,13 @@
 import { Prisma, Role } from "@prisma/client";
 import { NextRequest } from "next/server";
-import { setSession } from "@/lib/auth";
+import { issueAndSendCode } from "@/lib/emailVerification";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { isValidTeacherInvite } from "@/lib/teacherInvite";
+
+export const runtime = "nodejs";
 
 const MIN_PASSWORD_LENGTH = 6;
 // Грубая проверка формата: атрибут type="email" работает только на клиенте,
@@ -43,7 +45,22 @@ export async function POST(request: NextRequest) {
     return redirectWithError(request, "/register", t("err.invalidTeacherCode"));
   }
 
+  // Занятый, но неподтверждённый адрес перезаписываем: иначе любой мог бы «застолбить»
+  // чужую почту, ни разу её не открыв, и настоящий владелец не смог бы зарегистрироваться.
+  const existing = await prisma.user.findUnique({ where: { email } });
+
+  if (existing && !existing.emailVerified) {
+    const user = await prisma.user.update({
+      where: { id: existing.id },
+      data: { name, password: await hashPassword(password), role },
+    });
+
+    await issueAndSendCode(t, user.id, email);
+    return redirectToVerification(request, email);
+  }
+
   try {
+    // Сессию не выдаём: до ввода кода из письма аккаунт неподтверждённый.
     const user = await prisma.user.create({
       data: {
         name,
@@ -53,9 +70,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const response = redirectAfterPost(request, "/dashboard");
-    setSession(response, user.id);
-    return response;
+    await issueAndSendCode(t, user.id, email);
+    return redirectToVerification(request, email);
   } catch (error) {
     // P2002 — нарушение уникальности email. Без обработки Prisma бросает 500.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -63,4 +79,8 @@ export async function POST(request: NextRequest) {
     }
     throw error;
   }
+}
+
+function redirectToVerification(request: NextRequest, email: string) {
+  return redirectAfterPost(request, `/verify?email=${encodeURIComponent(email)}`);
 }
