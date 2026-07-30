@@ -9,7 +9,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
-import { mapEditorLabels, taskFieldsLabels } from "@/lib/mapLabels";
+import { mapEditorLabels, setModeLabels, taskFieldsLabels } from "@/lib/mapLabels";
+import { SetModeFields } from "@/components/SetModeFields";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   CopyForm,
@@ -929,15 +930,7 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
           <form className="mt-4 grid gap-4" action={`/api/groups/${group.id}/sets`} method="post">
           <TextInput label={t("field.title")} name="title" placeholder={t("set.titlePlaceholder")} />
           <TextArea label={t("field.description")} name="description" placeholder={t("set.descPlaceholder")} />
-          <TextInput
-            label={t("set.trainingMinutes")}
-            name="trainingMinutes"
-            type="number"
-            min={1}
-            max={600}
-            required={false}
-            placeholder={t("set.trainingPlaceholder")}
-          />
+          <SetModeFields labels={setModeLabels(t)} />
             <Button className="w-fit">{t("set.createButton")}</Button>
           </form>
         </details>

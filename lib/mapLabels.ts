@@ -1,11 +1,14 @@
 import type { MapAnswerLabels, MapEditorLabels } from "@/components/MapPoint";
+import type { SetModeLabels } from "@/components/SetModeFields";
 import type { TaskFieldsLabels } from "@/components/TaskFields";
 import type { TFunction, TranslationKey } from "./i18n";
 import { taskTypes } from "./tasks";
 import { maxUploadLabel } from "./uploads";
 
-// Подписи для клиентского компонента MapPoint собираем на сервере и передаём пропсами
-// (клиентские компоненты строки не переводят сами — см. этап A i18n).
+// Подписи для всех клиентских компонентов собираем здесь, на сервере, и передаём
+// пропсами: клиентские компоненты строки не переводят сами (см. этап A i18n).
+// Файл начинался с карты, отсюда имя; сейчас тут подписи и для полей задачи, и для
+// режима подборки.
 export function mapEditorLabels(t: TFunction): MapEditorLabels {
   return {
     title: t("map.editorTitle"),
@@ -45,5 +48,17 @@ export function taskFieldsLabels(t: TFunction, imageLabel: string): TaskFieldsLa
     image: imageLabel,
     imageHint: `${t("task.imageHintPrefix")} ${maxUploadLabel()}`,
     mapImage: t("task.mapImage"),
+  };
+}
+
+/** Подписи выбора режима подборки (клиентский компонент SetModeFields). */
+export function setModeLabels(t: TFunction): SetModeLabels {
+  return {
+    mode: t("set.mode"),
+    collection: t("set.modeCollection"),
+    olympiad: t("set.modeOlympiad"),
+    collectionHint: t("set.modeCollectionHint"),
+    olympiadHint: t("set.modeOlympiadHint"),
+    minutes: t("set.trainingMinutes"),
   };
 }

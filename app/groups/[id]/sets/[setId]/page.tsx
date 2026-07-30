@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
+import { SetModeFields } from "@/components/SetModeFields";
+import { setModeLabels } from "@/lib/mapLabels";
 import { TaskCard, type TeacherGroupOption } from "@/components/TaskCard";
 import { getCurrentUser } from "@/lib/auth";
 import { getT, type TFunction } from "@/lib/i18n";
@@ -287,15 +289,7 @@ export default async function TaskSetPage({
               <form className="mt-4 grid gap-3" action={`/api/sets/${set.id}/update`} method="post">
                 <TextInput label={t("field.title")} name="title" defaultValue={set.title} />
                 <TextArea label={t("field.description")} name="description" defaultValue={set.description} />
-                <TextInput
-                  label={t("setPage.trainingMinutesLabel")}
-                  name="trainingMinutes"
-                  type="number"
-                  min={1}
-                  max={600}
-                  required={false}
-                  defaultValue={set.trainingMinutes ?? ""}
-                />
+                <SetModeFields labels={setModeLabels(t)} defaultMinutes={set.trainingMinutes} />
                 <Button className="w-fit">{t("action.save")}</Button>
               </form>
             </details>
@@ -448,7 +442,9 @@ export default async function TaskSetPage({
                   membersCount={membersCount}
                   submissionContext={{
                     returnTo: `/groups/${groupId}/sets/${set.id}`,
-                    oneShot: true,
+                    // Сборник — тренировочный список: ошибся, посмотрел разбор, решил заново.
+                    // Единственная попытка есть только у олимпиады, а она идёт своим экраном.
+                    oneShot: false,
                   }}
                 />
               </div>
