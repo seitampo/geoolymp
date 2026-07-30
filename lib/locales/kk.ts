@@ -196,6 +196,7 @@ export const kk: Dictionary = {
   "task.correctAnswer": "Дұрыс жауап",
   "task.correctAnswerPlaceholder": "Нұсқалар үшін — нақты мәтін; бірнеше жауап «;» арқылы",
   "task.maxScore": "Максималды балл",
+  "task.mapImage": "Тапсырма картасы",
   "task.image": "Шартқа сурет",
   "task.imageHintPrefix": "JPG, PNG немесе WebP, дейін",
   "task.emptyTitle": "Әзірге тапсырма жоқ",

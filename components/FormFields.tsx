@@ -1,4 +1,4 @@
-const labelClasses = "mb-1.5 block text-sm font-medium text-ink-soft";
+export const labelClasses = "mb-1.5 block text-sm font-medium text-ink-soft";
 
 export const inputClasses =
   "w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-sm text-ink shadow-sm transition-colors placeholder:text-ink-mute/70 focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15";

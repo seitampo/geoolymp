@@ -9,16 +9,15 @@ import { CopyButton } from "@/components/CopyButton";
 import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
-import { MapPointEditor } from "@/components/MapPoint";
-import { mapEditorLabels } from "@/lib/mapLabels";
+import { mapEditorLabels, taskFieldsLabels } from "@/lib/mapLabels";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   CopyForm,
   TaskCard,
-  TaskTypeSelect,
   type TaskWithStudentSubmission,
   type TeacherGroupOption,
 } from "@/components/TaskCard";
+import { TaskFields } from "@/components/TaskFields";
 import { getCurrentUser } from "@/lib/auth";
 import { getT, type TFunction, type TranslationKey } from "@/lib/i18n";
 import { isPreviewableMaterial, materialTypes } from "@/lib/materials";
@@ -880,27 +879,7 @@ function TasksTab({
           >
           <TextInput label={t("field.title")} name="title" />
           <TextArea label={t("task.condition")} name="description" />
-          <TaskTypeSelect />
-          <TextArea
-            label={t("task.options")}
-            name="options"
-            required={false}
-            placeholder={t("task.optionsPlaceholder")}
-          />
-          <TextInput
-            label={t("task.correctAnswer")}
-            name="correctAnswer"
-            required={false}
-            placeholder={t("task.correctAnswerPlaceholder")}
-          />
-          <TextInput label={t("task.maxScore")} name="maxScore" type="number" min={1} />
-          <FileInput
-            label={t("task.image")}
-            name="image"
-            accept="image/*"
-            hint={`${t("task.imageHintPrefix")} ${maxUploadLabel()}`}
-          />
-          <MapPointEditor labels={mapEditorLabels(t)} />
+          <TaskFields labels={taskFieldsLabels(t, t("task.image"))} mapLabels={mapEditorLabels(t)} />
             <Button className="w-fit">{t("action.create")}</Button>
           </form>
         </details>

@@ -4,7 +4,8 @@ import { Button } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { FileInput, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { MapAnswerInput, MapPointEditor } from "@/components/MapPoint";
-import { mapAnswerLabels, mapEditorLabels } from "@/lib/mapLabels";
+import { mapAnswerLabels, mapEditorLabels, taskFieldsLabels } from "@/lib/mapLabels";
+import { TaskFields } from "@/components/TaskFields";
 import { getT, type TranslationKey } from "@/lib/i18n";
 import { isAutoGradedTask, isMapTask, parseTaskOptions, taskTypes } from "@/lib/tasks";
 import { maxUploadLabel } from "@/lib/uploads";
@@ -51,18 +52,6 @@ export async function CopyForm({
         {t("copy.button")}
       </Button>
     </form>
-  );
-}
-
-export async function TaskTypeSelect({ defaultValue }: { defaultValue?: string }) {
-  const t = await getT();
-  return (
-    <SelectField
-      label={t("taskForm.typeLabel")}
-      name="type"
-      defaultValue={defaultValue ?? "TEXT"}
-      options={taskTypes.map((type) => ({ value: type.value, label: t(enumKey("taskType", type.value)) }))}
-    />
   );
 }
 
@@ -223,29 +212,19 @@ export async function TaskCard({
           >
             <TextInput label={t("field.title")} name="title" defaultValue={task.title} />
             <TextArea label={t("task.condition")} name="description" defaultValue={task.description} />
-            <TaskTypeSelect defaultValue={task.type} />
-            <TextArea
-              label={t("task.options")}
-              name="options"
-              required={false}
-              defaultValue={task.options ?? ""}
-              placeholder={t("task.optionsPlaceholder")}
-            />
-            <TextInput
-              label={t("task.correctAnswer")}
-              name="correctAnswer"
-              required={false}
-              defaultValue={task.correctAnswer ?? ""}
-              placeholder={t("task.correctAnswerPlaceholder")}
-            />
-            <TextInput label={t("task.maxScore")} name="maxScore" type="number" min={1} defaultValue={task.maxScore} />
-            <FileInput label={t("taskCard.newImage")} name="image" accept="image/*" />
-            <MapPointEditor
-              existingImageUrl={task.imagePath ? `/api/tasks/${task.id}/image` : undefined}
-              initialX={task.mapTargetX ?? undefined}
-              initialY={task.mapTargetY ?? undefined}
-              initialRadius={task.mapRadius ?? undefined}
-              labels={mapEditorLabels(t)}
+            <TaskFields
+              labels={taskFieldsLabels(t, t("taskCard.newImage"))}
+              mapLabels={mapEditorLabels(t)}
+              defaults={{
+                type: task.type,
+                options: task.options ?? "",
+                correctAnswer: task.correctAnswer ?? "",
+                maxScore: task.maxScore,
+                existingImageUrl: task.imagePath ? `/api/tasks/${task.id}/image` : undefined,
+                mapTargetX: task.mapTargetX ?? undefined,
+                mapTargetY: task.mapTargetY ?? undefined,
+                mapRadius: task.mapRadius ?? undefined,
+              }}
             />
             <Button className="w-fit">{t("action.save")}</Button>
           </form>
