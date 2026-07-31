@@ -9,7 +9,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
-import { mapEditorLabels, taskFieldsLabels } from "@/lib/mapLabels";
+import { mapEditorLabels, setModeLabels, taskFieldsLabels } from "@/lib/mapLabels";
+import { SetModeFields } from "@/components/SetModeFields";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   CopyForm,
@@ -33,6 +34,38 @@ type Tab = "materials" | "tasks" | "sets" | "submissions" | "members";
 type StudentTaskStatus = "not-submitted" | "pending" | "solved";
 type TaskFilter = "all" | StudentTaskStatus;
 type ReviewFilter = "all" | "pending";
+/** Порядок решений на вкладке «Решения». По умолчанию — сначала те, что ждут проверки. */
+type SubmissionSort = "pending-first" | "task" | "student" | "newest";
+
+const submissionSorts: { value: SubmissionSort; key: TranslationKey }[] = [
+  { value: "pending-first", key: "sort.pendingFirst" },
+  { value: "task", key: "sort.byTask" },
+  { value: "student", key: "sort.byStudent" },
+  { value: "newest", key: "sort.newest" },
+];
+
+function getSubmissionSort(value?: string): SubmissionSort {
+  return submissionSorts.some((item) => item.value === value) ? (value as SubmissionSort) : "pending-first";
+}
+
+/** Сортировка в памяти: список решений группы уже загружен целиком. */
+function sortSubmissions(submissions: SubmissionForTeacher[], sort: SubmissionSort) {
+  const byNewest = (a: SubmissionForTeacher, b: SubmissionForTeacher) => b.id - a.id;
+  const copy = [...submissions];
+
+  if (sort === "task") {
+    return copy.sort((a, b) => a.task.title.localeCompare(b.task.title) || byNewest(a, b));
+  }
+  if (sort === "student") {
+    return copy.sort((a, b) => a.student.name.localeCompare(b.student.name) || byNewest(a, b));
+  }
+  if (sort === "pending-first") {
+    const weight = (item: SubmissionForTeacher) => (item.status === "PENDING" ? 0 : 1);
+    return copy.sort((a, b) => weight(a) - weight(b) || byNewest(a, b));
+  }
+  return copy.sort(byNewest);
+}
+
 type LibraryTask = Task & { group: { name: string } };
 
 const taskFilters: { value: TaskFilter; key: TranslationKey }[] = [
@@ -81,6 +114,7 @@ export default async function GroupPage({
     status?: string;
     filter?: string;
     after?: string;
+    sort?: string;
   }>;
 }) {
   const user = await getCurrentUser();
@@ -90,12 +124,13 @@ export default async function GroupPage({
   }
 
   const { id } = await params;
-  const { tab, error, ok, q, status, filter, after } = await searchParams;
+  const { tab, error, ok, q, status, filter, after, sort } = await searchParams;
   const t = await getT();
   const searchQuery = (q ?? "").trim();
   const statusFilter = getStatusFilter(status);
   const reviewFilter: ReviewFilter = filter === "pending" ? "pending" : "all";
   const afterId = after ? parseEntityId(after) : null;
+  const submissionSort = getSubmissionSort(sort);
   const groupId = parseEntityId(id);
 
   if (groupId === null || !(await canOpenGroup(user.id, groupId))) {
@@ -150,6 +185,7 @@ export default async function GroupPage({
           orderBy: { id: "desc" },
         })
       : [];
+  const sortedSubmissions = sortSubmissions(allSubmissions, submissionSort);
 
   const isTeacher = user.role === "TEACHER";
 
@@ -291,7 +327,8 @@ export default async function GroupPage({
         {activeTab === "sets" && <SetsTab group={group} isTeacher={isTeacher} t={t} />}
         {activeTab === "submissions" && isTeacher && (
           <SubmissionsTab
-            submissions={allSubmissions}
+            submissions={sortedSubmissions}
+            sort={submissionSort}
             groupId={group.id}
             reviewFilter={reviewFilter}
             afterId={afterId}
@@ -929,15 +966,7 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
           <form className="mt-4 grid gap-4" action={`/api/groups/${group.id}/sets`} method="post">
           <TextInput label={t("field.title")} name="title" placeholder={t("set.titlePlaceholder")} />
           <TextArea label={t("field.description")} name="description" placeholder={t("set.descPlaceholder")} />
-          <TextInput
-            label={t("set.trainingMinutes")}
-            name="trainingMinutes"
-            type="number"
-            min={1}
-            max={600}
-            required={false}
-            placeholder={t("set.trainingPlaceholder")}
-          />
+          <SetModeFields labels={setModeLabels(t)} />
             <Button className="w-fit">{t("set.createButton")}</Button>
           </form>
         </details>
@@ -982,12 +1011,14 @@ function SubmissionsTab({
   submissions,
   groupId,
   reviewFilter,
+  sort,
   afterId,
   t,
 }: {
   submissions: SubmissionForTeacher[];
   groupId: number;
   reviewFilter: ReviewFilter;
+  sort: SubmissionSort;
   afterId: number | null;
   t: TFunction;
 }) {
@@ -1021,10 +1052,30 @@ function SubmissionsTab({
     </div>
   );
 
+  // Сортировка — обычная GET-форма: работает без JS и сохраняет текущий фильтр.
+  const sortForm = (
+    <form className="flex items-end gap-2" method="get" action={`/groups/${groupId}`}>
+      <input type="hidden" name="tab" value="submissions" />
+      {reviewFilter === "pending" && <input type="hidden" name="filter" value="pending" />}
+      <div className="w-56">
+        <SelectField
+          label={t("sort.label")}
+          name="sort"
+          defaultValue={sort}
+          options={submissionSorts.map((item) => ({ value: item.value, label: t(item.key) }))}
+        />
+      </div>
+      <Button variant="secondary" className="shrink-0">
+        {t("action.apply")}
+      </Button>
+    </form>
+  );
+
   if (reviewFilter === "pending") {
     return (
       <section className="space-y-4">
         {filterChips}
+        {sortForm}
         <ReviewQueue submissions={submissions} groupId={groupId} afterId={afterId} t={t} />
       </section>
     );
@@ -1033,6 +1084,7 @@ function SubmissionsTab({
   return (
     <section className="space-y-4">
       {filterChips}
+      {sortForm}
       {submissions.map((submission) => {
         const isAutoGraded = isAutoCheckedTask(submission.task);
 

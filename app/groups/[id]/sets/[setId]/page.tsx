@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
+import { SetModeFields } from "@/components/SetModeFields";
+import { setModeLabels } from "@/lib/mapLabels";
 import { TaskCard, type TeacherGroupOption } from "@/components/TaskCard";
 import { getCurrentUser } from "@/lib/auth";
 import { getT, type TFunction } from "@/lib/i18n";
@@ -154,7 +156,8 @@ export default async function TaskSetPage({
     isTeacher && isTrainingMode
       ? await prisma.trainingAttempt.findMany({
           where: { setId: set.id },
-          include: { student: true, answers: true },
+          // Задачи нужны, чтобы учитель мог оценить ответы без автопроверки.
+          include: { student: true, answers: { include: { task: true } } },
           orderBy: { startedAt: "desc" },
         })
       : [];
@@ -287,15 +290,7 @@ export default async function TaskSetPage({
               <form className="mt-4 grid gap-3" action={`/api/sets/${set.id}/update`} method="post">
                 <TextInput label={t("field.title")} name="title" defaultValue={set.title} />
                 <TextArea label={t("field.description")} name="description" defaultValue={set.description} />
-                <TextInput
-                  label={t("setPage.trainingMinutesLabel")}
-                  name="trainingMinutes"
-                  type="number"
-                  min={1}
-                  max={600}
-                  required={false}
-                  defaultValue={set.trainingMinutes ?? ""}
-                />
+                <SetModeFields labels={setModeLabels(t)} defaultMinutes={set.trainingMinutes} />
                 <Button className="w-fit">{t("action.save")}</Button>
               </form>
             </details>
@@ -355,6 +350,74 @@ export default async function TaskSetPage({
                       })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* Проверка ответов олимпиады. Автопроверка не умеет оценивать текстовые
+                ответы — без этого блока они навсегда оставались бы с нулём. */}
+            {isTrainingMode && attempts.some((attempt) => attempt.finishedAt) && (
+              <div className={cardClasses}>
+                <h2 className="font-heading text-[15px] font-semibold text-ink">{t("setPage.reviewTitle")}</h2>
+                <p className="mt-0.5 text-xs text-ink-mute">{t("setPage.reviewHint")}</p>
+                <div className="mt-3 space-y-2">
+                  {attempts
+                    .filter((attempt) => attempt.finishedAt)
+                    .map((attempt) => {
+                      const awaiting = attempt.answers.filter(
+                        (answer) => !isAutoCheckedTask(answer.task) && answer.isCorrect === null,
+                      ).length;
+
+                      return (
+                        <details className="rounded-lg border border-line/70 p-3" key={attempt.id}>
+                          <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                            {attempt.student.name}
+                            {awaiting > 0 && (
+                              <Badge tone="amber">
+                                {t("setPage.awaitingReview")}: {awaiting}
+                              </Badge>
+                            )}
+                          </summary>
+                          <div className="mt-3 space-y-3">
+                            {attempt.answers.length === 0 && (
+                              <p className="text-xs text-ink-mute">{t("setPage.noAnswers")}</p>
+                            )}
+                            {attempt.answers.map((answer) => (
+                              <div className="rounded-lg bg-paper px-3 py-2" key={answer.id}>
+                                <p className="text-sm font-medium text-ink">{answer.task.title}</p>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{answer.answer}</p>
+                                {isAutoCheckedTask(answer.task) ? (
+                                  <p className="mt-1 text-xs text-ink-mute">
+                                    {t("setPage.autoChecked")}: {answer.score} {t("stats.of")}{" "}
+                                    {answer.task.maxScore}
+                                  </p>
+                                ) : (
+                                  <form
+                                    className="mt-2 flex items-end gap-2"
+                                    action={`/api/training/answers/${answer.id}/review`}
+                                    method="post"
+                                  >
+                                    <div className="w-44">
+                                      <TextInput
+                                        label={`${t("sub.scoreOfPrefix")} ${answer.task.maxScore}`}
+                                        name="score"
+                                        type="number"
+                                        min={0}
+                                        max={answer.task.maxScore}
+                                        defaultValue={answer.score}
+                                      />
+                                    </div>
+                                    <Button variant="secondary" className="shrink-0">
+                                      {t("action.save")}
+                                    </Button>
+                                  </form>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      );
+                    })}
                 </div>
               </div>
             )}
@@ -448,7 +511,9 @@ export default async function TaskSetPage({
                   membersCount={membersCount}
                   submissionContext={{
                     returnTo: `/groups/${groupId}/sets/${set.id}`,
-                    oneShot: true,
+                    // Сборник — тренировочный список: ошибся, посмотрел разбор, решил заново.
+                    // Единственная попытка есть только у олимпиады, а она идёт своим экраном.
+                    oneShot: false,
                   }}
                 />
               </div>
