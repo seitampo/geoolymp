@@ -1,0 +1,47 @@
+name: Check application
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-test-password
+          POSTGRES_DB: geoolymp_test
+        ports: ["51224:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:local-test-password@localhost:51224/geoolymp_test
+      DIRECT_URL: postgresql://postgres:local-test-password@localhost:51224/geoolymp_test
+      AUTH_SECRET: ci-local-test-secret-not-used-in-production
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Check HTTP workflows
+        run: |
+          npm start > /tmp/geoolymp-server.log 2>&1 &
+          node scripts/wait-for-server.mjs
+          npm run test:integration
+      - name: Server diagnostics on failure
+        if: failure()
+        run: cat /tmp/geoolymp-server.log || true

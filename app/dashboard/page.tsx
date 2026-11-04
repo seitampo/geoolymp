@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
-import { BadgeGlyph } from "@/components/BadgeGlyph";
-import { Button } from "@/components/Button";
+import { Button, LinkButton } from "@/components/Button";
 import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
 import { Header } from "@/components/Header";
 import { inputClasses, TextArea, TextInput } from "@/components/FormFields";
-import { awardEarnedBadges, badgeCatalog, computeAchievementStats } from "@/lib/achievements";
+import {
+  awardEarnedBadges,
+  badgeCatalog,
+  computeAchievementStats,
+} from "@/lib/achievements";
 import { getCurrentUser } from "@/lib/auth";
 import { getT } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { studentTaskStatus } from "@/lib/taskStatus";
+import { notInTrainingSetFilter } from "@/lib/training";
 
 export default async function DashboardPage({
   searchParams,
@@ -19,132 +24,285 @@ export default async function DashboardPage({
   searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
   const user = await getCurrentUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
+  if (!user) redirect("/login");
   const { error, ok } = await searchParams;
   const t = await getT();
-
-  const groups =
-    user.role === "TEACHER"
-      ? await prisma.group.findMany({ where: { teacherId: user.id }, orderBy: { id: "desc" } })
-      : await prisma.group.findMany({
-          where: { memberships: { some: { userId: user.id } } },
-          orderBy: { id: "desc" },
-        });
-
-  // Группы с непросмотренными результатами проверки — для пометки «Новый результат».
-  const groupsWithNewResults = new Set(
-    user.role === "STUDENT"
-      ? (
-          await prisma.review.findMany({
-            where: { seenByStudentAt: null, submission: { studentId: user.id } },
-            select: { submission: { select: { task: { select: { groupId: true } } } } },
-          })
-        ).map((review) => review.submission.task.groupId)
-      : [],
-  );
-
-  // Достижения ученика: начисляем недостающие значки и показываем сводку с пометкой новых.
-  let achievements: { earnedCount: number; unseenCount: number; streak: number } | null = null;
-  if (user.role === "STUDENT") {
+  const teacher = user.role === "TEACHER";
+  const groups = await prisma.group.findMany({
+    where: teacher
+      ? { teacherId: user.id }
+      : { memberships: { some: { userId: user.id } } },
+    orderBy: { id: "desc" },
+    include: {
+      _count: { select: { tasks: true, taskSets: true, memberships: true } },
+      tasks: {
+        where: notInTrainingSetFilter,
+        orderBy: { id: "asc" },
+        include: {
+          submissions: {
+            where: { studentId: user.id },
+            include: { review: true },
+          },
+        },
+      },
+    },
+  });
+  const groupIds = groups.map((group) => group.id);
+  const results = teacher
+    ? []
+    : await prisma.review.findMany({
+        where: {
+          seenByStudentAt: null,
+          submission: {
+            studentId: user.id,
+            task: { groupId: { in: groupIds } },
+          },
+        },
+        include: { submission: { include: { task: true } } },
+        orderBy: { id: "desc" },
+        take: 5,
+      });
+  const ongoing = teacher
+    ? null
+    : await prisma.trainingAttempt.findFirst({
+        where: {
+          studentId: user.id,
+          finishedAt: null,
+          set: { groupId: { in: groupIds } },
+        },
+        include: { set: true },
+        orderBy: { startedAt: "desc" },
+      });
+  let achievements: { earned: number; streak: number } | null = null;
+  if (!teacher) {
     const stats = await computeAchievementStats(user.id);
     await awardEarnedBadges(user.id, stats);
-    const [earnedCount, unseenCount] = await Promise.all([
-      prisma.earnedBadge.count({ where: { userId: user.id } }),
-      prisma.earnedBadge.count({ where: { userId: user.id, seenAt: null } }),
-    ]);
-    achievements = { earnedCount, unseenCount, streak: stats.currentStreak };
+    achievements = {
+      earned: await prisma.earnedBadge.count({ where: { userId: user.id } }),
+      streak: stats.currentStreak,
+    };
   }
-
+  const nextGroup =
+    groups.find((group) =>
+      group.tasks.some(
+        (task) =>
+          studentTaskStatus(task.submissions[0], task.maxScore) !== "solved",
+      ),
+    ) ?? groups[0];
+  const nextTask = nextGroup?.tasks.find(
+    (task) =>
+      studentTaskStatus(task.submissions[0], task.maxScore) !== "solved",
+  );
+  const resumeHref = ongoing
+    ? "/groups/" + ongoing.set.groupId + "/sets/" + ongoing.setId + "/training"
+    : nextTask
+      ? "/groups/" + nextGroup.id + "?tab=tasks#task-" + nextTask.id
+      : nextGroup
+        ? "/groups/" + nextGroup.id + "?tab=sets"
+        : null;
   return (
     <>
       <Header user={user} />
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <h1 className="mb-6 font-heading text-xl font-semibold tracking-tight text-ink">{t("dashboard.title")}</h1>
+      <main className="mx-auto max-w-5xl space-y-7 px-4 py-7 sm:px-6 sm:py-10">
         <ErrorBanner message={error} />
         <SuccessBanner message={ok} />
-
-        {user.role === "TEACHER" ? (
-          <section className={`${cardClasses} mb-8`}>
-            <h2 className="mb-4 text-base font-semibold text-ink">{t("dashboard.createGroup")}</h2>
-            <form className="grid gap-4" action="/api/groups" method="post">
-              <TextInput label={t("dashboard.groupName")} name="name" placeholder={t("dashboard.groupNamePlaceholder")} />
-              <TextArea label={t("dashboard.groupDesc")} name="description" placeholder={t("dashboard.groupDescPlaceholder")} />
-              <Button className="w-fit">{t("dashboard.createGroup")}</Button>
-            </form>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-navy">
+            Olympic Meridian
+          </p>
+          <h1 className="font-heading text-xl font-semibold sm:text-2xl">
+            {t("dashboard.title")}
+          </h1>
+          <p className="mt-2 text-ink-soft">
+            {t(teacher ? "ui.teacherSubtitle" : "ui.studentSubtitle")}
+          </p>
+        </div>
+        {!teacher && resumeHref && (
+          <section className="flex flex-col justify-between gap-5 rounded-2xl bg-navy p-6 text-white sm:flex-row sm:items-center sm:p-7">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wider text-white/70">
+                {t("ui.continue")}
+              </p>
+              <h2 className="mt-2 text-lg font-semibold">
+                {ongoing?.set.title ?? nextTask?.title ?? nextGroup.name}
+              </h2>
+              <p className="mt-1 text-sm text-white/75">
+                {ongoing ? t("ui.trainingHint") : nextGroup?.name}
+              </p>
+            </div>
+            <Link
+              href={resumeHref}
+              className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-navy"
+            >
+              {t("ui.continue")} →
+            </Link>
           </section>
-        ) : (
-          <section className={`${cardClasses} mb-8`}>
-            <h2 className="mb-4 text-base font-semibold text-ink">{t("dashboard.joinGroup")}</h2>
-            <form className="flex max-w-md flex-col gap-2 sm:flex-row" action="/api/groups/join" method="post">
+        )}
+        {results.length > 0 && (
+          <section className={cardClasses}>
+            <h2 className="mb-3 font-semibold">{t("ui.newResults")}</h2>
+            <div className="divide-y divide-line">
+              {results.map((review) => (
+                <Link
+                  key={review.id}
+                  href={
+                    "/groups/" +
+                    review.submission.task.groupId +
+                    "?tab=tasks#task-" +
+                    review.submission.taskId
+                  }
+                  className="flex items-center justify-between gap-3 py-3 text-sm hover:text-navy"
+                >
+                  <span>{review.submission.task.title}</span>
+                  <Badge tone="green">
+                    {review.score}/{review.submission.task.maxScore}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        <section>
+          <h2 className="mb-4 font-heading text-base font-semibold">
+            {t("dashboard.groups")}
+          </h2>
+          {groups.length ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {groups.map((group) => (
+                <article key={group.id} className={cardClasses}>
+                  <h3 className="text-base font-semibold">{group.name}</h3>
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-ink-soft">
+                    {group.description}
+                  </p>
+                  <div className="my-4 flex flex-wrap gap-2">
+                    <Badge>
+                      {t("set.tasksBadge")}: {group._count.tasks}
+                    </Badge>
+                    <Badge>
+                      {t("group.tabSets")}: {group._count.taskSets}
+                    </Badge>
+                    {teacher && (
+                      <Badge tone="emerald">{group.inviteCode}</Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <LinkButton
+                      href={
+                        "/groups/" +
+                        group.id +
+                        (group._count.taskSets && !teacher
+                          ? "?tab=sets"
+                          : "?tab=tasks")
+                      }
+                      variant="primary"
+                      className="min-h-11"
+                    >
+                      {t(
+                        teacher
+                          ? "group.tabTasks"
+                          : group._count.taskSets
+                            ? "ui.openSets"
+                            : "ui.openTasks",
+                      )}
+                    </LinkButton>
+                    {teacher && (
+                      <LinkButton
+                        href={"/groups/" + group.id + "?tab=sets"}
+                        className="min-h-11"
+                      >
+                        {t("group.tabSets")}
+                      </LinkButton>
+                    )}
+                    {teacher && (
+                      <LinkButton
+                        href={
+                          "/groups/" +
+                          group.id +
+                          "?tab=submissions&filter=pending"
+                        }
+                        className="min-h-11"
+                      >
+                        {t("group.tabSubmissions")}
+                      </LinkButton>
+                    )}
+                    <LinkButton
+                      href={"/groups/" + group.id + "?tab=materials"}
+                      className="min-h-11"
+                    >
+                      {t("group.tabMaterials")}
+                    </LinkButton>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title={t("dashboard.emptyTitle")}
+              description={t(
+                teacher ? "dashboard.emptyTeacher" : "dashboard.emptyStudent",
+              )}
+            />
+          )}
+        </section>
+        <details open={!groups.length} className={cardClasses}>
+          <summary className="cursor-pointer font-semibold">
+            {t(
+              teacher
+                ? "dashboard.createGroup"
+                : groups.length
+                  ? "ui.joinCompact"
+                  : "dashboard.joinGroup",
+            )}
+          </summary>
+          {teacher ? (
+            <form
+              className="mt-4 grid max-w-xl gap-4"
+              action="/api/groups"
+              method="post"
+            >
+              <TextInput
+                label={t("dashboard.groupName")}
+                name="name"
+                placeholder={t("dashboard.groupNamePlaceholder")}
+              />
+              <TextArea
+                label={t("dashboard.groupDesc")}
+                name="description"
+                placeholder={t("dashboard.groupDescPlaceholder")}
+              />
+              <Button className="min-h-11 w-fit">
+                {t("dashboard.createGroup")}
+              </Button>
+            </form>
+          ) : (
+            <form
+              className="mt-4 flex max-w-md flex-col gap-3 sm:flex-row"
+              action="/api/groups/join"
+              method="post"
+            >
               <input
-                className={`flex-1 ${inputClasses}`}
+                className={"min-w-0 flex-1 " + inputClasses}
+                aria-label={t("dashboard.joinCodePlaceholder")}
                 name="inviteCode"
                 placeholder={t("dashboard.joinCodePlaceholder")}
                 required
               />
-              <Button className="shrink-0">{t("dashboard.join")}</Button>
+              <Button className="min-h-11">{t("dashboard.join")}</Button>
             </form>
-          </section>
-        )}
-
+          )}
+        </details>
         {achievements && (
           <Link
             href="/achievements"
-            className={`${cardClasses} mb-8 flex flex-wrap items-center justify-between gap-3 transition hover:border-navy/40 hover:shadow-md`}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-5 py-4 text-sm"
           >
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-ink">{t("common.achievements")}</h2>
-                {achievements.unseenCount > 0 && (
-                  <Badge tone="emerald">
-                    {t("dashboard.newBadges")}: {achievements.unseenCount}
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-sm text-ink-soft">
-                {t("dashboard.badges")}: {achievements.earnedCount} / {badgeCatalog.length} ·{" "}
-                {t("dashboard.streak")} {achievements.streak} {t("dashboard.days")}
-              </p>
-            </div>
-            <BadgeGlyph family="streak" className="h-8 w-8 text-gold" />
+            <span className="font-semibold">{t("common.achievements")} →</span>
+            <span className="text-ink-mute">
+              {t("dashboard.badges")}: {achievements.earned}/
+              {badgeCatalog.length} · {t("dashboard.streak")}{" "}
+              {achievements.streak} {t("dashboard.days")}
+            </span>
           </Link>
-        )}
-
-        <h2 className="mb-4 font-heading text-base font-semibold text-ink">{t("dashboard.groups")}</h2>
-        {groups.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {groups.map((group) => (
-              <Link
-                className={`${cardClasses} block transition hover:border-navy/40 hover:shadow-md`}
-                href={`/groups/${group.id}`}
-                key={group.id}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="font-semibold text-ink">{group.name}</h2>
-                  {groupsWithNewResults.has(group.id) && <Badge tone="emerald">{t("dashboard.newResult")}</Badge>}
-                </div>
-                <p className="mt-1 text-sm text-ink-soft">{group.description}</p>
-                {user.role === "TEACHER" && (
-                  <div className="mt-3">
-                    <Badge tone="emerald">
-                      {t("dashboard.code")}: <span className="font-mono">{group.inviteCode}</span>
-                    </Badge>
-                  </div>
-                )}
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={t("dashboard.emptyTitle")}
-            description={
-              user.role === "TEACHER" ? t("dashboard.emptyTeacher") : t("dashboard.emptyStudent")
-            }
-          />
         )}
       </main>
     </>

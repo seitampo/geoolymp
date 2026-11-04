@@ -47,6 +47,16 @@ button {
   cursor: pointer;
 }
 
+button:disabled { cursor: not-allowed; }
+html { scroll-behavior: smooth; }
+body { overflow-wrap: break-word; }
+input, textarea, select { min-width: 0; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
 ::selection {
   background: #d9e4ef;
 }

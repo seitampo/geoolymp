@@ -27,16 +27,86 @@ export type AchievementStats = {
 };
 
 export const badgeCatalog: BadgeDef[] = [
-  { code: "task-1", family: "tasks", title: "Первое решение", description: "Решить первую задачу", stat: "solvedTasks", target: 1 },
-  { code: "task-10", family: "tasks", title: "Десяток", description: "Решить 10 задач", stat: "solvedTasks", target: 10 },
-  { code: "task-50", family: "tasks", title: "Полусотня", description: "Решить 50 задач", stat: "solvedTasks", target: 50 },
-  { code: "task-100", family: "tasks", title: "Сотня", description: "Решить 100 задач", stat: "solvedTasks", target: 100 },
-  { code: "map-1", family: "maps", title: "Первая карта", description: "Верно отметить объект на карте", stat: "solvedMaps", target: 1 },
-  { code: "map-10", family: "maps", title: "Картограф", description: "Решить 10 картозадач", stat: "solvedMaps", target: 10 },
-  { code: "map-25", family: "maps", title: "Покоритель карт", description: "Решить 25 картозадач", stat: "solvedMaps", target: 25 },
-  { code: "streak-3", family: "streak", title: "Три дня подряд", description: "Заниматься 3 дня подряд", stat: "currentStreak", target: 3 },
-  { code: "streak-7", family: "streak", title: "Неделя подряд", description: "Заниматься 7 дней подряд", stat: "currentStreak", target: 7 },
-  { code: "streak-30", family: "streak", title: "Месяц подряд", description: "Заниматься 30 дней подряд", stat: "currentStreak", target: 30 },
+  {
+    code: "task-1",
+    family: "tasks",
+    title: "Первое решение",
+    description: "Решить первую задачу",
+    stat: "solvedTasks",
+    target: 1,
+  },
+  {
+    code: "task-10",
+    family: "tasks",
+    title: "Десяток",
+    description: "Решить 10 задач",
+    stat: "solvedTasks",
+    target: 10,
+  },
+  {
+    code: "task-50",
+    family: "tasks",
+    title: "Полусотня",
+    description: "Решить 50 задач",
+    stat: "solvedTasks",
+    target: 50,
+  },
+  {
+    code: "task-100",
+    family: "tasks",
+    title: "Сотня",
+    description: "Решить 100 задач",
+    stat: "solvedTasks",
+    target: 100,
+  },
+  {
+    code: "map-1",
+    family: "maps",
+    title: "Первая карта",
+    description: "Верно отметить объект на карте",
+    stat: "solvedMaps",
+    target: 1,
+  },
+  {
+    code: "map-10",
+    family: "maps",
+    title: "Картограф",
+    description: "Решить 10 картозадач",
+    stat: "solvedMaps",
+    target: 10,
+  },
+  {
+    code: "map-25",
+    family: "maps",
+    title: "Покоритель карт",
+    description: "Решить 25 картозадач",
+    stat: "solvedMaps",
+    target: 25,
+  },
+  {
+    code: "streak-3",
+    family: "streak",
+    title: "Три дня подряд",
+    description: "Заниматься 3 дня подряд",
+    stat: "currentStreak",
+    target: 3,
+  },
+  {
+    code: "streak-7",
+    family: "streak",
+    title: "Неделя подряд",
+    description: "Заниматься 7 дней подряд",
+    stat: "currentStreak",
+    target: 7,
+  },
+  {
+    code: "streak-30",
+    family: "streak",
+    title: "Месяц подряд",
+    description: "Заниматься 30 дней подряд",
+    stat: "currentStreak",
+    target: 30,
+  },
 ];
 
 export const badgeFamilyLabels: Record<BadgeFamily, string> = {
@@ -80,16 +150,31 @@ function computeCurrentStreak(dates: Date[]): number {
   return streak;
 }
 
-export async function computeAchievementStats(userId: number): Promise<AchievementStats> {
-  const [solvedTasks, solvedMaps, submissions, trainings, views] = await Promise.all([
-    // «Решено» = проверенное решение с положительным баллом (автопроверка или учитель).
-    prisma.review.count({ where: { score: { gt: 0 }, submission: { studentId: userId } } }),
-    prisma.review.count({
-      where: { score: { gt: 0 }, submission: { studentId: userId, task: { type: "MAP_POINT" } } },
+export async function computeAchievementStats(
+  userId: number,
+): Promise<AchievementStats> {
+  const [reviews, submissions, trainings, views] = await Promise.all([
+    prisma.review.findMany({
+      where: { submission: { studentId: userId } },
+      select: {
+        score: true,
+        submission: {
+          select: { task: { select: { type: true, maxScore: true } } },
+        },
+      },
     }),
-    prisma.submission.findMany({ where: { studentId: userId }, select: { updatedAt: true, createdAt: true } }),
-    prisma.trainingAttempt.findMany({ where: { studentId: userId }, select: { startedAt: true } }),
-    prisma.materialView.findMany({ where: { userId }, select: { viewedAt: true } }),
+    prisma.submission.findMany({
+      where: { studentId: userId },
+      select: { updatedAt: true, createdAt: true },
+    }),
+    prisma.trainingAttempt.findMany({
+      where: { studentId: userId },
+      select: { startedAt: true },
+    }),
+    prisma.materialView.findMany({
+      where: { userId },
+      select: { viewedAt: true },
+    }),
   ]);
 
   const activityDates = [
@@ -99,19 +184,32 @@ export async function computeAchievementStats(userId: number): Promise<Achieveme
   ];
 
   return {
-    solvedTasks,
-    solvedMaps,
+    solvedTasks: reviews.filter(
+      (review) => review.score >= review.submission.task.maxScore,
+    ).length,
+    solvedMaps: reviews.filter(
+      (review) =>
+        review.submission.task.type === "MAP_POINT" &&
+        review.score >= review.submission.task.maxScore,
+    ).length,
     currentStreak: computeCurrentStreak(activityDates),
   };
 }
 
 /** Выдать недостающие заслуженные значки (идемпотентно). */
-export async function awardEarnedBadges(userId: number, stats: AchievementStats) {
-  const earned = await prisma.earnedBadge.findMany({ where: { userId }, select: { code: true } });
+export async function awardEarnedBadges(
+  userId: number,
+  stats: AchievementStats,
+) {
+  const earned = await prisma.earnedBadge.findMany({
+    where: { userId },
+    select: { code: true },
+  });
   const earnedCodes = new Set(earned.map((badge) => badge.code));
 
   const toAward = badgeCatalog.filter(
-    (badge) => stats[badge.stat] >= badge.target && !earnedCodes.has(badge.code),
+    (badge) =>
+      stats[badge.stat] >= badge.target && !earnedCodes.has(badge.code),
   );
 
   if (toAward.length === 0) {

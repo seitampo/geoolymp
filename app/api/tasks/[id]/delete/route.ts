@@ -1,15 +1,19 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectWithSuccess } from "@/lib/formResponse";
+import { redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
+import { taskHasStartedAttempts } from "@/lib/lockedTasks";
 import { deleteUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
@@ -35,7 +39,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
-  await prisma.task.delete({ where: { id: taskId } });
+  if (
+    await prisma.trainingAttempt.count({
+      where: { set: { items: { some: { taskId } } } },
+    })
+  )
+    return redirectWithError(
+      request,
+      "/groups/" + task.groupId + "?tab=tasks",
+      t("ui.lockedSet"),
+    );
+  const removed = await prisma.$transaction(async (tx) => {
+    if (await taskHasStartedAttempts(tx, taskId)) return false;
+    await tx.task.delete({ where: { id: taskId } });
+    return true;
+  });
+  if (!removed)
+    return redirectWithError(
+      request,
+      "/groups/" + task.groupId + "?tab=tasks",
+      t("ui.lockedSet"),
+    );
 
   if (task.imagePath) {
     await deleteUploadedFile(task.imagePath);
@@ -47,5 +71,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  return redirectWithSuccess(request, `/groups/${task.groupId}?tab=tasks`, t("ok.taskDeleted"));
+  return redirectWithSuccess(
+    request,
+    `/groups/${task.groupId}?tab=tasks`,
+    t("ok.taskDeleted"),
+  );
 }

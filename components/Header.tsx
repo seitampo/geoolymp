@@ -11,15 +11,15 @@ export async function Header({ user }: { user: User }) {
 
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-white/85 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex min-h-16 max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
         <Link
           href="/dashboard"
-          className="flex shrink-0 items-center gap-2 font-heading text-base font-semibold tracking-tight text-ink"
+          className="flex min-w-0 items-center gap-2 font-heading text-sm font-semibold tracking-tight text-ink sm:text-base"
         >
-          <Compass className="h-9 w-9" />
-          Olympic Meridian
+          <Compass className="h-8 w-8 shrink-0 sm:h-9 sm:w-9" />
+          <span className="truncate">Olympic Meridian</span>
         </Link>
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           {user.role === "STUDENT" && (
             <Link
               href="/achievements"
@@ -29,10 +29,12 @@ export async function Header({ user }: { user: User }) {
             </Link>
           )}
           <LanguageSwitcher locale={locale} aria={t("lang.aria")} />
-          <div className="min-w-0 text-right leading-tight">
+          <div className="hidden min-w-0 text-right leading-tight md:block">
             <p className="truncate text-sm font-medium text-ink">{user.name}</p>
             <p className="text-xs text-ink-mute">
-              {user.role === "TEACHER" ? t("common.teacher") : t("common.student")}
+              {user.role === "TEACHER"
+                ? t("common.teacher")
+                : t("common.student")}
             </p>
           </div>
           <form action="/api/auth/logout" method="post">

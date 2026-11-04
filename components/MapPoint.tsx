@@ -34,7 +34,15 @@ function clickToWidthPercent(event: MouseEvent<HTMLElement>): Point {
 }
 
 /** Круг цели (центр + допуск) поверх карты. */
-function TargetCircle({ point, radius, aspect }: { point: Point; radius: number; aspect: number }) {
+function TargetCircle({
+  point,
+  radius,
+  aspect,
+}: {
+  point: Point;
+  radius: number;
+  aspect: number;
+}) {
   return (
     <>
       <span
@@ -83,16 +91,22 @@ export function MapPointEditor({
   labels: MapEditorLabels;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(existingImageUrl ?? null);
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    existingImageUrl ?? null,
+  );
   const [point, setPoint] = useState<Point | null>(
-    initialX !== undefined && initialY !== undefined ? { x: initialX, y: initialY } : null,
+    initialX !== undefined && initialY !== undefined
+      ? { x: initialX, y: initialY }
+      : null,
   );
   const [radius, setRadius] = useState(initialRadius ?? 6);
   const [aspect, setAspect] = useState(1);
 
   useEffect(() => {
     const form = wrapperRef.current?.closest("form");
-    const fileInput = form?.querySelector<HTMLInputElement>('input[name="image"]');
+    const fileInput = form?.querySelector<HTMLInputElement>(
+      'input[name="image"]',
+    );
 
     if (!fileInput) {
       return;
@@ -127,19 +141,27 @@ export function MapPointEditor({
             alt={labels.alt}
             draggable={false}
             onLoad={(event) =>
-              setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)
+              setAspect(
+                event.currentTarget.naturalWidth /
+                  event.currentTarget.naturalHeight,
+              )
             }
             onClick={(event) => setPoint(clickToWidthPercent(event))}
           />
-          {point && <TargetCircle point={point} radius={radius} aspect={aspect} />}
+          {point && (
+            <TargetCircle point={point} radius={radius} aspect={aspect} />
+          )}
         </div>
       ) : (
-        <p className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink-mute">{labels.placeholder}</p>
+        <p className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink-mute">
+          {labels.placeholder}
+        </p>
       )}
 
       {imageUrl && (
         <label className="mt-3 block text-xs text-ink-soft">
-          {labels.tolerance} <span className="font-medium">{radius}%</span> {labels.toleranceSuffix}
+          {labels.tolerance} <span className="font-medium">{radius}%</span>{" "}
+          {labels.toleranceSuffix}
           <input
             className="mt-1 block w-full accent-navy"
             type="range"
@@ -152,9 +174,21 @@ export function MapPointEditor({
         </label>
       )}
 
-      <input type="hidden" name="mapTargetX" value={point ? String(point.x) : ""} />
-      <input type="hidden" name="mapTargetY" value={point ? String(point.y) : ""} />
-      <input type="hidden" name="mapRadius" value={point ? String(radius) : ""} />
+      <input
+        type="hidden"
+        name="mapTargetX"
+        value={point ? String(point.x) : ""}
+      />
+      <input
+        type="hidden"
+        name="mapTargetY"
+        value={point ? String(point.y) : ""}
+      />
+      <input
+        type="hidden"
+        name="mapRadius"
+        value={point ? String(radius) : ""}
+      />
     </div>
   );
 }
@@ -170,28 +204,45 @@ export function MapAnswerInput({
   readOnly = false,
   target,
   labels,
+  value,
+  onChange,
 }: {
   imageUrl: string;
   initialAnswer?: string;
   readOnly?: boolean;
   target?: { x: number; y: number; radius: number };
   labels: MapAnswerLabels;
+  value?: string;
+  onChange?: (answer: string) => void;
 }) {
   const [point, setPoint] = useState<Point | null>(() => {
     if (!initialAnswer) {
       return null;
     }
     const parts = initialAnswer.split(";").map((value) => Number(value.trim()));
-    return parts.length === 2 && parts.every(Number.isFinite) ? { x: parts[0], y: parts[1] } : null;
+    return parts.length === 2 && parts.every(Number.isFinite)
+      ? { x: parts[0], y: parts[1] }
+      : null;
   });
   const [aspect, setAspect] = useState(1);
+
+  const shownPoint =
+    value === undefined
+      ? point
+      : (() => {
+          if (!value) return null;
+          const values = value.split(";").map(Number);
+          return values.length === 2 && values.every(Number.isFinite)
+            ? { x: values[0], y: values[1] }
+            : null;
+        })();
 
   return (
     <div>
       {!readOnly && (
         <p className="mb-2 text-sm text-ink-soft">
           {labels.clickToAnswer}
-          {point ? labels.clickToMove : ""}.
+          {shownPoint ? labels.clickToMove : ""}.
         </p>
       )}
       <div
@@ -205,14 +256,37 @@ export function MapAnswerInput({
           alt={labels.alt}
           draggable={false}
           onLoad={(event) =>
-            setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)
+            setAspect(
+              event.currentTarget.naturalWidth /
+                event.currentTarget.naturalHeight,
+            )
           }
-          onClick={readOnly ? undefined : (event) => setPoint(clickToWidthPercent(event))}
+          onClick={
+            readOnly
+              ? undefined
+              : (event) => {
+                  const next = clickToWidthPercent(event);
+                  setPoint(next);
+                  onChange?.(`${next.x};${next.y}`);
+                }
+          }
         />
-        {target && <TargetCircle point={{ x: target.x, y: target.y }} radius={target.radius} aspect={aspect} />}
-        {point && <AnswerMarker point={point} aspect={aspect} />}
+        {target && (
+          <TargetCircle
+            point={{ x: target.x, y: target.y }}
+            radius={target.radius}
+            aspect={aspect}
+          />
+        )}
+        {shownPoint && <AnswerMarker point={shownPoint} aspect={aspect} />}
       </div>
-      {!readOnly && <input type="hidden" name="answer" value={point ? `${point.x};${point.y}` : ""} />}
+      {!readOnly && (
+        <input
+          type="hidden"
+          name="answer"
+          value={shownPoint ? `${shownPoint.x};${shownPoint.y}` : ""}
+        />
+      )}
     </div>
   );
 }

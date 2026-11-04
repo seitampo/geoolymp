@@ -12,6 +12,7 @@ import { useEffect } from "react";
 export function SubmitGuard() {
   useEffect(() => {
     const onSubmit = (event: Event) => {
+      if (event.defaultPrevented) return;
       const form = event.target;
 
       if (!(form instanceof HTMLFormElement)) {

@@ -7,7 +7,9 @@ import { cardClasses } from "@/components/Card";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { TextArea } from "@/components/FormFields";
 import { Header } from "@/components/Header";
-import { TrainingTimer } from "@/components/TrainingTimer";
+import { trainingScore } from "@/lib/trainingScore";
+import { TrainingSession } from "@/components/TrainingSession";
+import { editorLabels, workspaceLabels } from "@/lib/uiLabels";
 import { getCurrentUser } from "@/lib/auth";
 import { getT, type TFunction } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
@@ -16,7 +18,10 @@ import { prisma } from "@/lib/prisma";
 import { MapAnswerInput } from "@/components/MapPoint";
 import { mapAnswerLabels } from "@/lib/mapLabels";
 import { isAutoCheckedTask, isMapTask, parseTaskOptions } from "@/lib/tasks";
-import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/training";
+import {
+  finalizeTrainingAttempt,
+  isTrainingSupportedTaskType,
+} from "@/lib/training";
 
 export default async function TrainingPage({
   params,
@@ -37,7 +42,11 @@ export default async function TrainingPage({
   const groupId = parseEntityId(id);
   const parsedSetId = parseEntityId(setId);
 
-  if (groupId === null || parsedSetId === null || !(await canOpenGroup(user.id, groupId))) {
+  if (
+    groupId === null ||
+    parsedSetId === null ||
+    !(await canOpenGroup(user.id, groupId))
+  ) {
     notFound();
   }
 
@@ -48,7 +57,9 @@ export default async function TrainingPage({
 
   const set = await prisma.taskSet.findUnique({
     where: { id: parsedSetId },
-    include: { items: { orderBy: { position: "asc" }, include: { task: true } } },
+    include: {
+      items: { orderBy: { position: "asc" }, include: { task: true } },
+    },
   });
 
   if (!set || set.groupId !== groupId || !set.trainingMinutes) {
@@ -80,7 +91,9 @@ export default async function TrainingPage({
   const trainingTasks = set.items
     .filter((item) => isTrainingSupportedTaskType(item.task.type))
     .map((item) => item.task);
-  const answerByTaskId = new Map(attempt.answers.map((answer) => [answer.taskId, answer]));
+  const answerByTaskId = new Map(
+    attempt.answers.map((answer) => [answer.taskId, answer]),
+  );
 
   return (
     <>
@@ -96,9 +109,21 @@ export default async function TrainingPage({
         </Link>
 
         {attempt.finishedAt ? (
-          <TrainingResult set={set} tasks={trainingTasks} attempt={attempt} groupId={groupId} t={t} />
+          <TrainingResult
+            set={set}
+            tasks={trainingTasks}
+            attempt={attempt}
+            groupId={groupId}
+            t={t}
+          />
         ) : (
-          <ActiveTraining set={set} tasks={trainingTasks} attempt={attempt} answerByTaskId={answerByTaskId} t={t} />
+          <ActiveTraining
+            set={set}
+            tasks={trainingTasks}
+            attempt={attempt}
+            answerByTaskId={answerByTaskId}
+            t={t}
+          />
         )}
       </main>
     </>
@@ -118,118 +143,33 @@ function ActiveTraining({
   answerByTaskId: Map<number, TrainingAnswer>;
   t: TFunction;
 }) {
-  const answeredCount = tasks.filter((task) => answerByTaskId.has(task.id)).length;
-
   return (
-    <div className="space-y-5">
-      <div className={`${cardClasses} sticky top-16 z-10 flex flex-wrap items-center justify-between gap-3`}>
-        <div className="min-w-0">
-          <h1 className="font-heading text-base font-semibold tracking-tight text-ink">{set.title}</h1>
-          <p className="mt-0.5 text-xs text-ink-mute">
-            {t("training.answeredPre")} {answeredCount} {t("stats.of")} {tasks.length}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <TrainingTimer expiresAt={attempt.expiresAt.toISOString()} />
-          <form action={`/api/training/${attempt.id}/finish`} method="post">
-            <Button variant="secondary" size="sm">
-              {t("training.finish")}
-            </Button>
-          </form>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        {t("training.warning")}
-      </div>
-
-      {tasks.map((task, index) => {
-        const savedAnswer = answerByTaskId.get(task.id);
-        const options = parseTaskOptions(task.options);
-
-        return (
-          <article className={cardClasses} key={task.id}>
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <h2 className="font-semibold text-ink">
-                {index + 1}. {task.title}
-              </h2>
-              <div className="flex gap-1.5">
-                {savedAnswer && <Badge tone="green">{t("training.saved")}</Badge>}
-                <Badge tone="emerald">{t("training.maxScorePre")} {task.maxScore}</Badge>
-              </div>
-            </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
-            {task.imagePath && !isMapTask(task.type) && (
-              <img
-                className="mt-3 max-h-80 rounded-lg border border-line object-contain"
-                src={`/api/tasks/${task.id}/image`}
-                alt={task.title}
-                loading="lazy"
-              />
-            )}
-
-            <form className="mt-4 grid gap-3" action={`/api/training/${attempt.id}/answers`} method="post">
-              <input type="hidden" name="taskId" value={task.id} />
-              {task.type === "TEXT" && (
-                <TextArea label={t("answerForm.answer")} name="answer" defaultValue={savedAnswer?.answer ?? ""} />
-              )}
-              {task.type === "MAP_POINT" && task.imagePath && (
-                <MapAnswerInput
-                  imageUrl={`/api/tasks/${task.id}/image`}
-                  initialAnswer={savedAnswer?.answer}
-                  labels={mapAnswerLabels(t)}
-                />
-              )}
-              {task.type === "SINGLE_CHOICE" &&
-                options.map((option) => (
-                  <label
-                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-navy/40"
-                    key={option}
-                  >
-                    <input
-                      className="h-4 w-4 accent-navy"
-                      name="answer"
-                      type="radio"
-                      value={option}
-                      required
-                      defaultChecked={savedAnswer?.answer === option}
-                    />
-                    {option}
-                  </label>
-                ))}
-              {task.type === "MULTIPLE_CHOICE" &&
-                options.map((option) => {
-                  const selected = savedAnswer?.answer
-                    ? savedAnswer.answer.split(";").map((value) => value.trim())
-                    : [];
-                  return (
-                    <label
-                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink transition-colors hover:border-navy/40"
-                      key={option}
-                    >
-                      <input
-                        className="h-4 w-4 accent-navy"
-                        name="answer"
-                        type="checkbox"
-                        value={option}
-                        defaultChecked={selected.includes(option)}
-                      />
-                      {option}
-                    </label>
-                  );
-                })}
-              <Button className="w-fit" variant="secondary" size="sm">
-                {savedAnswer ? t("training.updateAnswer") : t("training.saveAnswer")}
-              </Button>
-            </form>
-          </article>
-        );
-      })}
-
-      <form className="text-center" action={`/api/training/${attempt.id}/finish`} method="post">
-        <Button variant="primary">{t("training.finishTraining")}</Button>
-      </form>
-    </div>
+    <TrainingSession
+      attemptId={attempt.id}
+      expiresAt={attempt.expiresAt.toISOString()}
+      title={set.title}
+      tasks={tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        type: task.type,
+        maxScore: task.maxScore,
+        options: parseTaskOptions(task.options),
+        imageUrl: task.imagePath
+          ? "/api/tasks/" + task.id + "/image"
+          : undefined,
+      }))}
+      initialAnswers={Object.fromEntries(
+        [...answerByTaskId].map(([id, answer]) => [id, answer.answer]),
+      )}
+      labels={editorLabels(t)}
+      mapLabels={mapAnswerLabels(t)}
+      workspace={workspaceLabels(t)}
+      finishLabel={t("training.finish")}
+      confirmLabel={t("ui.finishConfirm")}
+      cancelLabel={t("ui.cancel")}
+      warning={t("ui.trainingHint")}
+    />
   );
 }
 
@@ -242,20 +182,26 @@ function TrainingResult({
 }: {
   set: { id: number; title: string };
   tasks: Task[];
-  attempt: { startedAt: Date; finishedAt: Date | null; answers: TrainingAnswer[] };
+  attempt: {
+    startedAt: Date;
+    finishedAt: Date | null;
+    answers: TrainingAnswer[];
+  };
   groupId: number;
   t: TFunction;
 }) {
-  const answerByTaskId = new Map(attempt.answers.map((answer) => [answer.taskId, answer]));
+  const answerByTaskId = new Map(
+    attempt.answers.map((answer) => [answer.taskId, answer]),
+  );
 
   // Автоподсчёт — только задачи с вариантами и правильным ответом (автопроверка части 2).
   const autoTasks = tasks.filter((task) => isAutoCheckedTask(task));
-  const possibleScore = autoTasks.reduce((sum, task) => sum + task.maxScore, 0);
-  const earnedScore = autoTasks.reduce(
-    (sum, task) => sum + (answerByTaskId.get(task.id)?.score ?? 0),
-    0,
+  const { possibleScore, earnedScore } = trainingScore(tasks, attempt.answers);
+  const manualTasks = tasks.filter(
+    (task) =>
+      !autoTasks.includes(task) &&
+      answerByTaskId.get(task.id)?.isCorrect === null,
   );
-  const manualTasks = tasks.filter((task) => !autoTasks.includes(task));
 
   const durationMs = attempt.finishedAt
     ? attempt.finishedAt.getTime() - attempt.startedAt.getTime()
@@ -266,15 +212,22 @@ function TrainingResult({
   return (
     <div className="space-y-5">
       <section className={`${cardClasses} text-center`}>
-        <p className="text-sm font-medium text-green-700">{t("training.finished")}</p>
-        <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight text-ink">{set.title}</h1>
+        <p className="text-sm font-medium text-green-700">
+          {t("training.finished")}
+        </p>
+        <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight text-ink">
+          {set.title}
+        </h1>
         <p className="mt-4 text-4xl font-bold text-ink">
           {earnedScore}
-          <span className="text-xl font-medium text-ink-mute"> {t("stats.of")} {possibleScore}</span>
+          <span className="text-xl font-medium text-ink-mute">
+            {" "}
+            {t("stats.of")} {possibleScore}
+          </span>
         </p>
         <p className="mt-1 text-sm text-ink-mute">
-          {t("training.autoScoreSuffix")} · {t("training.timeWord")} {durationMinutes}:
-          {String(durationSeconds).padStart(2, "0")}
+          {t("training.autoScoreSuffix")} · {t("training.timeWord")}{" "}
+          {durationMinutes}:{String(durationSeconds).padStart(2, "0")}
         </p>
         <div className="mt-5">
           <LinkButton href={`/groups/${groupId}?tab=sets`} variant="secondary">
@@ -294,20 +247,39 @@ function TrainingResult({
                 {index + 1}. {task.title}
               </h2>
               <div className="flex gap-1.5">
-                {isAuto ? (
-                  answer?.isCorrect ? (
-                    <Badge tone="green">{t("training.correctPre")} {answer.score} {t("stats.of")} {task.maxScore}</Badge>
-                  ) : answer ? (
-                    <Badge tone="red">{t("training.wrongPre")} {t("stats.of")} {task.maxScore}</Badge>
-                  ) : (
-                    <Badge tone="red">{t("training.noAnswerPre")} {t("stats.of")} {task.maxScore}</Badge>
-                  )
+                {answer && (isAuto || answer.isCorrect !== null) ? (
+                  <Badge
+                    tone={
+                      answer.score >= task.maxScore
+                        ? "green"
+                        : answer.score > 0
+                          ? "amber"
+                          : "red"
+                    }
+                  >
+                    {t(
+                      answer.score >= task.maxScore
+                        ? "taskStatus.solved"
+                        : answer.score > 0
+                          ? "taskStatus.partial"
+                          : "taskStatus.wrong",
+                    )}{" "}
+                    · {answer.score}/{task.maxScore}
+                  </Badge>
                 ) : (
-                  <Badge>{t("training.noAutoCheck")}</Badge>
+                  <Badge>
+                    {t(
+                      answer
+                        ? "training.noAutoCheck"
+                        : "taskStatus.notSubmitted",
+                    )}
+                  </Badge>
                 )}
               </div>
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">
+              {task.description}
+            </p>
             {isMapTask(task.type) && task.imagePath ? (
               <div className="mt-3">
                 <MapAnswerInput
@@ -315,23 +287,34 @@ function TrainingResult({
                   initialAnswer={answer?.answer}
                   readOnly
                   target={
-                    task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null
-                      ? { x: task.mapTargetX, y: task.mapTargetY, radius: task.mapRadius }
+                    task.mapTargetX !== null &&
+                    task.mapTargetY !== null &&
+                    task.mapRadius !== null
+                      ? {
+                          x: task.mapTargetX,
+                          y: task.mapTargetY,
+                          radius: task.mapRadius,
+                        }
                       : undefined
                   }
                   labels={mapAnswerLabels(t)}
                 />
-                <p className="mt-1.5 text-xs text-ink-mute">{t("training.mapHint")}</p>
+                <p className="mt-1.5 text-xs text-ink-mute">
+                  {t("training.mapHint")}
+                </p>
               </div>
             ) : (
               <div className="mt-3 space-y-1 rounded-lg bg-paper px-3 py-2 text-sm">
                 <p className="text-ink-soft">
                   {t("training.yourAnswerPre")}{" "}
-                  <span className="font-medium text-ink">{answer?.answer || "—"}</span>
+                  <span className="font-medium text-ink">
+                    {answer?.answer || "—"}
+                  </span>
                 </p>
                 {isAuto && (
                   <p className="text-green-800">
-                    {t("training.correctAnswerPre")} <span className="font-medium">{task.correctAnswer}</span>
+                    {t("training.correctAnswerPre")}{" "}
+                    <span className="font-medium">{task.correctAnswer}</span>
                   </p>
                 )}
               </div>
@@ -341,7 +324,9 @@ function TrainingResult({
       })}
 
       {manualTasks.length > 0 && (
-        <p className="text-center text-xs text-ink-mute">{t("training.manualNote")}</p>
+        <p className="text-center text-xs text-ink-mute">
+          {t("training.manualNote")}
+        </p>
       )}
     </div>
   );

@@ -6,7 +6,13 @@ import { NextRequest, NextResponse } from "next/server";
  * сценарии (неверный пароль, занятый email, неправильный код и т.п.), чтобы вместо
  * сырого JSON он видел человекочитаемое сообщение на самой форме.
  */
-export function redirectWithError(request: NextRequest, redirectTo: string, message: string) {
+export function redirectWithError(
+  request: NextRequest,
+  redirectTo: string,
+  message: string,
+) {
+  if (request.headers.get("accept")?.includes("application/json"))
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
   const url = new URL(redirectTo, request.url);
   url.searchParams.set("error", message);
   return NextResponse.redirect(url, 303);
@@ -14,6 +20,8 @@ export function redirectWithError(request: NextRequest, redirectTo: string, mess
 
 /** Успешный редирект после POST (303 — чтобы браузер сделал GET и не повторял форму). */
 export function redirectAfterPost(request: NextRequest, redirectTo: string) {
+  if (request.headers.get("accept")?.includes("application/json"))
+    return NextResponse.json({ ok: true, redirectTo });
   return NextResponse.redirect(new URL(redirectTo, request.url), 303);
 }
 
@@ -22,7 +30,13 @@ export function redirectAfterPost(request: NextRequest, redirectTo: string) {
  * Понимает адреса с якорем: параметр вставляется до «#», чтобы браузер
  * и показал баннер, и проскроллил к нужному блоку.
  */
-export function redirectWithSuccess(request: NextRequest, redirectTo: string, message: string) {
+export function redirectWithSuccess(
+  request: NextRequest,
+  redirectTo: string,
+  message: string,
+) {
+  if (request.headers.get("accept")?.includes("application/json"))
+    return NextResponse.json({ ok: true, message, redirectTo });
   const [path, fragment] = redirectTo.split("#");
   const url = new URL(path, request.url);
   url.searchParams.set("ok", message);

@@ -10,7 +10,10 @@ import { prisma } from "@/lib/prisma";
 import { isTrainingSupportedTaskType } from "@/lib/training";
 
 /** Старт тренировки: создаёт единственную попытку и фиксирует дедлайн. */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
@@ -21,7 +24,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (setId === null) {
-    return NextResponse.json({ error: "Подборка не найдена." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Подборка не найдена." },
+      { status: 404 },
+    );
   }
 
   const set = await prisma.taskSet.findUnique({
@@ -30,7 +36,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   if (!set || !(await canOpenGroup(user.id, set.groupId))) {
-    return NextResponse.json({ error: "Подборка не найдена." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Подборка не найдена." },
+      { status: 404 },
+    );
   }
 
   const backTo = `/groups/${set.groupId}/sets/${set.id}`;
@@ -40,8 +49,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, t("err.trainingNotConfigured"));
   }
 
-  const trainableTasks = set.items.filter(
-    (item) => isTrainingSupportedTaskType(item.task.type),
+  const trainableTasks = set.items.filter((item) =>
+    isTrainingSupportedTaskType(item.task.type),
   );
 
   if (trainableTasks.length === 0) {
@@ -49,16 +58,41 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
-    await prisma.trainingAttempt.create({
-      data: {
-        setId: set.id,
-        studentId: user.id,
-        expiresAt: new Date(Date.now() + set.trainingMinutes * 60 * 1000),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "TaskSet" WHERE id = ${setId} FOR UPDATE`;
+      const current = await tx.taskSet.findUnique({
+        where: { id: setId },
+        include: { items: { include: { task: true } } },
+      });
+      if (
+        !current?.trainingMinutes ||
+        !current.items.some((item) =>
+          isTrainingSupportedTaskType(item.task.type),
+        )
+      )
+        throw new Error(t("err.trainingNoTasks"));
+      if (
+        await tx.trainingAttempt.findUnique({
+          where: { setId_studentId: { setId, studentId: user.id } },
+        })
+      )
+        return;
+      await tx.trainingAttempt.create({
+        data: {
+          setId: set.id,
+          studentId: user.id,
+          expiresAt: new Date(Date.now() + current.trainingMinutes * 60 * 1000),
+        },
+      });
     });
   } catch (error) {
     // P2002 — попытка уже существует («одна попытка»): просто открываем её.
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) {
+    if (
+      !(
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      )
+    ) {
       throw error;
     }
   }
