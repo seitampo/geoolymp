@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Клиентский обратный отсчёт для режима тренировки. Только отображение:
@@ -8,15 +8,25 @@ import { useEffect, useState } from "react";
  * Когда время выходит, страница перезагружается — сервер завершает попытку
  * и показывает экран результата.
  */
-export function TrainingTimer({ expiresAt }: { expiresAt: string }) {
+export function TrainingTimer({
+  expiresAt,
+  onExpire,
+}: {
+  expiresAt: string;
+  onExpire?: () => void;
+}) {
   const [msLeft, setMsLeft] = useState<number | null>(null);
+  const callback = useRef(onExpire);
+  callback.current = onExpire;
 
   useEffect(() => {
     const tick = () => {
       const remaining = new Date(expiresAt).getTime() - Date.now();
 
       if (remaining <= 0) {
-        window.location.reload();
+        setMsLeft(0);
+        if (callback.current) callback.current();
+        else window.location.reload();
         return;
       }
 
@@ -29,7 +39,11 @@ export function TrainingTimer({ expiresAt }: { expiresAt: string }) {
   }, [expiresAt]);
 
   if (msLeft === null) {
-    return <span className="font-mono text-lg font-semibold tabular-nums text-ink">—:—</span>;
+    return (
+      <span className="font-mono text-lg font-semibold tabular-nums text-ink">
+        —:—
+      </span>
+    );
   }
 
   const totalSeconds = Math.floor(msLeft / 1000);

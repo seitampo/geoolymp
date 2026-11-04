@@ -1,4 +1,13 @@
-import { Material, Membership, Review, Role, Submission, Task, TaskSet, User } from "@prisma/client";
+import {
+  Material,
+  Membership,
+  Review,
+  Role,
+  Submission,
+  Task,
+  TaskSet,
+  User,
+} from "@prisma/client";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
@@ -7,9 +16,23 @@ import { cardClasses } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { CopyButton } from "@/components/CopyButton";
 import { ErrorBanner, SuccessBanner } from "@/components/ErrorBanner";
-import { FileInput, inputClasses, SelectField, TextArea, TextInput } from "@/components/FormFields";
+import {
+  FileInput,
+  inputClasses,
+  SelectField,
+  TextArea,
+  TextInput,
+} from "@/components/FormFields";
 import { Header } from "@/components/Header";
-import { mapEditorLabels, setModeLabels, taskFieldsLabels } from "@/lib/mapLabels";
+import { TaskWorkspace } from "@/components/TaskWorkspace";
+import { studentTaskStatus, type StudentTaskStatus } from "@/lib/taskStatus";
+import { workspaceLabels } from "@/lib/uiLabels";
+import { TaskForm } from "@/components/TaskForm";
+import {
+  mapEditorLabels,
+  setModeLabels,
+  taskFieldsLabels,
+} from "@/lib/mapLabels";
 import { SetModeFields } from "@/components/SetModeFields";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -31,7 +54,6 @@ import { maxUploadLabel } from "@/lib/uploads";
 
 type Tab = "materials" | "tasks" | "sets" | "submissions" | "members";
 
-type StudentTaskStatus = "not-submitted" | "pending" | "solved";
 type TaskFilter = "all" | StudentTaskStatus;
 type ReviewFilter = "all" | "pending";
 /** Порядок решений на вкладке «Решения». По умолчанию — сначала те, что ждут проверки. */
@@ -45,22 +67,33 @@ const submissionSorts: { value: SubmissionSort; key: TranslationKey }[] = [
 ];
 
 function getSubmissionSort(value?: string): SubmissionSort {
-  return submissionSorts.some((item) => item.value === value) ? (value as SubmissionSort) : "pending-first";
+  return submissionSorts.some((item) => item.value === value)
+    ? (value as SubmissionSort)
+    : "pending-first";
 }
 
 /** Сортировка в памяти: список решений группы уже загружен целиком. */
-function sortSubmissions(submissions: SubmissionForTeacher[], sort: SubmissionSort) {
-  const byNewest = (a: SubmissionForTeacher, b: SubmissionForTeacher) => b.id - a.id;
+function sortSubmissions(
+  submissions: SubmissionForTeacher[],
+  sort: SubmissionSort,
+) {
+  const byNewest = (a: SubmissionForTeacher, b: SubmissionForTeacher) =>
+    b.id - a.id;
   const copy = [...submissions];
 
   if (sort === "task") {
-    return copy.sort((a, b) => a.task.title.localeCompare(b.task.title) || byNewest(a, b));
+    return copy.sort(
+      (a, b) => a.task.title.localeCompare(b.task.title) || byNewest(a, b),
+    );
   }
   if (sort === "student") {
-    return copy.sort((a, b) => a.student.name.localeCompare(b.student.name) || byNewest(a, b));
+    return copy.sort(
+      (a, b) => a.student.name.localeCompare(b.student.name) || byNewest(a, b),
+    );
   }
   if (sort === "pending-first") {
-    const weight = (item: SubmissionForTeacher) => (item.status === "PENDING" ? 0 : 1);
+    const weight = (item: SubmissionForTeacher) =>
+      item.status === "PENDING" ? 0 : 1;
     return copy.sort((a, b) => weight(a) - weight(b) || byNewest(a, b));
   }
   return copy.sort(byNewest);
@@ -73,6 +106,8 @@ const taskFilters: { value: TaskFilter; key: TranslationKey }[] = [
   { value: "not-submitted", key: "filter.notSubmitted" },
   { value: "pending", key: "filter.pending" },
   { value: "solved", key: "filter.solved" },
+  { value: "partial", key: "taskStatus.partial" },
+  { value: "wrong", key: "taskStatus.wrong" },
 ];
 
 /** Ключ перевода для значения enum (тип задачи, статус, уровень, тип материала). */
@@ -145,7 +180,8 @@ export default async function GroupPage({
       tasks: {
         orderBy: { id: "asc" },
         // Тренировочные задачи для ученика существуют только внутри тренировки.
-        where: user.role === "STUDENT" ? { ...notInTrainingSetFilter } : undefined,
+        where:
+          user.role === "STUDENT" ? { ...notInTrainingSetFilter } : undefined,
         include: {
           submissions: {
             where: user.role === "STUDENT" ? { studentId: user.id } : undefined,
@@ -200,7 +236,9 @@ export default async function GroupPage({
 
   // Задачи, занятые в тренировочных подборках, — учителю показываем бейдж-предупреждение.
   const trainingTaskIds =
-    isTeacher && activeTab === "tasks" ? await getTrainingTaskIds(groupId) : new Set<number>();
+    isTeacher && activeTab === "tasks"
+      ? await getTrainingTaskIds(groupId)
+      : new Set<number>();
 
   // Библиотека: задачи учителя из других его групп — для переиспользования копией.
   const libraryTasks: LibraryTask[] =
@@ -232,15 +270,6 @@ export default async function GroupPage({
       return review != null && review.seenByStudentAt === null;
     });
 
-  if (!isTeacher && activeTab === "tasks" && hasUnseenResults) {
-    // Ученик открыл вкладку задач: снимаем пометку. Данные для рендера уже загружены,
-    // поэтому в этом ответе бейджи ещё видны, а при следующем открытии исчезнут.
-    await prisma.review.updateMany({
-      where: { seenByStudentAt: null, submission: { studentId: user.id, task: { groupId } } },
-      data: { seenByStudentAt: new Date() },
-    });
-  }
-
   return (
     <>
       <Header user={user} />
@@ -257,12 +286,15 @@ export default async function GroupPage({
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{group.name}</h1>
+              <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">
+                {group.name}
+              </h1>
               <p className="mt-1 text-sm text-ink-soft">{group.description}</p>
               {isTeacher && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Badge tone="emerald">
-                    {t("group.inviteCode")}: <span className="font-mono">{group.inviteCode}</span>
+                    {t("group.inviteCode")}:{" "}
+                    <span className="font-mono">{group.inviteCode}</span>
                   </Badge>
                   <CopyButton value={group.inviteCode} />
                 </div>
@@ -283,10 +315,24 @@ export default async function GroupPage({
           </div>
         </div>
 
-        {!isTeacher && <StudentProgress group={group} viewedMaterialIds={viewedMaterialIds} t={t} />}
+        {!isTeacher && (
+          <StudentProgress
+            group={group}
+            viewedMaterialIds={viewedMaterialIds}
+            t={t}
+          />
+        )}
 
-        <nav className="mb-6 flex gap-2 overflow-x-auto pb-1" aria-label={t("group.navAria")}>
-          <TabLink groupId={group.id} tab="materials" activeTab={activeTab} label={t("group.tabMaterials")} />
+        <nav
+          className="mb-6 flex gap-2 overflow-x-auto pb-1"
+          aria-label={t("group.navAria")}
+        >
+          <TabLink
+            groupId={group.id}
+            tab="materials"
+            activeTab={activeTab}
+            label={t("group.tabMaterials")}
+          />
           <TabLink
             groupId={group.id}
             tab="tasks"
@@ -295,11 +341,26 @@ export default async function GroupPage({
             showDot={hasUnseenResults && activeTab !== "tasks"}
             dotTitle={t("group.newResultDot")}
           />
-          <TabLink groupId={group.id} tab="sets" activeTab={activeTab} label={t("group.tabSets")} />
+          <TabLink
+            groupId={group.id}
+            tab="sets"
+            activeTab={activeTab}
+            label={t("group.tabSets")}
+          />
           {isTeacher && (
-            <TabLink groupId={group.id} tab="submissions" activeTab={activeTab} label={t("group.tabSubmissions")} />
+            <TabLink
+              groupId={group.id}
+              tab="submissions"
+              activeTab={activeTab}
+              label={t("group.tabSubmissions")}
+            />
           )}
-          <TabLink groupId={group.id} tab="members" activeTab={activeTab} label={t("group.tabMembers")} />
+          <TabLink
+            groupId={group.id}
+            tab="members"
+            activeTab={activeTab}
+            label={t("group.tabMembers")}
+          />
         </nav>
 
         {activeTab === "materials" && (
@@ -321,10 +382,13 @@ export default async function GroupPage({
             teacherGroups={teacherGroups}
             libraryTasks={libraryTasks}
             trainingTaskIds={trainingTaskIds}
+            studentId={user.id}
             t={t}
           />
         )}
-        {activeTab === "sets" && <SetsTab group={group} isTeacher={isTeacher} t={t} />}
+        {activeTab === "sets" && (
+          <SetsTab group={group} isTeacher={isTeacher} t={t} />
+        )}
         {activeTab === "submissions" && isTeacher && (
           <SubmissionsTab
             submissions={sortedSubmissions}
@@ -336,7 +400,12 @@ export default async function GroupPage({
           />
         )}
         {activeTab === "members" && (
-          <MembersTab memberships={group.memberships} isTeacher={isTeacher} groupId={group.id} t={t} />
+          <MembersTab
+            memberships={group.memberships}
+            isTeacher={isTeacher}
+            groupId={group.id}
+            t={t}
+          />
         )}
       </main>
     </>
@@ -352,10 +421,15 @@ function StudentProgress({
   viewedMaterialIds: Set<number>;
   t: TFunction;
 }) {
-  const materialsDone = group.materials.filter((material) => viewedMaterialIds.has(material.id)).length;
+  const materialsDone = group.materials.filter((material) =>
+    viewedMaterialIds.has(material.id),
+  ).length;
   const materialsTotal = group.materials.length;
 
-  const solvedTasks = group.tasks.filter((task) => task.submissions[0]?.status === "REVIEWED").length;
+  const solvedTasks = group.tasks.filter(
+    (task) =>
+      studentTaskStatus(task.submissions[0], task.maxScore) === "solved",
+  ).length;
   const tasksTotal = group.tasks.length;
 
   // Средний балл — по проверенным решениям: среднее отношение балла к максимуму задачи.
@@ -367,14 +441,21 @@ function StudentProgress({
     .filter((ratio): ratio is number => ratio !== null);
   const averagePercent =
     reviewedRatios.length > 0
-      ? Math.round((reviewedRatios.reduce((sum, ratio) => sum + ratio, 0) / reviewedRatios.length) * 100)
+      ? Math.round(
+          (reviewedRatios.reduce((sum, ratio) => sum + ratio, 0) /
+            reviewedRatios.length) *
+            100,
+        )
       : null;
 
-  const toPercent = (done: number, total: number) => (total > 0 ? (done / total) * 100 : 0);
+  const toPercent = (done: number, total: number) =>
+    total > 0 ? (done / total) * 100 : 0;
 
   return (
     <section className={`${cardClasses} mb-6`}>
-      <h2 className="font-heading text-[15px] font-semibold text-ink">{t("progress.title")}</h2>
+      <h2 className="font-heading text-[15px] font-semibold text-ink">
+        {t("progress.title")}
+      </h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
@@ -409,7 +490,12 @@ function StudentProgress({
 }
 
 function getActiveTab(tab: string | undefined, role: Role): Tab {
-  if (tab === "tasks" || tab === "members" || tab === "materials" || tab === "sets") {
+  if (
+    tab === "tasks" ||
+    tab === "members" ||
+    tab === "materials" ||
+    tab === "sets"
+  ) {
     return tab;
   }
 
@@ -417,29 +503,26 @@ function getActiveTab(tab: string | undefined, role: Role): Tab {
     return "submissions";
   }
 
-  return "materials";
+  return role === "STUDENT" ? "sets" : "tasks";
 }
 
 function getStatusFilter(value: string | undefined): TaskFilter {
-  return taskFilters.some((filter) => filter.value === value) ? (value as TaskFilter) : "all";
+  return taskFilters.some((filter) => filter.value === value)
+    ? (value as TaskFilter)
+    : "all";
 }
 
 /** Статус задачи глазами ученика — тот же порядок приоритетов, что у TaskStatusBadge. */
-function getStudentTaskStatus(task: TaskWithStudentSubmission): StudentTaskStatus {
-  const submission = task.submissions[0];
-
-  if (submission?.status === "REVIEWED") {
-    return "solved";
-  }
-
-  if (submission?.status === "PENDING") {
-    return "pending";
-  }
-
-  return "not-submitted";
+function getStudentTaskStatus(
+  task: TaskWithStudentSubmission,
+): StudentTaskStatus {
+  return studentTaskStatus(task.submissions[0], task.maxScore);
 }
 
-function matchesSearch(item: { title: string; description: string }, normalizedQuery: string) {
+function matchesSearch(
+  item: { title: string; description: string },
+  normalizedQuery: string,
+) {
   if (!normalizedQuery) {
     return true;
   }
@@ -465,11 +548,17 @@ function SearchForm({
   placeholder: string;
   t: TFunction;
 }) {
-  const keepStatus = statusFilter && statusFilter !== "all" ? statusFilter : null;
+  const keepStatus =
+    statusFilter && statusFilter !== "all" ? statusFilter : null;
   const resetHref = `/groups/${groupId}?tab=${tab}${keepStatus ? `&status=${keepStatus}` : ""}`;
 
   return (
-    <form className="flex flex-col gap-2 sm:flex-row" method="get" action={`/groups/${groupId}`} role="search">
+    <form
+      className="flex flex-col gap-2 sm:flex-row"
+      method="get"
+      action={`/groups/${groupId}`}
+      role="search"
+    >
       <input type="hidden" name="tab" value={tab} />
       {keepStatus && <input type="hidden" name="status" value={keepStatus} />}
       <input
@@ -506,10 +595,16 @@ function TaskFiltersForm({
   statusFilter?: TaskFilter;
   t: TFunction;
 }) {
-  const keepStatus = statusFilter && statusFilter !== "all" ? statusFilter : null;
+  const keepStatus =
+    statusFilter && statusFilter !== "all" ? statusFilter : null;
 
   return (
-    <form className="grid gap-3" method="get" action={`/groups/${groupId}`} role="search">
+    <form
+      className="grid gap-3"
+      method="get"
+      action={`/groups/${groupId}`}
+      role="search"
+    >
       <input type="hidden" name="tab" value="tasks" />
       {keepStatus && <input type="hidden" name="status" value={keepStatus} />}
       <div className="flex gap-2">
@@ -524,7 +619,11 @@ function TaskFiltersForm({
         <Button variant="secondary" className="shrink-0">
           {t("action.apply")}
         </Button>
-        <LinkButton href={`/groups/${groupId}?tab=tasks`} variant="secondary" className="shrink-0">
+        <LinkButton
+          href={`/groups/${groupId}?tab=tasks`}
+          variant="secondary"
+          className="shrink-0"
+        >
           {t("action.reset")}
         </LinkButton>
       </div>
@@ -544,7 +643,10 @@ function TaskFilterChips({
   t: TFunction;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t("filter.aria")}>
+    <div
+      className="flex gap-2 overflow-x-auto pb-1"
+      aria-label={t("filter.aria")}
+    >
       {taskFilters.map((filter) => {
         const isActive = filter.value === active;
         const params = new URLSearchParams({ tab: "tasks" });
@@ -629,7 +731,9 @@ function MaterialsTab({
   t: TFunction;
 }) {
   const normalizedQuery = searchQuery.toLowerCase();
-  const visibleMaterials = group.materials.filter((material) => matchesSearch(material, normalizedQuery));
+  const visibleMaterials = group.materials.filter((material) =>
+    matchesSearch(material, normalizedQuery),
+  );
 
   return (
     <section className="space-y-5">
@@ -653,21 +757,21 @@ function MaterialsTab({
             method="post"
             encType="multipart/form-data"
           >
-          <TextInput label={t("field.title")} name="title" />
-          <TextArea label={t("field.description")} name="description" />
-          <MaterialTypeSelect t={t} />
-          <TextInput
-            label={t("material.url")}
-            name="url"
-            type="url"
-            required={false}
-            placeholder={t("material.urlPlaceholder")}
-          />
-          <FileInput
-            label={t("material.file")}
-            name="file"
-            hint={`${t("material.fileHintPrefix")} ${maxUploadLabel()}`}
-          />
+            <TextInput label={t("field.title")} name="title" />
+            <TextArea label={t("field.description")} name="description" />
+            <MaterialTypeSelect t={t} />
+            <TextInput
+              label={t("material.url")}
+              name="url"
+              type="url"
+              required={false}
+              placeholder={t("material.urlPlaceholder")}
+            />
+            <FileInput
+              label={t("material.file")}
+              name="file"
+              hint={`${t("material.fileHintPrefix")} ${maxUploadLabel()}`}
+            />
             <Button className="w-fit">{t("action.add")}</Button>
           </form>
         </details>
@@ -676,10 +780,15 @@ function MaterialsTab({
       {group.materials.length === 0 ? (
         <EmptyState
           title={t("material.emptyTitle")}
-          description={isTeacher ? t("material.emptyTeacher") : t("material.emptyStudent")}
+          description={
+            isTeacher ? t("material.emptyTeacher") : t("material.emptyStudent")
+          }
         />
       ) : visibleMaterials.length === 0 ? (
-        <EmptyState title={t("search.noResults")} description={t("search.noMaterialsDesc")} />
+        <EmptyState
+          title={t("search.noResults")}
+          description={t("search.noMaterialsDesc")}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {visibleMaterials.map((material) => (
@@ -734,22 +843,32 @@ function MaterialCard({
               loading="lazy"
             />
           ) : (
-            <iframe className="h-full w-full" src={`/api/materials/${material.id}/file`} title={material.title} />
+            <iframe
+              className="h-full w-full"
+              src={`/api/materials/${material.id}/file`}
+              title={material.title}
+            />
           )}
         </div>
       )}
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-ink">{material.title}</h3>
         <div className="flex flex-wrap justify-end gap-1.5">
-          {!isTeacher && viewed && <Badge tone="green">{t("material.studied")}</Badge>}
+          {!isTeacher && viewed && (
+            <Badge tone="green">{t("material.studied")}</Badge>
+          )}
           <Badge>{materialTypeBadge}</Badge>
         </div>
       </div>
       <p className="mt-1 text-sm text-ink-soft">{material.description}</p>
       <div className="mt-3 space-y-0.5 text-xs text-ink-mute">
-        <p>{t("material.uploadedAt")}: {formatDate(material.uploadedAt)}</p>
+        <p>
+          {t("material.uploadedAt")}: {formatDate(material.uploadedAt)}
+        </p>
         {material.originalFileName && (
-          <p className="break-all">{t("material.fileName")}: {material.originalFileName}</p>
+          <p className="break-all">
+            {t("material.fileName")}: {material.originalFileName}
+          </p>
         )}
       </div>
       {hasContent && (
@@ -763,7 +882,11 @@ function MaterialCard({
         </div>
       )}
       {!isTeacher && !hasContent && !viewed && (
-        <form className="mt-4" action={`/api/materials/${material.id}/viewed`} method="post">
+        <form
+          className="mt-4"
+          action={`/api/materials/${material.id}/viewed`}
+          method="post"
+        >
           <Button variant="secondary" size="sm">
             {t("material.markStudied")}
           </Button>
@@ -780,8 +903,16 @@ function MaterialCard({
             method="post"
             encType="multipart/form-data"
           >
-            <TextInput label={t("field.title")} name="title" defaultValue={material.title} />
-            <TextArea label={t("field.description")} name="description" defaultValue={material.description} />
+            <TextInput
+              label={t("field.title")}
+              name="title"
+              defaultValue={material.title}
+            />
+            <TextArea
+              label={t("field.description")}
+              name="description"
+              defaultValue={material.description}
+            />
             <MaterialTypeSelect defaultValue={material.type} t={t} />
             <TextInput
               label={t("material.url")}
@@ -815,13 +946,22 @@ function MaterialCard({
   );
 }
 
-function MaterialTypeSelect({ defaultValue, t }: { defaultValue?: string; t: TFunction }) {
+function MaterialTypeSelect({
+  defaultValue,
+  t,
+}: {
+  defaultValue?: string;
+  t: TFunction;
+}) {
   return (
     <SelectField
       label={t("material.typeLabel")}
       name="type"
       defaultValue={defaultValue ?? "TEXT"}
-      options={materialTypes.map((type) => ({ value: type.value, label: t(enumKey("materialType", type.value)) }))}
+      options={materialTypes.map((type) => ({
+        value: type.value,
+        label: t(enumKey("materialType", type.value)),
+      }))}
     />
   );
 }
@@ -834,6 +974,7 @@ function TasksTab({
   teacherGroups,
   libraryTasks,
   trainingTaskIds,
+  studentId,
   t,
 }: {
   group: GroupForPage;
@@ -843,15 +984,19 @@ function TasksTab({
   teacherGroups: TeacherGroupOption[];
   libraryTasks: LibraryTask[];
   trainingTaskIds: Set<number>;
+  studentId: number;
   t: TFunction;
 }) {
   const normalizedQuery = searchQuery.toLowerCase();
   const visibleTasks = group.tasks.filter((task) => {
     const matchesStatus =
-      isTeacher || statusFilter === "all" || getStudentTaskStatus(task) === statusFilter;
+      isTeacher ||
+      statusFilter === "all" ||
+      getStudentTaskStatus(task) === statusFilter;
     return matchesStatus && matchesSearch(task, normalizedQuery);
   });
-  const hasActiveFilter = Boolean(searchQuery) || (!isTeacher && statusFilter !== "all");
+  const hasActiveFilter =
+    Boolean(searchQuery) || (!isTeacher && statusFilter !== "all");
 
   return (
     <section className="space-y-5">
@@ -880,11 +1025,16 @@ function TasksTab({
           </summary>
           <p className="mt-2 text-xs text-ink-mute">{t("task.libraryDesc")}</p>
           {libraryTasks.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-mute">{t("task.libraryEmpty")}</p>
+            <p className="mt-3 text-sm text-ink-mute">
+              {t("task.libraryEmpty")}
+            </p>
           ) : (
             <ul className="mt-2 divide-y divide-line/70">
               {libraryTasks.map((task) => (
-                <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={task.id}>
+                <li
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  key={task.id}
+                >
                   <div className="min-w-0">
                     <p className="font-medium text-ink">{task.title}</p>
                     <p className="mt-0.5 text-xs text-ink-mute">
@@ -892,7 +1042,11 @@ function TasksTab({
                     </p>
                   </div>
                   <form action={`/api/tasks/${task.id}/copy`} method="post">
-                    <input type="hidden" name="targetGroupId" value={group.id} />
+                    <input
+                      type="hidden"
+                      name="targetGroupId"
+                      value={group.id}
+                    />
                     <Button variant="secondary" size="sm">
                       {t("action.add")}
                     </Button>
@@ -908,31 +1062,25 @@ function TasksTab({
           <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-navy">
             {t("task.create")}
           </summary>
-          <form
-            className="mt-4 grid gap-4"
-            action={`/api/groups/${group.id}/tasks`}
-            method="post"
-            encType="multipart/form-data"
-          >
-          <TextInput label={t("field.title")} name="title" />
-          <TextArea label={t("task.condition")} name="description" />
-          <TaskFields labels={taskFieldsLabels(t, t("task.image"))} mapLabels={mapEditorLabels(t)} />
-            <Button className="w-fit">{t("action.create")}</Button>
-          </form>
+          <TaskForm groupId={group.id} />
         </details>
       )}
 
       {group.tasks.length === 0 ? (
         <EmptyState
           title={t("task.emptyTitle")}
-          description={isTeacher ? t("task.emptyTeacher") : t("task.emptyStudent")}
+          description={
+            isTeacher ? t("task.emptyTeacher") : t("task.emptyStudent")
+          }
         />
       ) : visibleTasks.length === 0 ? (
         <EmptyState
           title={t("search.noResults")}
-          description={hasActiveFilter ? t("search.noTasksFiltered") : t("search.noTasks")}
+          description={
+            hasActiveFilter ? t("search.noTasksFiltered") : t("search.noTasks")
+          }
         />
-      ) : (
+      ) : isTeacher ? (
         <div className="space-y-4">
           {visibleTasks.map((task) => (
             <TaskCard
@@ -949,13 +1097,46 @@ function TasksTab({
             />
           ))}
         </div>
+      ) : (
+        <TaskWorkspace
+          labels={workspaceLabels(t)}
+          tasks={visibleTasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            status: getStudentTaskStatus(task),
+            unseen: task.submissions[0]?.review?.seenByStudentAt === null,
+          }))}
+        >
+          {visibleTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              isTeacher={false}
+              teacherGroups={[]}
+              membersCount={group.memberships.length}
+              submissionContext={{
+                returnTo: "/groups/" + group.id + "?tab=tasks#task-" + task.id,
+                oneShot: false,
+                studentId,
+              }}
+            />
+          ))}
+        </TaskWorkspace>
       )}
     </section>
   );
 }
 
 /** Тематические подборки задач группы. */
-function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: boolean; t: TFunction }) {
+function SetsTab({
+  group,
+  isTeacher,
+  t,
+}: {
+  group: GroupForPage;
+  isTeacher: boolean;
+  t: TFunction;
+}) {
   return (
     <section className="space-y-5">
       {isTeacher && (
@@ -963,10 +1144,22 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
           <summary className="cursor-pointer font-heading text-[15px] font-semibold text-ink transition-colors hover:text-navy">
             {t("set.create")}
           </summary>
-          <form className="mt-4 grid gap-4" action={`/api/groups/${group.id}/sets`} method="post">
-          <TextInput label={t("field.title")} name="title" placeholder={t("set.titlePlaceholder")} />
-          <TextArea label={t("field.description")} name="description" placeholder={t("set.descPlaceholder")} />
-          <SetModeFields labels={setModeLabels(t)} />
+          <form
+            className="mt-4 grid gap-4"
+            action={`/api/groups/${group.id}/sets`}
+            method="post"
+          >
+            <TextInput
+              label={t("field.title")}
+              name="title"
+              placeholder={t("set.titlePlaceholder")}
+            />
+            <TextArea
+              label={t("field.description")}
+              name="description"
+              placeholder={t("set.descPlaceholder")}
+            />
+            <SetModeFields labels={setModeLabels(t)} />
             <Button className="w-fit">{t("set.createButton")}</Button>
           </form>
         </details>
@@ -985,7 +1178,8 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
                 <div className="flex flex-wrap justify-end gap-1.5">
                   {set.trainingMinutes !== null && (
                     <Badge tone="amber">
-                      {t("set.trainingBadge")} · {set.trainingMinutes} {t("set.minShort")}
+                      {t("set.trainingBadge")} · {set.trainingMinutes}{" "}
+                      {t("set.minShort")}
                     </Badge>
                   )}
                   <Badge tone="emerald">
@@ -1000,7 +1194,9 @@ function SetsTab({ group, isTeacher, t }: { group: GroupForPage; isTeacher: bool
       ) : (
         <EmptyState
           title={t("set.emptyTitle")}
-          description={isTeacher ? t("set.emptyTeacher") : t("set.emptyStudent")}
+          description={
+            isTeacher ? t("set.emptyTeacher") : t("set.emptyStudent")
+          }
         />
       )}
     </section>
@@ -1023,15 +1219,28 @@ function SubmissionsTab({
   t: TFunction;
 }) {
   if (submissions.length === 0) {
-    return <EmptyState title={t("sub.emptyTitle")} description={t("sub.emptyDesc")} />;
+    return (
+      <EmptyState
+        title={t("sub.emptyTitle")}
+        description={t("sub.emptyDesc")}
+      />
+    );
   }
 
-  const pendingCount = submissions.filter((submission) => submission.status === "PENDING").length;
+  const pendingCount = submissions.filter(
+    (submission) => submission.status === "PENDING",
+  ).length;
   const filterChips = (
     <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t("sub.aria")}>
       {[
-        { value: "all" as const, label: `${t("sub.all")} (${submissions.length})` },
-        { value: "pending" as const, label: `${t("sub.pending")} (${pendingCount})` },
+        {
+          value: "all" as const,
+          label: `${t("sub.all")} (${submissions.length})`,
+        },
+        {
+          value: "pending" as const,
+          label: `${t("sub.pending")} (${pendingCount})`,
+        },
       ].map((chip) => {
         const isActive = chip.value === reviewFilter;
         return (
@@ -1054,15 +1263,24 @@ function SubmissionsTab({
 
   // Сортировка — обычная GET-форма: работает без JS и сохраняет текущий фильтр.
   const sortForm = (
-    <form className="flex items-end gap-2" method="get" action={`/groups/${groupId}`}>
+    <form
+      className="flex items-end gap-2"
+      method="get"
+      action={`/groups/${groupId}`}
+    >
       <input type="hidden" name="tab" value="submissions" />
-      {reviewFilter === "pending" && <input type="hidden" name="filter" value="pending" />}
+      {reviewFilter === "pending" && (
+        <input type="hidden" name="filter" value="pending" />
+      )}
       <div className="w-56">
         <SelectField
           label={t("sort.label")}
           name="sort"
           defaultValue={sort}
-          options={submissionSorts.map((item) => ({ value: item.value, label: t(item.key) }))}
+          options={submissionSorts.map((item) => ({
+            value: item.value,
+            label: t(item.key),
+          }))}
         />
       </div>
       <Button variant="secondary" className="shrink-0">
@@ -1076,7 +1294,12 @@ function SubmissionsTab({
       <section className="space-y-4">
         {filterChips}
         {sortForm}
-        <ReviewQueue submissions={submissions} groupId={groupId} afterId={afterId} t={t} />
+        <ReviewQueue
+          submissions={submissions}
+          groupId={groupId}
+          afterId={afterId}
+          t={t}
+        />
       </section>
     );
   }
@@ -1102,7 +1325,11 @@ function SubmissionsTab({
               max={submission.task.maxScore}
               defaultValue={submission.review?.score}
             />
-            <TextArea label={t("sub.feedback")} name="feedback" defaultValue={submission.review?.feedback} />
+            <TextArea
+              label={t("sub.feedback")}
+              name="feedback"
+              defaultValue={submission.review?.feedback}
+            />
             <Button className="w-fit">{t("sub.saveReview")}</Button>
           </form>
         );
@@ -1111,19 +1338,26 @@ function SubmissionsTab({
           <article className={cardClasses} key={submission.id}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="font-semibold text-ink">{submission.task.title}</h3>
+                <h3 className="font-semibold text-ink">
+                  {submission.task.title}
+                </h3>
                 <p className="mt-0.5 text-sm text-ink-soft">
-                  {submission.student.name} · {t(enumKey("taskType", submission.task.type))}
+                  {submission.student.name} ·{" "}
+                  {t(enumKey("taskType", submission.task.type))}
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {isAutoGraded && <Badge tone="emerald">{t("sub.autoCheck")}</Badge>}
+                {isAutoGraded && (
+                  <Badge tone="emerald">{t("sub.autoCheck")}</Badge>
+                )}
                 {submission.review && (
                   <Badge tone="emerald">
                     {submission.review.score} / {submission.task.maxScore}
                   </Badge>
                 )}
-                <Badge tone={submission.status === "REVIEWED" ? "green" : "amber"}>
+                <Badge
+                  tone={submission.status === "REVIEWED" ? "green" : "amber"}
+                >
                   {t(enumKey("status", submission.status))}
                 </Badge>
               </div>
@@ -1151,7 +1385,9 @@ function SubmissionsTab({
                 {reviewForm}
               </details>
             ) : (
-              <div className="mt-4 border-t border-line/70 pt-1">{reviewForm}</div>
+              <div className="mt-4 border-t border-line/70 pt-1">
+                {reviewForm}
+              </div>
             )}
           </article>
         );
@@ -1181,10 +1417,18 @@ function ReviewQueue({
     .sort((a, b) => a.id - b.id);
 
   if (pending.length === 0) {
-    return <EmptyState title={t("queue.allDone")} description={t("queue.allDoneDesc")} />;
+    return (
+      <EmptyState
+        title={t("queue.allDone")}
+        description={t("queue.allDoneDesc")}
+      />
+    );
   }
 
-  const queue = afterId === null ? pending : pending.filter((submission) => submission.id > afterId);
+  const queue =
+    afterId === null
+      ? pending
+      : pending.filter((submission) => submission.id > afterId);
   const current = queue[0];
 
   if (!current) {
@@ -1195,7 +1439,10 @@ function ReviewQueue({
           description={`${t("queue.endDescPrefix")} (${pending.length}). ${t("queue.endDescSuffix")}`}
         />
         <div className="text-center">
-          <LinkButton href={`/groups/${groupId}?tab=submissions&filter=pending`} variant="primary">
+          <LinkButton
+            href={`/groups/${groupId}?tab=submissions&filter=pending`}
+            variant="primary"
+          >
             {t("queue.restart")}
           </LinkButton>
         </div>
@@ -1206,14 +1453,16 @@ function ReviewQueue({
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-soft">
-        {t("queue.remaining")}: <span className="font-semibold text-ink">{queue.length}</span>
+        {t("queue.remaining")}:{" "}
+        <span className="font-semibold text-ink">{queue.length}</span>
       </p>
       <article className={cardClasses}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="font-semibold text-ink">{current.task.title}</h3>
             <p className="mt-0.5 text-sm text-ink-soft">
-              {current.student.name} · {t(enumKey("taskType", current.task.type))}
+              {current.student.name} ·{" "}
+              {t(enumKey("taskType", current.task.type))}
             </p>
           </div>
           <Badge tone={current.status === "REVIEWED" ? "green" : "amber"}>
@@ -1286,53 +1535,65 @@ function MembersTab({
     <section className="space-y-4">
       {isTeacher && (
         <div className="flex justify-end">
-          <AnchorButton href={`/api/groups/${groupId}/export`} variant="secondary" size="sm">
+          <AnchorButton
+            href={`/api/groups/${groupId}/export`}
+            variant="secondary"
+            size="sm"
+          >
             {t("member.export")}
           </AnchorButton>
         </div>
       )}
       <div className="overflow-hidden rounded-xl border border-line bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[480px] text-sm">
-          <thead>
-            <tr className="border-b border-line bg-paper text-left text-xs font-medium uppercase tracking-wide text-ink-mute">
-              <th className="px-4 py-3">{t("member.student")}</th>
-              <th className="px-4 py-3">{t("member.reviewed")}</th>
-              <th className="px-4 py-3">{t("member.totalScore")}</th>
-              {isTeacher && <th className="px-4 py-3">{t("member.actions")}</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line/70">
-            {memberships.map((membership) => {
-              const reviewed = membership.user.submissions.filter((submission) => submission.review);
-              const totalScore = reviewed.reduce(
-                (sum, submission) => sum + (submission.review?.score ?? 0),
-                0,
-              );
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
+            <thead>
+              <tr className="border-b border-line bg-paper text-left text-xs font-medium uppercase tracking-wide text-ink-mute">
+                <th className="px-4 py-3">{t("member.student")}</th>
+                <th className="px-4 py-3">{t("member.reviewed")}</th>
+                <th className="px-4 py-3">{t("member.totalScore")}</th>
+                {isTeacher && (
+                  <th className="px-4 py-3">{t("member.actions")}</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line/70">
+              {memberships.map((membership) => {
+                const reviewed = membership.user.submissions.filter(
+                  (submission) => submission.review,
+                );
+                const totalScore = reviewed.reduce(
+                  (sum, submission) => sum + (submission.review?.score ?? 0),
+                  0,
+                );
 
-              return (
-                <tr key={membership.user.id}>
-                  <td className="px-4 py-3 font-medium text-ink">{membership.user.name}</td>
-                  <td className="px-4 py-3 text-ink-soft">{reviewed.length}</td>
-                  <td className="px-4 py-3 text-ink-soft">{totalScore}</td>
-                  {isTeacher && (
-                    <td className="px-4 py-3">
-                      <form
-                        action={`/api/memberships/${membership.id}/delete`}
-                        method="post"
-                        data-confirm={t("member.removeConfirm")}
-                      >
-                        <Button variant="danger" size="sm">
-                          {t("member.remove")}
-                        </Button>
-                      </form>
+                return (
+                  <tr key={membership.user.id}>
+                    <td className="px-4 py-3 font-medium text-ink">
+                      {membership.user.name}
                     </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <td className="px-4 py-3 text-ink-soft">
+                      {reviewed.length}
+                    </td>
+                    <td className="px-4 py-3 text-ink-soft">{totalScore}</td>
+                    {isTeacher && (
+                      <td className="px-4 py-3">
+                        <form
+                          action={`/api/memberships/${membership.id}/delete`}
+                          method="post"
+                          data-confirm={t("member.removeConfirm")}
+                        >
+                          <Button variant="danger" size="sm">
+                            {t("member.remove")}
+                          </Button>
+                        </form>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>

@@ -43,9 +43,15 @@ export async function getTrainingTaskIds(groupId: number) {
 }
 
 /** Есть ли у ученика попытка (идущая или завершённая) в тренировке с этой задачей. */
-export async function hasTrainingAttemptForTask(studentId: number, taskId: number) {
+export async function hasTrainingAttemptForTask(
+  studentId: number,
+  taskId: number,
+) {
   const attempt = await prisma.trainingAttempt.findFirst({
-    where: { studentId, set: { trainingMinutes: { not: null }, items: { some: { taskId } } } },
+    where: {
+      studentId,
+      set: { trainingMinutes: { not: null }, items: { some: { taskId } } },
+    },
     select: { id: true },
   });
   return attempt !== null;
@@ -58,7 +64,9 @@ export function parseTrainingMinutes(value: string): number | null | undefined {
   }
 
   const minutes = Number(value);
-  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 600 ? minutes : undefined;
+  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 600
+    ? minutes
+    : undefined;
 }
 
 /**
@@ -67,52 +75,64 @@ export function parseTrainingMinutes(value: string): number | null | undefined {
  * когда сервер видит истёкший дедлайн. Идемпотентна.
  */
 export async function finalizeTrainingAttempt(attemptId: number) {
-  const attempt = await prisma.trainingAttempt.findUnique({
-    where: { id: attemptId },
-    include: {
-      answers: true,
-      set: { include: { items: { include: { task: true } } } },
-    },
-  });
-
-  if (!attempt || attempt.finishedAt) {
-    return;
-  }
-
-  const now = new Date();
-  // Если время вышло, попытка «закончилась» в момент дедлайна, а не когда ученик открыл страницу.
-  const finishedAt = now > attempt.expiresAt ? attempt.expiresAt : now;
-
-  await prisma.$transaction(async (transaction) => {
-    for (const answer of attempt.answers) {
-      const task = attempt.set.items.find((item) => item.taskId === answer.taskId)?.task;
-
-      if (!task) {
-        continue;
-      }
-
-      const correct = autoCheckAnswer(task, answer.answer);
-      if (correct === null) {
-        continue;
-      }
-
-      // MULTIPLE_CHOICE — частичный балл (та же схема, что при отправке решения).
-      const score =
-        !correct && task.type === TaskType.MULTIPLE_CHOICE && task.correctAnswer
-          ? scoreMultipleChoice(answer.answer, task.correctAnswer, task.maxScore).score
-          : correct
-            ? task.maxScore
-            : 0;
-
-      await transaction.trainingAnswer.update({
-        where: { id: answer.id },
-        data: { isCorrect: correct, score },
+  await prisma.$transaction(
+    async (transaction) => {
+      await transaction.$queryRaw`SELECT id FROM "TrainingAttempt" WHERE id = ${attemptId} FOR UPDATE`;
+      const attempt = await transaction.trainingAttempt.findUnique({
+        where: { id: attemptId },
+        include: {
+          answers: true,
+          set: { include: { items: { include: { task: true } } } },
+        },
       });
-    }
 
-    await transaction.trainingAttempt.update({
-      where: { id: attemptId },
-      data: { finishedAt },
-    });
-  });
+      if (!attempt || attempt.finishedAt) {
+        return;
+      }
+
+      const now = new Date();
+      // Если время вышло, попытка «закончилась» в момент дедлайна, а не когда ученик открыл страницу.
+      const finishedAt = now > attempt.expiresAt ? attempt.expiresAt : now;
+
+      for (const answer of attempt.answers) {
+        const task = attempt.set.items.find(
+          (item) => item.taskId === answer.taskId,
+        )?.task;
+
+        if (!task) {
+          continue;
+        }
+
+        const correct = autoCheckAnswer(task, answer.answer);
+        if (correct === null) {
+          continue;
+        }
+
+        // MULTIPLE_CHOICE — частичный балл (та же схема, что при отправке решения).
+        const score =
+          !correct &&
+          task.type === TaskType.MULTIPLE_CHOICE &&
+          task.correctAnswer
+            ? scoreMultipleChoice(
+                answer.answer,
+                task.correctAnswer,
+                task.maxScore,
+              ).score
+            : correct
+              ? task.maxScore
+              : 0;
+
+        await transaction.trainingAnswer.update({
+          where: { id: answer.id },
+          data: { isCorrect: correct, score },
+        });
+      }
+
+      await transaction.trainingAttempt.update({
+        where: { id: attemptId },
+        data: { finishedAt },
+      });
+    },
+    { timeout: 15_000 },
+  );
 }

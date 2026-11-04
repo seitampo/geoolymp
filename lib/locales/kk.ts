@@ -2,7 +2,8 @@ import type { Dictionary } from "./ru";
 
 // Казахский словарь интерфейса. Ключи совпадают с ru.ts (тип Dictionary это гарантирует).
 export const kk: Dictionary = {
-  "meta.description": "Қазақстан оқушыларын география олимпиадаларына дайындау платформасы",
+  "meta.description":
+    "Қазақстан оқушыларын география олимпиадаларына дайындау платформасы",
 
   // Общее
   "common.email": "Email",
@@ -27,11 +28,14 @@ export const kk: Dictionary = {
     "Қазақстан оқушыларын география олимпиадаларына дайындау: мұғаліммен топтар, автотексерісі бар тапсырмалар, интерактивті карталар және уақытқа арналған жаттығулар.",
   "landing.ctaStart": "Оқуды бастау",
   "landing.feature1Title": "Карта тапсырмалары",
-  "landing.feature1Desc": "«Балқаш көлін белгілеңіз» — жауап картаны басу арқылы, тексеру бірден.",
+  "landing.feature1Desc":
+    "«Балқаш көлін белгілеңіз» — жауап картаны басу арқылы, тексеру бірден.",
   "landing.feature2Title": "Уақытқа жаттығу",
-  "landing.feature2Desc": "Контест режимі: таймер, бір мүмкіндік және фиништен кейін қателерді талдау.",
+  "landing.feature2Desc":
+    "Контест режимі: таймер, бір мүмкіндік және фиништен кейін қателерді талдау.",
   "landing.feature3Title": "Прогресс көрінеді",
-  "landing.feature3Desc": "Мұғалім кім нені шешкенін көреді; оқушы серпін мен белгілер жинайды.",
+  "landing.feature3Desc":
+    "Мұғалім кім нені шешкенін көреді; оқушы серпін мен белгілер жинайды.",
 
   // Вход
   "login.title": "Кіру",
@@ -45,10 +49,12 @@ export const kk: Dictionary = {
   "register.name": "Аты",
   "register.namePlaceholder": "Сізге қалай жүгінеміз",
   "register.role": "Рөлі",
-  "register.roleHint": "Мұғалім топтар мен тапсырмалар жасайды; оқушы шақыру коды арқылы топқа қосылады.",
+  "register.roleHint":
+    "Мұғалім топтар мен тапсырмалар жасайды; оқушы шақыру коды арқылы топқа қосылады.",
   "register.inviteCode": "Мұғалім коды",
   "register.invitePlaceholder": "Тек мұғалім болып тіркелгенде",
-  "register.inviteHint": "Оқушылар бұл өрісті бос қалдырады. Мұғалім кодын платформа әкімшісі береді.",
+  "register.inviteHint":
+    "Оқушылар бұл өрісті бос қалдырады. Мұғалім кодын платформа әкімшісі береді.",
   "register.submit": "Аккаунт жасау",
   "register.haveAccount": "Аккаунтыңыз бар ма?",
 
@@ -93,7 +99,8 @@ export const kk: Dictionary = {
   "dashboard.newResult": "Жаңа нәтиже",
   "dashboard.code": "Код",
   "dashboard.emptyTitle": "Әзірге топтар жоқ",
-  "dashboard.emptyTeacher": "Алғашқы топты құрып, оқушыларға шақыру кодын жіберіңіз.",
+  "dashboard.emptyTeacher":
+    "Алғашқы топты құрып, оқушыларға шақыру кодын жіберіңіз.",
   "dashboard.emptyStudent": "Мұғалімнен шақыру кодын сұрап, топқа қосылыңыз.",
 
   // 404
@@ -159,7 +166,8 @@ export const kk: Dictionary = {
   "search.noResults": "Ештеңе табылмады",
   "search.materialsPlaceholder": "Материалдардан іздеу",
   "search.tasksPlaceholder": "Тапсырмалардан іздеу",
-  "search.noMaterialsDesc": "Сұрауыңыз бойынша материал жоқ. Сұрауды өзгертіп көріңіз.",
+  "search.noMaterialsDesc":
+    "Сұрауыңыз бойынша материал жоқ. Сұрауды өзгертіп көріңіз.",
   "search.noTasksFiltered": "Іздеу сұрауын немесе сүзгілерді өзгертіп көріңіз.",
   "search.noTasks": "Тапсырмалар табылмады.",
   "filter.aria": "Тапсырмаларды күйі бойынша сүзу",
@@ -186,28 +194,33 @@ export const kk: Dictionary = {
   "material.fileName": "Файл",
   "material.markStudied": "Оқылды деп белгілеу",
   "material.emptyTitle": "Әзірге материал жоқ",
-  "material.emptyTeacher": "Алғашқы материалды қосыңыз: файл немесе сыртқы сілтеме.",
+  "material.emptyTeacher":
+    "Алғашқы материалды қосыңыз: файл немесе сыртқы сілтеме.",
   "material.emptyStudent": "Мұғалім бұл топқа әлі материал қоспаған.",
   "material.deleteConfirm": "Материалды жою керек пе? Бұл қайтымсыз.",
 
   // Задачи
   "task.library": "Тапсырмалар кітапханасы",
-  "task.libraryDesc": "Сіздің басқа топтарыңыздағы тапсырмалар. «Қосу» осы топта тәуелсіз көшірме жасайды.",
+  "task.libraryDesc":
+    "Сіздің басқа топтарыңыздағы тапсырмалар. «Қосу» осы топта тәуелсіз көшірме жасайды.",
   "task.libraryEmpty": "Басқа топтарыңызда әзірге тапсырма жоқ.",
   "task.create": "+ Тапсырма құру",
   "task.condition": "Шарты",
   "task.options": "Жауап нұсқалары",
   "task.optionsPlaceholder": "Әр нұсқа жаңа жолдан",
   "task.correctAnswer": "Дұрыс жауап",
-  "task.correctAnswerPlaceholder": "Нұсқалар үшін — нақты мәтін; бірнеше жауап «;» арқылы",
+  "task.correctAnswerPlaceholder":
+    "Нұсқалар үшін — нақты мәтін; бірнеше жауап «;» арқылы",
   "task.maxScore": "Максималды балл",
   "task.mapImage": "Тапсырма картасы",
   "task.image": "Шартқа сурет",
   "task.imageHintPrefix": "JPG, PNG немесе WebP, дейін",
   "task.emptyTitle": "Әзірге тапсырма жоқ",
-  "task.emptyTeacher": "Алғашқы тапсырманы құрыңыз — оқушылар оны осы бөлімде көреді.",
+  "task.emptyTeacher":
+    "Алғашқы тапсырманы құрыңыз — оқушылар оны осы бөлімде көреді.",
   "task.emptyStudent": "Мұғалім бұл топқа әлі тапсырма қоспаған.",
-  "task.groupDeleteConfirm": "Топты барлық тапсырмалармен, материалдармен және оқушы шешімдерімен бірге жою керек пе? Бұл қайтымсыз.",
+  "task.groupDeleteConfirm":
+    "Топты барлық тапсырмалармен, материалдармен және оқушы шешімдерімен бірге жою керек пе? Бұл қайтымсыз.",
 
   // Подборки
   "set.create": "+ Жинақ құру",
@@ -217,19 +230,23 @@ export const kk: Dictionary = {
   "set.mode": "Жинақ режимі",
   "set.modeCollection": "Жинақ",
   "set.modeOlympiad": "Сынақ олимпиада",
-  "set.modeCollectionHint": "Тақырыптық тапсырмалар тізімі. Бірден көрінеді, қалағанша шешуге болады.",
-  "set.modeOlympiadHint": "Таймер және бір мүмкіндік. Тапсырмалар тек басталғаннан кейін ашылады, қайта шешу керек — бұрынғы шешімдер есептелмейді.",
+  "set.modeCollectionHint":
+    "Тақырыптық тапсырмалар тізімі. Бірден көрінеді, қалағанша шешуге болады.",
+  "set.modeOlympiadHint":
+    "Таймер және бір мүмкіндік. Тапсырмалар тек басталғаннан кейін ашылады, қайта шешу керек — бұрынғы шешімдер есептелмейді.",
   "set.createButton": "Жинақ құру",
-  "set.trainingBadge": "Жаттығу",
+  "set.trainingBadge": "Олимпиада",
   "set.minShort": "мин",
   "set.tasksBadge": "Тапсырма",
   "set.emptyTitle": "Әзірге жинақ жоқ",
-  "set.emptyTeacher": "Тақырыптық тапсырмалар жинағын құрыңыз — оқушылар оны ретімен шешеді.",
+  "set.emptyTeacher":
+    "Тақырыптық тапсырмалар жинағын құрыңыз — оқушылар оны ретімен шешеді.",
   "set.emptyStudent": "Мұғалім әлі тапсырма жинақтарын жасамаған.",
 
   // Решения (учитель)
   "sub.emptyTitle": "Әзірге шешім жоқ",
-  "sub.emptyDesc": "Мұнда оқушылардың топ тапсырмаларына жауаптары пайда болады.",
+  "sub.emptyDesc":
+    "Мұнда оқушылардың топ тапсырмаларына жауаптары пайда болады.",
   "sub.aria": "Тексеру режимі",
   "sub.all": "Барлығы",
   "sub.pending": "Тексерілуде",
@@ -284,7 +301,8 @@ export const kk: Dictionary = {
   "taskCard.editTask": "Тапсырманы өңдеу",
   "taskCard.newImage": "Шартқа жаңа сурет",
   "taskCard.deleteTask": "Тапсырманы жою",
-  "taskCard.deleteTaskConfirm": "Тапсырманы оқушы шешімдерімен бірге жою керек пе? Бұл қайтымсыз.",
+  "taskCard.deleteTaskConfirm":
+    "Тапсырманы оқушы шешімдерімен бірге жою керек пе? Бұл қайтымсыз.",
   "stats.submitted": "Тапсырды",
   "stats.avgScore": "Орташа балл",
   "stats.of": "/",
@@ -294,7 +312,8 @@ export const kk: Dictionary = {
   "explanation.added": "қосылған",
   "explanation.hint": "Оқушы талдауды шешімі тексерілгеннен кейін көреді.",
   "explanation.text": "Талдау мәтіні",
-  "explanation.textPlaceholder": "Шешу барысы, жиі кездесетін қателер, неге назар аудару керек",
+  "explanation.textPlaceholder":
+    "Шешу барысы, жиі кездесетін қателер, неге назар аудару керек",
   "explanation.replaceFile": "Талдау файлын ауыстыру",
   "explanation.file": "Талдау файлы (міндетті емес)",
   "explanation.fileHintPrefix": "PDF, JPG, PNG немесе WebP, дейін",
@@ -314,7 +333,8 @@ export const kk: Dictionary = {
   "student.notChecked": "Мұғалім шешімді әлі тексермеген.",
   "student.explanationTitle": "Тапсырма талдауы",
   "student.openExplanation": "Талдау файлын ашу",
-  "student.oneShot": "Жинақта тапсырма бір рет шешіледі — жауап жіберілді және өзгермейді.",
+  "student.oneShot":
+    "Жинақта тапсырма бір рет шешіледі — жауап жіберілді және өзгермейді.",
   "student.resubmit": "Жауапты өзгертіп, қайта жіберу",
   "student.cantResubmit": "Тапсыру мерзімі өтті — жауапты өзгерту мүмкін емес.",
 
@@ -323,7 +343,8 @@ export const kk: Dictionary = {
   "answerForm.image": "Сурет",
   "answerForm.file": "Файл",
   "answerForm.fileComment": "Файлға пікір",
-  "answerForm.hint": "Жауап тек «Жіберу» батырмасын басқаннан кейін есептеледі. Әр тапсырманы бөлек жіберу керек.",
+  "answerForm.hint":
+    "Жауап тек «Жіберу» батырмасын басқаннан кейін есептеледі. Әр тапсырманы бөлек жіберу керек.",
   "answerForm.submit": "Жіберу",
   "answerForm.fileHintImg": "JPG, PNG немесе WebP, дейін",
   "answerForm.fileHintAny": "Дейін",
@@ -339,7 +360,8 @@ export const kk: Dictionary = {
   "ach.newBadgesPre": "Жаңа белгілер:",
   "ach.newBadgesPost": "Олар төменде белгіленген.",
   "ach.teacherEmptyTitle": "Белгілер — оқушыларға арналған",
-  "ach.teacherEmptyDesc": "Жетістіктер шешілген тапсырмалар, карта тапсырмалары және серпін үшін беріледі.",
+  "ach.teacherEmptyDesc":
+    "Жетістіктер шешілген тапсырмалар, карта тапсырмалары және серпін үшін беріледі.",
   "ach.new": "Жаңа",
   "ach.received": "Алынды",
   "ach.receivedAtPre": "Алынды:",
@@ -377,15 +399,18 @@ export const kk: Dictionary = {
   "setChip.none": "шешілмеді",
   "setPage.backToSets": "Топ жинақтарына",
   "setPage.tasksCount": "Тапсырма:",
-  "setPage.trainingBadgePre": "Жаттығу ·",
-  "setPage.orderHint": "Тапсырмаларды ретімен шешіңіз. Әр тапсырма бір рет жіберіледі — қайта жіберу мүмкін емес.",
+  "setPage.trainingBadgePre": "Олимпиада ·",
+  "setPage.orderHint":
+    "Еркін жаттығу: кез келген тапсырманы таңдап, жауаптарды түзетіп, қайта шешіңіз.",
   "setPage.deleteSet": "Жинақты жою",
-  "setPage.deleteSetConfirm": "Жинақты жою керек пе? Тапсырмалар топта қалады, бірақ жинақ нәтижелері жоғалады.",
+  "setPage.deleteSetConfirm":
+    "Жинақты жою керек пе? Тапсырмалар топта қалады, бірақ жинақ нәтижелері жоғалады.",
   "setPage.editTitleDesc": "Атауы мен сипаттамасын өңдеу",
   "setPage.addTaskFromGroup": "Топтан тапсырма қосу",
   "setPage.addToSet": "Жинаққа қосу",
   "setPage.reviewTitle": "Жауаптарды тексеру",
-  "setPage.reviewHint": "Нұсқалы тапсырмалар мен карта тапсырмалары автоматты бағаланады. Мәтіндік жауаптарды қолмен бағалау керек.",
+  "setPage.reviewHint":
+    "Нұсқалы тапсырмалар мен карта тапсырмалары автоматты бағаланады. Мәтіндік жауаптарды қолмен бағалау керек.",
   "setPage.awaitingReview": "Тексеруді күтуде",
   "setPage.autoChecked": "Автотексеру",
   "setPage.noAnswers": "Оқушы бірде-бір жауап бермеді.",
@@ -396,16 +421,18 @@ export const kk: Dictionary = {
   "setPage.attemptFinished": "Аяқталды",
   "setPage.attemptOngoing": "Жүруде",
   "setPage.progressTitle": "Оқушылардың үлгерімі",
-  "setPage.legend": "✓ шешілді · ⏳ тексеруде · ✗ қате · — шешілмеді",
+  "setPage.legend":
+    "✓ шешілді · ◐ ішінара · ⏳ тексеруде · ✗ қате · — шешілмеді",
   "setPage.solvedOf": "Шешілді",
-  "setPage.trainingTitle": "Жаттығу",
+  "setPage.trainingTitle": "Сынақ олимпиадасы",
   "setPage.tasksWord": "тапсырма",
   "setPage.minutesWord": "минут",
   "setPage.oneAttemptNoHints": "бір әрекет · нұсқаусыз",
-  "setPage.trainingStartHint": "Тапсырмалар басталғаннан кейін ашылады, таймер бірден іске қосылады — алдын ала дайындалыңыз.",
+  "setPage.trainingStartHint":
+    "Тапсырмалар басталғаннан кейін ашылады, таймер бірден іске қосылады — алдын ала дайындалыңыз.",
   "setPage.viewResult": "Нәтижені көру",
-  "setPage.continueTraining": "Жаттығуды жалғастыру",
-  "setPage.startTraining": "Жаттығуды бастау",
+  "setPage.continueTraining": "Талпынысты жалғастыру",
+  "setPage.startTraining": "Олимпиаданы бастау",
   "setPage.noTrainingTasks": "Мұғалім әлі жаттығуға тапсырма қоспаған.",
   "setPage.emptyTitle": "Жинақта әзірге тапсырма жоқ",
   "setPage.emptyTeacher": "Топ тапсырмаларын жоғарыдағы форма арқылы қосыңыз.",
@@ -424,17 +451,19 @@ export const kk: Dictionary = {
   "training.updateAnswer": "Жауапты жаңарту",
   "training.saveAnswer": "Жауапты сақтау",
   "training.finishTraining": "Жаттығуды аяқтау",
-  "training.finished": "Жаттығу аяқталды",
-  "training.autoScoreSuffix": "балл автотексеру бойынша",
+  "training.finished": "Олимпиада аяқталды",
+  "training.autoScoreSuffix": "жиналған балл",
   "training.timeWord": "уақыты:",
   "training.correctPre": "Дұрыс ·",
   "training.wrongPre": "Қате · 0",
   "training.noAnswerPre": "Жауапсыз · 0",
-  "training.noAutoCheck": "Автотексерусіз",
-  "training.mapHint": "Қызыл белгі — сіздің жауабыңыз, жасыл аймақ — дұрыс аумақ.",
+  "training.noAutoCheck": "Мұғалім тексеруінде",
+  "training.mapHint":
+    "Қызыл белгі — сіздің жауабыңыз, жасыл аймақ — дұрыс аумақ.",
   "training.yourAnswerPre": "Сіздің жауабыңыз:",
   "training.correctAnswerPre": "Дұрыс жауап:",
-  "training.manualNote": "Нұсқасыз тапсырмалар автоматты бағаланбайды және балл сомасына кірмейді.",
+  "training.manualNote":
+    "Мәтіндік жауаптарды мұғалім тексереді. Жалпы балл тексерілгеннен кейін жаңартылады.",
 
   // Карта тапсырмасы (клиенттік MapPoint компоненті)
   "map.editorTitle": "Карта тапсырмасының мақсаты",
@@ -449,7 +478,8 @@ export const kk: Dictionary = {
 
   // Серверлік қате хабарлары (API-роуттардағы валидация)
   "err.emailTaken": "Мұндай email бар пайдаланушы тіркелген.",
-  "err.invalidTeacherCode": "Мұғалім коды қате. Кодты платформа әкімшісінен алыңыз.",
+  "err.invalidTeacherCode":
+    "Мұғалім коды қате. Кодты платформа әкімшісінен алыңыз.",
   "err.invalidCredentials": "Email немесе құпия сөз қате.",
   "err.fillAllFields": "Барлық өрісті толтырыңыз.",
   "err.enterEmail": "Email енгізіңіз.",
@@ -457,23 +487,30 @@ export const kk: Dictionary = {
   "err.enterInviteCode": "Шақыру кодын енгізіңіз.",
   "err.groupCodeNotFound": "Мұндай коды бар топ табылмады.",
   "err.linkInvalid": "Сілтеме жарамсыз немесе ескірген.",
-  "err.linkInvalidRequestNew": "Сілтеме жарамсыз немесе ескірген. Жаңасын сұраңыз.",
+  "err.linkInvalidRequestNew":
+    "Сілтеме жарамсыз немесе ескірген. Жаңасын сұраңыз.",
   "err.groupFields": "Топтың атауы мен сипаттамасын толтырыңыз.",
-  "err.materialFields": "Материалдың атауын, сипаттамасын және түрін толтырыңыз.",
+  "err.materialFields":
+    "Материалдың атауын, сипаттамасын және түрін толтырыңыз.",
   "err.materialFile": "Таңдалған түр үшін файл жүктеңіз.",
   "err.materialFileType": "Файл таңдалған материал түріне сәйкес келмейді.",
   "err.addValidLink": "Дұрыс сілтеме қосыңыз (http:// немесе https://).",
-  "err.taskFields": "Атауын, шартын, түрін және максимал баллды (0-ден жоғары) толтырыңыз.",
-  "err.taskOptions": "Нұсқалы тапсырма үшін кемінде екі жауап нұсқасын көрсетіңіз (әрқайсысы жаңа жолдан).",
-  "err.correctRequired": "Нұсқалы тапсырма үшін дұрыс жауапты көрсетіңіз — автотексеру сол бойынша жұмыс істейді.",
-  "err.correctMismatchPre": "Дұрыс жауап нұсқалармен дәлме-дәл сәйкес келуі керек. Тізімде жоқ:",
+  "err.taskFields":
+    "Атауын, шартын, түрін және максимал баллды (0-ден жоғары) толтырыңыз.",
+  "err.taskOptions":
+    "Кемінде екі әртүрлі нұсқаны көрсетіңіз. Нұсқаның ішінде «;» белгісін қолданбаңыз.",
+  "err.correctRequired":
+    "Нұсқалы тапсырма үшін дұрыс жауапты көрсетіңіз — автотексеру сол бойынша жұмыс істейді.",
+  "err.correctMismatchPre":
+    "Дұрыс жауап нұсқалармен дәлме-дәл сәйкес келуі керек. Тізімде жоқ:",
   "err.imageFormat": "Сурет JPG, PNG немесе WebP форматында болуы керек.",
   "err.mapImage": "Карта тапсырмасы үшін карта суретін жүктеңіз.",
   "err.mapPointTeacher": "Картада дұрыс нүктені белгілеп, рұқсатты орнатыңыз.",
   "err.mapPointStudent": "Картада нүктені белгілеңіз.",
   "err.mapCoords": "Карта тапсырмасы мақсатының координаттары қате.",
   "err.setFields": "Жинақтың атауы мен сипаттамасын толтырыңыз.",
-  "err.trainingLimit": "Жаттығу лимиті — 1-ден 600-ге дейінгі бүтін минут саны.",
+  "err.trainingLimit":
+    "Жаттығу лимиті — 1-ден 600-ге дейінгі бүтін минут саны.",
   "err.taskNotFound": "Тапсырма табылмады.",
   "err.taskNotInGroup": "Тапсырма бұл топтан табылмады.",
   "err.taskNotInTraining": "Тапсырма жаттығудан табылмады.",
@@ -491,8 +528,10 @@ export const kk: Dictionary = {
   "err.explanationContent": "Талдау мәтінін немесе файл қосыңыз.",
   "err.answerContent": "Жауап немесе файл қосыңыз.",
   "err.enterAnswer": "Жауап енгізіңіз.",
-  "err.materialFileMissing": "Материал файлы дискіден табылмады — көшіру тоқтатылды.",
-  "err.imageFileMissing": "Тапсырма суреті дискіден табылмады — көшіру тоқтатылды.",
+  "err.materialFileMissing":
+    "Материал файлы дискіден табылмады — көшіру тоқтатылды.",
+  "err.imageFileMissing":
+    "Тапсырма суреті дискіден табылмады — көшіру тоқтатылды.",
   // Мән қойылатын қателер (label/күн/сан роутта қойылады)
   "err.storagePre": "Қойма лимитіне жетті",
   "err.storageDeletePost": ". Қажетсіз файлдарды жойыңыз.",
@@ -503,20 +542,25 @@ export const kk: Dictionary = {
   "err.pwdLenPost": " таңбадан қысқа болмауы керек.",
   "err.scoreRangePre": "Балл — 0-ден",
   "err.scoreRangePost": "-ге дейінгі бүтін сан болуы керек.",
-  "err.rateLimitLoginPre": "Кіру әрекеті тым көп. Мына уақыттан кейін қайталаңыз:",
-  "err.rateLimitVerifyPre": "Кодты енгізу әрекеті тым көп. Мына уақыттан кейін қайталаңыз:",
-  "err.rateLimitResendPre": "Код тым жиі сұралды. Мына уақыттан кейін қайталаңыз:",
+  "err.rateLimitLoginPre":
+    "Кіру әрекеті тым көп. Мына уақыттан кейін қайталаңыз:",
+  "err.rateLimitVerifyPre":
+    "Кодты енгізу әрекеті тым көп. Мына уақыттан кейін қайталаңыз:",
+  "err.rateLimitResendPre":
+    "Код тым жиі сұралды. Мына уақыттан кейін қайталаңыз:",
   "err.enterCode": "Хаттағы кодты енгізіңіз.",
   "err.codeWrong": "Код қате. Хатты тексеріп, қайта көріңіз.",
   "err.codeExpired": "Кодтың мерзімі өтті. Жаңасын сұратыңыз.",
   "err.codeTooManyAttempts": "Қате әрекет тым көп. Жаңа код сұратыңыз.",
   "err.rateLimitForgotPre": "Сұраныс тым көп. Мына уақыттан кейін қайталаңыз:",
   "err.rateLimitPost": " минут.",
-  "err.oneShotResubmit": "Жинақта тапсырма бір рет шешіледі — қайта жіберу мүмкін емес.",
+  "err.oneShotResubmit":
+    "Жинақта тапсырма бір рет шешіледі — қайта жіберу мүмкін емес.",
 
   // Сәтті әрекеттер (?ok= баннері)
   "ok.passwordChanged": "Құпия сөз өзгертілді. Жаңа құпия сөзбен кіріңіз.",
-  "ok.forgotSent": "Егер осы email-мен аккаунт болса, біз құпия сөзді қалпына келтіру сілтемесі бар хат жібердік.",
+  "ok.forgotSent":
+    "Егер осы email-мен аккаунт болса, біз құпия сөзді қалпына келтіру сілтемесі бар хат жібердік.",
   "ok.codeResent": "Егер аккаунт әлі расталмаған болса, біз жаңа код жібердік.",
   "verify.title": "Поштаны растаңыз",
   "verify.subtitlePre": "Біз кодты мына мекенжайға жібердік:",
@@ -547,14 +591,16 @@ export const kk: Dictionary = {
   "email.verifyHeading": "Поштаны растау",
   "email.verifyIntro": "Тіркелуді аяқтау үшін сайтта осы кодты енгізіңіз:",
   "email.verifyTtlPre": "Код",
-  "email.verifyTtlPost": "минут жарамды. Егер сіз тіркелмеген болсаңыз, хатты елемеңіз.",
+  "email.verifyTtlPost":
+    "минут жарамды. Егер сіз тіркелмеген болсаңыз, хатты елемеңіз.",
   "email.resetSubject": "Құпия сөзді қалпына келтіру — Olympic Meridian",
   "email.resetHeading": "Құпия сөзді қалпына келтіру",
   "email.resetIntro":
     "Сіз Olympic Meridian-де құпия сөзді қалпына келтіруді сұрадыңыз. Жаңа құпия сөз орнату үшін төмендегі батырманы басыңыз:",
   "email.resetButton": "Құпия сөзді қалпына келтіру",
   "email.resetTtlPre": "Сілтеме",
-  "email.resetTtlPost": "минут бойы жарамды. Егер сіз қалпына келтіруді сұрамаған болсаңыз — бұл хатты елемеңіз.",
+  "email.resetTtlPost":
+    "минут бойы жарамды. Егер сіз қалпына келтіруді сұрамаған болсаңыз — бұл хатты елемеңіз.",
 
   // Құпиялылық саясаты
   "privacy.link": "Құпиялылық саясаты",
@@ -563,4 +609,50 @@ export const kk: Dictionary = {
   "privacy.updatedPre": "Жаңартылды:",
   "register.consentPre": "Аккаунт жасау арқылы сіз",
   "register.consentLink": "құпиялылық саясатымен",
+
+  // Рабочее пространство и сохранение ответов
+  "ui.navigation": "Сабақ тапсырмалары",
+  "ui.previous": "Артқа",
+  "ui.next": "Келесі",
+  "ui.solvedShort": "шешілді",
+  "ui.draft": "Жоба осы құрылғыда сақталды. Тексеру үшін жауапты жіберіңіз.",
+  "ui.saving": "Сақталуда…",
+  "ui.saved": "Барлық жауап сақталды",
+  "ui.saveError":
+    "Сақтау мүмкін болмады. Жауаптар құрылғыда қалды; байланысты тексеріп, қайталаңыз.",
+  "ui.retry": "Қайталау",
+  "ui.sending": "Жіберілуде…",
+  "ui.fileHint": "10 МБ дейін. Файл жауаппен бірге жіберіледі.",
+  "ui.storageError":
+    "Браузер жобаны құрылғыда сақтай алмайды. Шықпас бұрын жауапты жіберіңіз.",
+  "ui.addOption": "Нұсқа қосу",
+  "ui.removeOption": "Нұсқаны алып тастау",
+  "ui.selectCorrect": "Нұсқаның жанындағы дұрыс жауапты белгілеңіз.",
+  "ui.continue": "Оқуды жалғастыру",
+  "ui.joinCompact": "Басқа топқа қосылу",
+  "ui.studentSubtitle": "Сабақтарыңыз бен нәтижелеріңіз бір жерде.",
+  "ui.teacherSubtitle": "Топтар, тапсырмалар және жұмыстарды тексеру.",
+  "ui.createTaskInSet": "Жинаққа тапсырма жасау",
+  "ui.selectAll": "Барлығын таңдау / алып тастау",
+  "ui.selected": "Таңдалды",
+  "ui.order": "Тапсырмалар реті",
+  "ui.up": "Жоғары",
+  "ui.down": "Төмен",
+  "ui.saveOrder": "Ретін сақтау",
+  "ui.search": "Атауы бойынша тапсырма іздеу",
+  "ui.finishConfirm":
+    "Талпынысты аяқтау керек пе? Аяқталғаннан кейін жауаптарды өзгерту мүмкін емес.",
+  "ui.cancel": "Шешуді жалғастыру",
+  "ui.lockedSet":
+    "Олимпиада басталды: тапсырмалар құрамы мен шарттары бекітілді. Жаңа нұсқа үшін басқа жинақ жасаңыз.",
+  "ui.genericError": "Өзгерістерді сақтау мүмкін болмады. Қайталаңыз.",
+  "ui.practiceHint":
+    "Еркін жаттығу: жауаптарды өзгертіп, қайта шешуге болады. Жобалар автоматты түрде сақталады.",
+  "ui.trainingHint":
+    "Жауаптар автоматты түрде сақталады. Аяқталғанша өзгертуге болады. Бір талпыныс, уақыт шектеулі.",
+  "ui.newResults": "Жаңа нәтижелер",
+  "ui.openTasks": "Тапсырмаларды шешу",
+  "ui.openSets": "Сабақтарды ашу",
+  "ui.readOnly": "Тек қарау",
+  "ui.changesSaved": "Өзгерістер сақталды.",
 };

@@ -1,19 +1,30 @@
-import { MaterialType, PrismaClient, Role, SubmissionStatus, TaskType } from "@prisma/client";
+import {
+  MaterialType,
+  PrismaClient,
+  Role,
+  SubmissionStatus,
+  TaskType,
+} from "@prisma/client";
 import { hashPassword } from "../lib/password";
 import { r2PutObject } from "../lib/r2";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Чистим данные в порядке, безопасном для внешних ключей. Счётчики id (SERIAL)
-  // в PostgreSQL не сбрасываем — для демо-данных конкретные значения id не важны.
-  await prisma.review.deleteMany();
-  await prisma.submission.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.material.deleteMany();
-  await prisma.membership.deleteMany();
-  await prisma.group.deleteMany();
-  await prisma.user.deleteMany();
+  const db = new URL(process.env.DATABASE_URL ?? "");
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(db.hostname)) {
+    throw new Error(
+      "Демо-данные разрешены только в локальной базе. Рабочая база не изменена.",
+    );
+  }
+  if (
+    await prisma.user.findFirst({
+      where: { email: { in: ["teacher@geoolymp.kz", "student@geoolymp.kz"] } },
+    })
+  ) {
+    console.info("Демо-аккаунты уже существуют. Данные сохранены.");
+    return;
+  }
 
   const files = await createSeedFiles();
 
@@ -23,6 +34,7 @@ async function main() {
       email: "teacher@geoolymp.kz",
       password: await hashPassword("123456"),
       role: Role.TEACHER,
+      emailVerified: true,
     },
   });
 
@@ -32,6 +44,7 @@ async function main() {
       email: "student@geoolymp.kz",
       password: await hashPassword("123456"),
       role: Role.STUDENT,
+      emailVerified: true,
     },
   });
 
@@ -53,21 +66,24 @@ async function main() {
       {
         groupId: group.id,
         title: "Атлас Казахстана на Wikimedia Commons",
-        description: "Подборка карт Казахстана: физические, административные и исторические карты.",
+        description:
+          "Подборка карт Казахстана: физические, административные и исторические карты.",
         type: MaterialType.LINK,
         url: "https://commons.wikimedia.org/wiki/Atlas_of_Kazakhstan",
       },
       {
         groupId: group.id,
         title: "География Казахстана: справочная статья",
-        description: "Краткая справка по рельефу, климату, водным ресурсам и природным зонам.",
+        description:
+          "Краткая справка по рельефу, климату, водным ресурсам и природным зонам.",
         type: MaterialType.LINK,
         url: "https://en.wikipedia.org/wiki/Geography_of_Kazakhstan",
       },
       {
         groupId: group.id,
         title: "Физическая география Казахстана",
-        description: "PDF-конспект по основным формам рельефа и природным зонам.",
+        description:
+          "PDF-конспект по основным формам рельефа и природным зонам.",
         type: MaterialType.PDF,
         filePath: files.physicalGeographyPdf,
         originalFileName: "physical_geography_kz.pdf",
@@ -82,7 +98,8 @@ async function main() {
       {
         groupId: group.id,
         title: "Климат Казахстана",
-        description: "Презентация по климатическим поясам и факторам климатообразования.",
+        description:
+          "Презентация по климатическим поясам и факторам климатообразования.",
         type: MaterialType.PPTX,
         filePath: files.climatePptx,
         originalFileName: "climate_kz.pptx",
@@ -106,7 +123,8 @@ async function main() {
       {
         groupId: group.id,
         title: "Архив тренировочных материалов",
-        description: "ZIP-архив с дополнительными файлами для самостоятельной подготовки.",
+        description:
+          "ZIP-архив с дополнительными файлами для самостоятельной подготовки.",
         type: MaterialType.ZIP,
         filePath: files.practiceZip,
         originalFileName: "kazakhstan_geography_practice.zip",
@@ -132,7 +150,8 @@ async function main() {
       {
         groupId: group.id,
         title: "Крупнейшее озеро Казахстана",
-        description: "Выберите крупнейшее озеро, полностью или частично расположенное на территории Казахстана.",
+        description:
+          "Выберите крупнейшее озеро, полностью или частично расположенное на территории Казахстана.",
         maxScore: 5,
         type: TaskType.SINGLE_CHOICE,
         options: ["Балхаш", "Зайсан", "Алаколь", "Маркаколь"].join("\n"),
@@ -141,10 +160,18 @@ async function main() {
       {
         groupId: group.id,
         title: "Пограничные государства Казахстана",
-        description: "Отметьте все государства, с которыми Казахстан имеет сухопутную границу.",
+        description:
+          "Отметьте все государства, с которыми Казахстан имеет сухопутную границу.",
         maxScore: 8,
         type: TaskType.MULTIPLE_CHOICE,
-        options: ["Россия", "Китай", "Кыргызстан", "Монголия", "Туркменистан", "Узбекистан"].join("\n"),
+        options: [
+          "Россия",
+          "Китай",
+          "Кыргызстан",
+          "Монголия",
+          "Туркменистан",
+          "Узбекистан",
+        ].join("\n"),
         correctAnswer: "Китай; Кыргызстан; Россия; Туркменистан; Узбекистан",
       },
       {
@@ -164,7 +191,8 @@ async function main() {
           "Подготовьте файл с расчётом расстояния по масштабу карты и кратким объяснением выбранного метода.",
         maxScore: 15,
         type: TaskType.FILE_UPLOAD,
-        correctAnswer: "Файл должен содержать расчёт, единицы измерения и вывод.",
+        correctAnswer:
+          "Файл должен содержать расчёт, единицы измерения и вывод.",
       },
     ],
   });
@@ -183,7 +211,8 @@ async function main() {
     data: {
       submissionId: submission.id,
       score: 9,
-      feedback: "Хороший ответ. Для полного балла можно добавить сравнение с Прикаспийской низменностью и Северо-Казахской равниной.",
+      feedback:
+        "Хороший ответ. Для полного балла можно добавить сравнение с Прикаспийской низменностью и Северо-Казахской равниной.",
     },
   });
 }
@@ -215,11 +244,17 @@ async function createSeedFiles() {
     createZip([
       {
         name: "readme.txt",
-        content: Buffer.from("Демо-архив с тренировочными материалами по географии Казахстана.\n", "utf8"),
+        content: Buffer.from(
+          "Демо-архив с тренировочными материалами по географии Казахстана.\n",
+          "utf8",
+        ),
       },
       {
         name: "practice_tasks.txt",
-        content: Buffer.from("1. Сравните природные зоны Казахстана.\n2. Определите бассейн реки Иртыш.\n", "utf8"),
+        content: Buffer.from(
+          "1. Сравните природные зоны Казахстана.\n2. Определите бассейн реки Иртыш.\n",
+          "utf8",
+        ),
       },
     ]),
     "application/zip",

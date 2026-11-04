@@ -7,6 +7,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { SelectField, TextArea, TextInput } from "@/components/FormFields";
 import { Header } from "@/components/Header";
+import { TaskForm } from "@/components/TaskForm";
+import { SetTaskManager } from "@/components/SetTaskManager";
+import { TaskWorkspace } from "@/components/TaskWorkspace";
+import { workspaceLabels } from "@/lib/uiLabels";
+import { studentTaskStatus } from "@/lib/taskStatus";
 import { SetModeFields } from "@/components/SetModeFields";
 import { setModeLabels } from "@/lib/mapLabels";
 import { TaskCard, type TeacherGroupOption } from "@/components/TaskCard";
@@ -16,9 +21,12 @@ import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, isAutoCheckedTask } from "@/lib/tasks";
-import { getTrainingTaskIds, isTrainingSupportedTaskType } from "@/lib/training";
+import {
+  getTrainingTaskIds,
+  isTrainingSupportedTaskType,
+} from "@/lib/training";
 
-type SetTaskStatus = "solved" | "wrong" | "pending" | "none";
+type SetTaskStatus = "solved" | "partial" | "wrong" | "pending" | "none";
 
 function SetProgressChip({
   index,
@@ -31,11 +39,35 @@ function SetProgressChip({
   title: string;
   t: TFunction;
 }) {
-  const styles: Record<SetTaskStatus, { className: string; glyph: string; label: string }> = {
-    solved: { className: "bg-green-100 text-green-800", glyph: "✓", label: t("setChip.solved") },
-    wrong: { className: "bg-red-100 text-red-800", glyph: "✗", label: t("setChip.wrong") },
-    pending: { className: "bg-amber-100 text-amber-800", glyph: "⏳", label: t("setChip.pending") },
-    none: { className: "bg-ink/5 text-ink-mute/70", glyph: "—", label: t("setChip.none") },
+  const styles: Record<
+    SetTaskStatus,
+    { className: string; glyph: string; label: string }
+  > = {
+    solved: {
+      className: "bg-green-100 text-green-800",
+      glyph: "✓",
+      label: t("setChip.solved"),
+    },
+    partial: {
+      className: "bg-amber-100 text-amber-800",
+      glyph: "◐",
+      label: t("taskStatus.partial"),
+    },
+    wrong: {
+      className: "bg-red-100 text-red-800",
+      glyph: "✗",
+      label: t("setChip.wrong"),
+    },
+    pending: {
+      className: "bg-amber-100 text-amber-800",
+      glyph: "⏳",
+      label: t("setChip.pending"),
+    },
+    none: {
+      className: "bg-ink/5 text-ink-mute/70",
+      glyph: "—",
+      label: t("setChip.none"),
+    },
   };
   const style = styles[status];
 
@@ -68,20 +100,26 @@ export default async function TaskSetPage({
   const groupId = parseEntityId(id);
   const parsedSetId = parseEntityId(setId);
 
-  if (groupId === null || parsedSetId === null || !(await canOpenGroup(user.id, groupId))) {
+  if (
+    groupId === null ||
+    parsedSetId === null ||
+    !(await canOpenGroup(user.id, groupId))
+  ) {
     notFound();
   }
 
   const set = await prisma.taskSet.findUnique({
     where: { id: parsedSetId },
     include: {
+      _count: { select: { attempts: true } },
       items: {
         orderBy: { position: "asc" },
         include: {
           task: {
             include: {
               submissions: {
-                where: user.role === "STUDENT" ? { studentId: user.id } : undefined,
+                where:
+                  user.role === "STUDENT" ? { studentId: user.id } : undefined,
                 include: { review: true, student: true },
               },
             },
@@ -100,31 +138,12 @@ export default async function TaskSetPage({
   // Черновики в подборке видит только учитель — тот же фильтр, что и на вкладке задач.
   // В обычной подборке ученик не видит и задачи, занятые в тренировках других подборок.
   const quarantinedTaskIds =
-    !isTeacher && set.trainingMinutes === null ? await getTrainingTaskIds(groupId) : new Set<number>();
+    set.trainingMinutes === null
+      ? await getTrainingTaskIds(groupId)
+      : new Set<number>();
   const visibleItems = isTeacher
     ? set.items
-    : set.items.filter(
-        (item) => !quarantinedTaskIds.has(item.taskId),
-      );
-
-  // Открытие подборки тоже «показывает результат» — снимаем пометку «Новый результат»
-  // с задач подборки (та же логика, что на вкладке задач: рендерим по уже загруженным данным).
-  if (!isTeacher && visibleItems.length > 0) {
-    const hasUnseen = visibleItems.some((item) => {
-      const review = item.task.submissions[0]?.review;
-      return review != null && review.seenByStudentAt === null;
-    });
-
-    if (hasUnseen) {
-      await prisma.review.updateMany({
-        where: {
-          seenByStudentAt: null,
-          submission: { studentId: user.id, taskId: { in: visibleItems.map((item) => item.taskId) } },
-        },
-        data: { seenByStudentAt: new Date() },
-      });
-    }
-  }
+    : set.items.filter((item) => !quarantinedTaskIds.has(item.taskId));
 
   // Учителю нужны сами участники (для «Прогресс учеников»), ученику — только число.
   const members = isTeacher
@@ -162,12 +181,15 @@ export default async function TaskSetPage({
         })
       : [];
   const possibleScore = set.items
-    .filter((item) => isAutoCheckedTask(item.task))
+    .filter((item) => isTrainingSupportedTaskType(item.task.type))
     .reduce((sum, item) => sum + item.task.maxScore, 0);
 
   // Прогресс учеников: какие задачи подборки решены. В обычной подборке статус берём
   // из проверенных решений, в тренировке — из ответов завершённых попыток.
-  const trainingAnswerByKey = new Map<string, { isCorrect: boolean | null }>();
+  const trainingAnswerByKey = new Map<
+    string,
+    { isCorrect: boolean | null; score: number }
+  >();
   const finishedStudentIds = new Set<number>();
   for (const attempt of attempts) {
     if (!attempt.finishedAt) {
@@ -179,7 +201,10 @@ export default async function TaskSetPage({
     }
   }
 
-  const taskStatusFor = (studentId: number, item: (typeof set.items)[number]): SetTaskStatus => {
+  const taskStatusFor = (
+    studentId: number,
+    item: (typeof set.items)[number],
+  ): SetTaskStatus => {
     if (isTrainingMode) {
       if (!finishedStudentIds.has(studentId)) {
         return "none";
@@ -188,20 +213,21 @@ export default async function TaskSetPage({
       if (!answer) {
         return "none";
       }
+      if (answer.score > 0 && answer.score < item.task.maxScore)
+        return "partial";
       if (answer.isCorrect === true) {
         return "solved";
       }
       return answer.isCorrect === false ? "wrong" : "pending";
     }
 
-    const submission = item.task.submissions.find((entry) => entry.studentId === studentId);
+    const submission = item.task.submissions.find(
+      (entry) => entry.studentId === studentId,
+    );
     if (!submission) {
       return "none";
     }
-    if (submission.review && submission.review.score > 0) {
-      return "solved";
-    }
-    return submission.review ? "wrong" : "pending";
+    return studentTaskStatus(submission, item.task.maxScore) as SetTaskStatus;
   };
 
   const memberProgress = members.map((membership) => {
@@ -231,10 +257,15 @@ export default async function TaskSetPage({
     ? (
         await prisma.task.findMany({
           where: { groupId },
-          select: { id: true, title: true },
+          select: { id: true, title: true, type: true },
           orderBy: { id: "asc" },
         })
-      ).filter((task) => !inSetTaskIds.has(task.id))
+      ).filter(
+        (task) =>
+          !inSetTaskIds.has(task.id) &&
+          !quarantinedTaskIds.has(task.id) &&
+          (!isTrainingMode || isTrainingSupportedTaskType(task.type)),
+      )
     : [];
 
   return (
@@ -253,17 +284,24 @@ export default async function TaskSetPage({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{set.title}</h1>
-                <Badge tone="emerald">{t("setPage.tasksCount")} {visibleItems.length}</Badge>
+                <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">
+                  {set.title}
+                </h1>
+                <Badge tone="emerald">
+                  {t("setPage.tasksCount")} {visibleItems.length}
+                </Badge>
                 {isTrainingMode && (
                   <Badge tone="amber">
-                    {t("setPage.trainingBadgePre")} {set.trainingMinutes} {t("set.minShort")}
+                    {t("setPage.trainingBadgePre")} {set.trainingMinutes}{" "}
+                    {t("set.minShort")}
                   </Badge>
                 )}
               </div>
               <p className="mt-1 text-sm text-ink-soft">{set.description}</p>
               {!isTeacher && !isTrainingMode && visibleItems.length > 0 && (
-                <p className="mt-2 text-xs text-ink-mute">{t("setPage.orderHint")}</p>
+                <p className="mt-2 text-xs text-ink-mute">
+                  {t("setPage.orderHint")}
+                </p>
               )}
             </div>
             {isTeacher && (
@@ -287,37 +325,74 @@ export default async function TaskSetPage({
               <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-ink">
                 {t("setPage.editTitleDesc")}
               </summary>
-              <form className="mt-4 grid gap-3" action={`/api/sets/${set.id}/update`} method="post">
-                <TextInput label={t("field.title")} name="title" defaultValue={set.title} />
-                <TextArea label={t("field.description")} name="description" defaultValue={set.description} />
-                <SetModeFields labels={setModeLabels(t)} defaultMinutes={set.trainingMinutes} />
+              <form
+                className="mt-4 grid gap-3"
+                action={`/api/sets/${set.id}/update`}
+                method="post"
+              >
+                <TextInput
+                  label={t("field.title")}
+                  name="title"
+                  defaultValue={set.title}
+                />
+                <TextArea
+                  label={t("field.description")}
+                  name="description"
+                  defaultValue={set.description}
+                />
+                <SetModeFields
+                  labels={setModeLabels(t)}
+                  defaultMinutes={set.trainingMinutes}
+                />
                 <Button className="w-fit">{t("action.save")}</Button>
               </form>
             </details>
 
-            {availableTasks.length > 0 && (
-              <form
-                className={`${cardClasses} flex flex-col gap-2 sm:flex-row sm:items-end`}
-                action={`/api/sets/${set.id}/tasks`}
-                method="post"
-              >
-                <div className="flex-1">
-                  <SelectField
-                    label={t("setPage.addTaskFromGroup")}
-                    name="taskId"
-                    options={availableTasks.map((task) => ({
-                      value: String(task.id),
-                      label: task.title,
-                    }))}
+            {set._count.attempts > 0 ? (
+              <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
+                {t("ui.lockedSet")}
+              </p>
+            ) : (
+              <>
+                <details className={cardClasses}>
+                  <summary className="cursor-pointer font-semibold">
+                    + {t("ui.createTaskInSet")}
+                  </summary>
+                  <TaskForm
+                    groupId={groupId}
+                    setId={set.id}
+                    training={isTrainingMode}
+                    returnTo={"/groups/" + groupId + "/sets/" + set.id}
                   />
-                </div>
-                <Button className="shrink-0">{t("setPage.addToSet")}</Button>
-              </form>
+                </details>
+                <SetTaskManager
+                  key={set.items.map((item) => item.taskId).join(",")}
+                  setId={set.id}
+                  available={availableTasks}
+                  items={set.items.map((item) => ({
+                    id: item.taskId,
+                    title: item.task.title,
+                  }))}
+                  labels={{
+                    add: t("setPage.addToSet"),
+                    selectAll: t("ui.selectAll"),
+                    selected: t("ui.selected"),
+                    order: t("ui.order"),
+                    up: t("ui.up"),
+                    down: t("ui.down"),
+                    saveOrder: t("ui.saveOrder"),
+                    search: t("ui.search"),
+                    error: t("ui.genericError"),
+                  }}
+                />
+              </>
             )}
 
             {isTrainingMode && attempts.length > 0 && (
               <div className={cardClasses}>
-                <h2 className="font-heading text-[15px] font-semibold text-ink">{t("setPage.attemptsTitle")}</h2>
+                <h2 className="font-heading text-[15px] font-semibold text-ink">
+                  {t("setPage.attemptsTitle")}
+                </h2>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[420px] text-sm">
                     <thead>
@@ -330,21 +405,34 @@ export default async function TaskSetPage({
                     </thead>
                     <tbody className="divide-y divide-line/70">
                       {attempts.map((attempt) => {
-                        const earned = attempt.answers.reduce((sum, answer) => sum + answer.score, 0);
+                        const earned = attempt.answers.reduce(
+                          (sum, answer) => sum + answer.score,
+                          0,
+                        );
                         return (
                           <tr key={attempt.id}>
-                            <td className="py-2 pr-3 font-medium text-ink">{attempt.student.name}</td>
+                            <td className="py-2 pr-3 font-medium text-ink">
+                              {attempt.student.name}
+                            </td>
                             <td className="py-2 pr-3 text-ink-soft">
-                              {attempt.finishedAt ? `${earned} ${t("stats.of")} ${possibleScore}` : "—"}
+                              {attempt.finishedAt
+                                ? `${earned} ${t("stats.of")} ${possibleScore}`
+                                : "—"}
                             </td>
                             <td className="py-2 pr-3">
                               {attempt.finishedAt ? (
-                                <Badge tone="green">{t("setPage.attemptFinished")}</Badge>
+                                <Badge tone="green">
+                                  {t("setPage.attemptFinished")}
+                                </Badge>
                               ) : (
-                                <Badge tone="amber">{t("setPage.attemptOngoing")}</Badge>
+                                <Badge tone="amber">
+                                  {t("setPage.attemptOngoing")}
+                                </Badge>
                               )}
                             </td>
-                            <td className="py-2 text-ink-soft">{formatDateTime(attempt.startedAt)}</td>
+                            <td className="py-2 text-ink-soft">
+                              {formatDateTime(attempt.startedAt)}
+                            </td>
                           </tr>
                         );
                       })}
@@ -356,85 +444,112 @@ export default async function TaskSetPage({
 
             {/* Проверка ответов олимпиады. Автопроверка не умеет оценивать текстовые
                 ответы — без этого блока они навсегда оставались бы с нулём. */}
-            {isTrainingMode && attempts.some((attempt) => attempt.finishedAt) && (
-              <div className={cardClasses}>
-                <h2 className="font-heading text-[15px] font-semibold text-ink">{t("setPage.reviewTitle")}</h2>
-                <p className="mt-0.5 text-xs text-ink-mute">{t("setPage.reviewHint")}</p>
-                <div className="mt-3 space-y-2">
-                  {attempts
-                    .filter((attempt) => attempt.finishedAt)
-                    .map((attempt) => {
-                      const awaiting = attempt.answers.filter(
-                        (answer) => !isAutoCheckedTask(answer.task) && answer.isCorrect === null,
-                      ).length;
+            {isTrainingMode &&
+              attempts.some((attempt) => attempt.finishedAt) && (
+                <div className={cardClasses}>
+                  <h2 className="font-heading text-[15px] font-semibold text-ink">
+                    {t("setPage.reviewTitle")}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-ink-mute">
+                    {t("setPage.reviewHint")}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {attempts
+                      .filter((attempt) => attempt.finishedAt)
+                      .map((attempt) => {
+                        const awaiting = attempt.answers.filter(
+                          (answer) =>
+                            !isAutoCheckedTask(answer.task) &&
+                            answer.isCorrect === null,
+                        ).length;
 
-                      return (
-                        <details className="rounded-lg border border-line/70 p-3" key={attempt.id}>
-                          <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm font-medium text-ink">
-                            {attempt.student.name}
-                            {awaiting > 0 && (
-                              <Badge tone="amber">
-                                {t("setPage.awaitingReview")}: {awaiting}
-                              </Badge>
-                            )}
-                          </summary>
-                          <div className="mt-3 space-y-3">
-                            {attempt.answers.length === 0 && (
-                              <p className="text-xs text-ink-mute">{t("setPage.noAnswers")}</p>
-                            )}
-                            {attempt.answers.map((answer) => (
-                              <div className="rounded-lg bg-paper px-3 py-2" key={answer.id}>
-                                <p className="text-sm font-medium text-ink">{answer.task.title}</p>
-                                <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{answer.answer}</p>
-                                {isAutoCheckedTask(answer.task) ? (
-                                  <p className="mt-1 text-xs text-ink-mute">
-                                    {t("setPage.autoChecked")}: {answer.score} {t("stats.of")}{" "}
-                                    {answer.task.maxScore}
+                        return (
+                          <details
+                            className="rounded-lg border border-line/70 p-3"
+                            key={attempt.id}
+                          >
+                            <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                              {attempt.student.name}
+                              {awaiting > 0 && (
+                                <Badge tone="amber">
+                                  {t("setPage.awaitingReview")}: {awaiting}
+                                </Badge>
+                              )}
+                            </summary>
+                            <div className="mt-3 space-y-3">
+                              {attempt.answers.length === 0 && (
+                                <p className="text-xs text-ink-mute">
+                                  {t("setPage.noAnswers")}
+                                </p>
+                              )}
+                              {attempt.answers.map((answer) => (
+                                <div
+                                  className="rounded-lg bg-paper px-3 py-2"
+                                  key={answer.id}
+                                >
+                                  <p className="text-sm font-medium text-ink">
+                                    {answer.task.title}
                                   </p>
-                                ) : (
-                                  <form
-                                    className="mt-2 flex items-end gap-2"
-                                    action={`/api/training/answers/${answer.id}/review`}
-                                    method="post"
-                                  >
-                                    <div className="w-44">
-                                      <TextInput
-                                        label={`${t("sub.scoreOfPrefix")} ${answer.task.maxScore}`}
-                                        name="score"
-                                        type="number"
-                                        min={0}
-                                        max={answer.task.maxScore}
-                                        defaultValue={answer.score}
-                                      />
-                                    </div>
-                                    <Button variant="secondary" className="shrink-0">
-                                      {t("action.save")}
-                                    </Button>
-                                  </form>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      );
-                    })}
+                                  <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">
+                                    {answer.answer}
+                                  </p>
+                                  {isAutoCheckedTask(answer.task) ? (
+                                    <p className="mt-1 text-xs text-ink-mute">
+                                      {t("setPage.autoChecked")}: {answer.score}{" "}
+                                      {t("stats.of")} {answer.task.maxScore}
+                                    </p>
+                                  ) : (
+                                    <form
+                                      className="mt-2 flex items-end gap-2"
+                                      action={`/api/training/answers/${answer.id}/review`}
+                                      method="post"
+                                    >
+                                      <div className="w-44">
+                                        <TextInput
+                                          label={`${t("sub.scoreOfPrefix")} ${answer.task.maxScore}`}
+                                          name="score"
+                                          type="number"
+                                          min={0}
+                                          max={answer.task.maxScore}
+                                          defaultValue={answer.score}
+                                        />
+                                      </div>
+                                      <Button
+                                        variant="secondary"
+                                        className="shrink-0"
+                                      >
+                                        {t("action.save")}
+                                      </Button>
+                                    </form>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        );
+                      })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {members.length > 0 && (
               <div className={cardClasses}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="font-heading text-[15px] font-semibold text-ink">{t("setPage.progressTitle")}</h2>
+                  <h2 className="font-heading text-[15px] font-semibold text-ink">
+                    {t("setPage.progressTitle")}
+                  </h2>
                   <p className="text-xs text-ink-mute">{t("setPage.legend")}</p>
                 </div>
                 <div className="mt-4 space-y-4">
                   {memberProgress.map((member) => (
                     <div key={member.userId}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-ink">{member.name}</span>
+                        <span className="text-sm font-medium text-ink">
+                          {member.name}
+                        </span>
                         <Badge tone={member.solved > 0 ? "green" : "gray"}>
-                          {t("setPage.solvedOf")} {member.solved} {t("stats.of")} {set.items.length}
+                          {t("setPage.solvedOf")} {member.solved}{" "}
+                          {t("stats.of")} {set.items.length}
                         </Badge>
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -458,45 +573,97 @@ export default async function TaskSetPage({
 
         {!isTeacher && isTrainingMode ? (
           <section className={`${cardClasses} text-center`}>
-            <h2 className="font-heading font-heading text-[15px] font-semibold text-ink">{t("setPage.trainingTitle")}</h2>
+            <h2 className="font-heading font-heading text-[15px] font-semibold text-ink">
+              {t("setPage.trainingTitle")}
+            </h2>
             <p className="mt-2 text-sm text-ink-soft">
-              {trainableCount} {t("setPage.tasksWord")} · {set.trainingMinutes} {t("setPage.minutesWord")} ·{" "}
-              {t("setPage.oneAttemptNoHints")}
+              {trainableCount} {t("setPage.tasksWord")} · {set.trainingMinutes}{" "}
+              {t("setPage.minutesWord")} · {t("setPage.oneAttemptNoHints")}
             </p>
-            <p className="mt-1 text-xs text-ink-mute">{t("setPage.trainingStartHint")}</p>
+            <p className="mt-1 text-xs text-ink-mute">
+              {t("setPage.trainingStartHint")}
+            </p>
             <div className="mt-4 flex justify-center">
               {studentAttempt?.finishedAt ? (
-                <LinkButton href={`/groups/${groupId}/sets/${set.id}/training`} variant="secondary">
+                <LinkButton
+                  href={`/groups/${groupId}/sets/${set.id}/training`}
+                  variant="secondary"
+                >
                   {t("setPage.viewResult")}
                 </LinkButton>
               ) : studentAttempt ? (
-                <LinkButton href={`/groups/${groupId}/sets/${set.id}/training`} variant="primary">
+                <LinkButton
+                  href={`/groups/${groupId}/sets/${set.id}/training`}
+                  variant="primary"
+                >
                   {t("setPage.continueTraining")}
                 </LinkButton>
               ) : trainableCount > 0 ? (
-                <form action={`/api/sets/${set.id}/training/start`} method="post">
-                  <Button variant="primary">{t("setPage.startTraining")}</Button>
+                <form
+                  action={`/api/sets/${set.id}/training/start`}
+                  method="post"
+                >
+                  <Button variant="primary">
+                    {t("setPage.startTraining")}
+                  </Button>
                 </form>
               ) : (
-                <p className="text-sm text-ink-mute">{t("setPage.noTrainingTasks")}</p>
+                <p className="text-sm text-ink-mute">
+                  {t("setPage.noTrainingTasks")}
+                </p>
               )}
             </div>
           </section>
         ) : visibleItems.length === 0 ? (
           <EmptyState
             title={t("setPage.emptyTitle")}
-            description={isTeacher ? t("setPage.emptyTeacher") : t("setPage.emptyStudent")}
+            description={
+              isTeacher ? t("setPage.emptyTeacher") : t("setPage.emptyStudent")
+            }
           />
+        ) : !isTeacher ? (
+          <TaskWorkspace
+            labels={workspaceLabels(t)}
+            tasks={visibleItems.map((item) => ({
+              id: item.taskId,
+              title: item.task.title,
+              status: studentTaskStatus(
+                item.task.submissions[0],
+                item.task.maxScore,
+              ),
+              unseen:
+                item.task.submissions[0]?.review?.seenByStudentAt === null,
+            }))}
+          >
+            {visibleItems.map((item) => (
+              <TaskCard
+                key={item.id}
+                task={item.task}
+                isTeacher={false}
+                teacherGroups={[]}
+                membersCount={membersCount}
+                submissionContext={{
+                  returnTo: "/groups/" + groupId + "/sets/" + set.id,
+                  oneShot: false,
+                  studentId: user.id,
+                }}
+              />
+            ))}
+          </TaskWorkspace>
         ) : (
           <div className="space-y-6">
             {visibleItems.map((item, index) => (
               <div key={item.id}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm font-medium text-ink-mute">
-                    {t("setPage.taskWord")} {index + 1} {t("stats.of")} {visibleItems.length}
+                    {t("setPage.taskWord")} {index + 1} {t("stats.of")}{" "}
+                    {visibleItems.length}
                   </p>
-                  {isTeacher && (
-                    <form action={`/api/sets/${set.id}/tasks/remove`} method="post">
+                  {isTeacher && set._count.attempts === 0 && (
+                    <form
+                      action={`/api/sets/${set.id}/tasks/remove`}
+                      method="post"
+                    >
                       <input type="hidden" name="taskId" value={item.taskId} />
                       <Button variant="danger" size="sm">
                         {t("setPage.removeFromSet")}

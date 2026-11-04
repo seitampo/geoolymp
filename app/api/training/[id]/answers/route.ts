@@ -1,104 +1,115 @@
-import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
+import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
-  isAutoGradedTask,
-  isMapTask,
-  normalizeMultipleChoiceAnswer,
-  parseMapPoint,
-  parseTaskOptions,
-} from "@/lib/tasks";
-import { finalizeTrainingAttempt, isTrainingSupportedTaskType } from "@/lib/training";
+  finalizeTrainingAttempt,
+  isTrainingSupportedTaskType,
+} from "@/lib/training";
+import { validateTrainingAnswer } from "@/lib/trainingAnswers";
 
-/** Сохранение ответа во время тренировки (до завершения можно менять). */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const t = await getT();
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUserFromRequest(request);
-  const { id } = await params;
-  const attemptId = parseEntityId(id);
-
-  if (!user || user.role !== Role.STUDENT) {
+  if (!user || user.role !== "STUDENT")
     return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
-  }
-
-  if (attemptId === null) {
+  const attemptId = parseEntityId((await params).id);
+  if (attemptId === null)
     return NextResponse.json({ error: "Попытка не найдена." }, { status: 404 });
-  }
-
-  const attempt = await prisma.trainingAttempt.findUnique({
+  const t = await getT();
+  const access = await prisma.trainingAttempt.findUnique({
     where: { id: attemptId },
     include: { set: true },
   });
-
-  if (!attempt || attempt.studentId !== user.id) {
+  if (
+    !access ||
+    access.studentId !== user.id ||
+    !(await canOpenGroup(user.id, access.set.groupId))
+  )
     return NextResponse.json({ error: "Попытка не найдена." }, { status: 404 });
-  }
-
-  const trainingTo = `/groups/${attempt.set.groupId}/sets/${attempt.setId}/training`;
-
-  if (attempt.finishedAt) {
-    return redirectWithError(request, trainingTo, t("err.trainingFinished"));
-  }
-
-  // Время контролирует сервер: просроченная попытка закрывается, ответ не принимается.
-  if (new Date() > attempt.expiresAt) {
-    await finalizeTrainingAttempt(attempt.id);
-    return redirectWithError(request, trainingTo, t("err.trainingTimeUp"));
-  }
-
-  const formData = await request.formData();
-  const taskId = parseEntityId(String(formData.get("taskId") ?? ""));
-
-  if (taskId === null) {
-    return redirectWithError(request, trainingTo, t("err.taskNotFound"));
-  }
-
-  const item = await prisma.taskSetItem.findUnique({
-    where: { setId_taskId: { setId: attempt.setId, taskId } },
-    include: { task: true },
-  });
-
-  if (!item || !isTrainingSupportedTaskType(item.task.type)) {
-    return redirectWithError(request, trainingTo, t("err.taskNotInTraining"));
-  }
-
-  const selectedAnswers = formData.getAll("answer").map((value) => String(value));
-  const answer =
-    item.task.type === "MULTIPLE_CHOICE"
-      ? normalizeMultipleChoiceAnswer(selectedAnswers)
-      : String(formData.get("answer") ?? "").trim();
-
-  if (isAutoGradedTask(item.task.type)) {
-    const options = parseTaskOptions(item.task.options);
-    const givenAnswers =
-      item.task.type === "MULTIPLE_CHOICE"
-        ? selectedAnswers.map((value) => value.trim()).filter(Boolean)
-        : answer
-          ? [answer]
-          : [];
-
-    if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
-      return redirectWithError(request, trainingTo, t("err.selectAnswerOption"));
+  const backTo =
+    "/groups/" + access.set.groupId + "/sets/" + access.setId + "/training";
+  let entries: { taskId: number; answer: string }[];
+  try {
+    if (request.headers.get("content-type")?.includes("application/json")) {
+      const body = await request.json();
+      if (
+        !Array.isArray(body.answers) ||
+        !body.answers.length ||
+        body.answers.length > 1000
+      )
+        throw new Error();
+      entries = body.answers;
+      if (
+        entries.some(
+          (entry) =>
+            !entry ||
+            !Number.isSafeInteger(entry.taskId) ||
+            entry.taskId <= 0 ||
+            typeof entry.answer !== "string",
+        )
+      )
+        throw new Error();
+    } else {
+      const data = await request.formData();
+      const taskId = parseEntityId(String(data.get("taskId") ?? ""));
+      if (taskId === null) throw new Error();
+      entries = [
+        { taskId, answer: data.getAll("answer").map(String).join("; ") },
+      ];
     }
+    if (new Set(entries.map((entry) => entry.taskId)).size !== entries.length)
+      throw new Error();
+  } catch {
+    return redirectWithError(request, backTo, t("err.enterAnswer"));
   }
-
-  if (isMapTask(item.task.type) && parseMapPoint(answer) === null) {
-    return redirectWithError(request, trainingTo, t("err.mapPointStudent"));
+  const result = await prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "TrainingAttempt" WHERE id = ${attemptId} FOR UPDATE`;
+      const attempt = await tx.trainingAttempt.findUnique({
+        where: { id: attemptId },
+        include: { set: { include: { items: { include: { task: true } } } } },
+      });
+      if (!attempt || attempt.finishedAt)
+        return { error: "err.trainingFinished" as const };
+      if (new Date() >= attempt.expiresAt)
+        return { error: "err.trainingTimeUp" as const };
+      const normalized: { taskId: number; answer: string }[] = [];
+      for (const entry of entries) {
+        const task = attempt.set.items.find(
+          (item) => item.taskId === entry.taskId,
+        )?.task;
+        if (!task || !isTrainingSupportedTaskType(task.type))
+          return { error: "err.taskNotInTraining" as const };
+        const validated = validateTrainingAnswer(task, entry.answer);
+        if ("error" in validated) return validated;
+        normalized.push({ taskId: task.id, answer: validated.answer });
+      }
+      for (const entry of normalized) {
+        if (!entry.answer)
+          await tx.trainingAnswer.deleteMany({
+            where: { attemptId, taskId: entry.taskId },
+          });
+        else
+          await tx.trainingAnswer.upsert({
+            where: { attemptId_taskId: { attemptId, taskId: entry.taskId } },
+            update: { answer: entry.answer },
+            create: { attemptId, taskId: entry.taskId, answer: entry.answer },
+          });
+      }
+      return { ok: true };
+    },
+    { timeout: 15_000 },
+  );
+  if ("error" in result && result.error) {
+    if (result.error === "err.trainingTimeUp")
+      await finalizeTrainingAttempt(attemptId);
+    return redirectWithError(request, backTo, t(result.error));
   }
-
-  if (!answer) {
-    return redirectWithError(request, trainingTo, t("err.enterAnswer"));
-  }
-
-  await prisma.trainingAnswer.upsert({
-    where: { attemptId_taskId: { attemptId: attempt.id, taskId } },
-    update: { answer },
-    create: { attemptId: attempt.id, taskId, answer },
-  });
-
-  return redirectAfterPost(request, trainingTo);
+  return redirectAfterPost(request, backTo);
 }

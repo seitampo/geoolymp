@@ -14,7 +14,10 @@ import { prisma } from "@/lib/prisma";
  * isCorrect выставляем по факту ненулевого балла: от него зависят чипы прогресса
  * на странице подборки.
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
@@ -30,7 +33,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const answer = await prisma.trainingAnswer.findUnique({
     where: { id: answerId },
-    include: { task: true, attempt: { include: { set: { include: { group: true } } } } },
+    include: {
+      task: true,
+      attempt: { include: { set: { include: { group: true } } } },
+    },
   });
 
   // Оценивать может только учитель той группы, которой принадлежит подборка.
@@ -40,6 +46,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const groupId = answer.attempt.set.groupId;
   const backTo = `/groups/${groupId}/sets/${answer.attempt.setId}`;
+  if (!answer.attempt.finishedAt)
+    return redirectWithError(request, backTo, t("err.trainingFinished"));
   const formData = await request.formData();
   const score = Number(formData.get("score"));
 
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   await prisma.trainingAnswer.update({
     where: { id: answerId },
-    data: { score, isCorrect: score > 0 },
+    data: { score, isCorrect: score >= answer.task.maxScore },
   });
 
   return redirectWithSuccess(request, backTo, t("ok.reviewSaved"));

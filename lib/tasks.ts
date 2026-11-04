@@ -14,7 +14,9 @@ export function getTaskTypeLabel(type: TaskType) {
 }
 
 export function validateTaskType(value: string): TaskType | null {
-  return taskTypes.some((item) => item.value === value) ? (value as TaskType) : null;
+  return taskTypes.some((item) => item.value === value)
+    ? (value as TaskType)
+    : null;
 }
 
 export function requiresOptions(type: TaskType) {
@@ -41,7 +43,10 @@ export function normalizeMultipleChoiceAnswer(values: string[]) {
 }
 
 export function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
 }
 
 /** Задачи с вариантами проверяются автоматически, остальные — учителем вручную. */
@@ -69,7 +74,11 @@ export function isAutoCheckedTask(task: AutoCheckableTask) {
   }
 
   if (isMapTask(task.type)) {
-    return task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null;
+    return (
+      task.mapTargetX !== null &&
+      task.mapTargetY !== null &&
+      task.mapRadius !== null
+    );
   }
 
   return false;
@@ -77,12 +86,15 @@ export function isAutoCheckedTask(task: AutoCheckableTask) {
 
 /** Ответ картозадачи: "x;y" в процентах ширины изображения. */
 export function parseMapPoint(answer: string): { x: number; y: number } | null {
+  if (answer.split(";").some((value) => !value.trim())) return null;
   const parts = answer.split(";").map((value) => Number(value.trim()));
 
   if (parts.length !== 2 || parts.some((value) => !Number.isFinite(value))) {
     return null;
   }
 
+  if (parts[0] < 0 || parts[0] > 100 || parts[1] < 0 || parts[1] > 300)
+    return null;
   return { x: parts[0], y: parts[1] };
 }
 
@@ -90,7 +102,11 @@ export function parseMapPoint(answer: string): { x: number; y: number } | null {
  * Число из формы картозадачи (координата/радиус в процентах ширины).
  * Пустая строка → null, вне диапазона → undefined (ошибка формы).
  */
-export function parseMapNumber(value: string, min: number, max: number): number | null | undefined {
+export function parseMapNumber(
+  value: string,
+  min: number,
+  max: number,
+): number | null | undefined {
   if (!value.trim()) {
     return null;
   }
@@ -105,12 +121,20 @@ export function parseMapNumber(value: string, min: number, max: number): number 
  * Единая автопроверка для всех поверхностей (задачи, тренировки, олимпиады):
  * true/false — вердикт, null — тип без автопроверки, оценивает учитель.
  */
-export function autoCheckAnswer(task: AutoCheckableTask, answer: string): boolean | null {
+export function autoCheckAnswer(
+  task: AutoCheckableTask,
+  answer: string,
+): boolean | null {
   if (isAutoGradedTask(task.type) && task.correctAnswer) {
     return isAnswerCorrect(task.type, answer, task.correctAnswer);
   }
 
-  if (isMapTask(task.type) && task.mapTargetX !== null && task.mapTargetY !== null && task.mapRadius !== null) {
+  if (
+    isMapTask(task.type) &&
+    task.mapTargetX !== null &&
+    task.mapTargetY !== null &&
+    task.mapRadius !== null
+  ) {
     const point = parseMapPoint(answer);
 
     if (!point) {
@@ -118,7 +142,10 @@ export function autoCheckAnswer(task: AutoCheckableTask, answer: string): boolea
     }
 
     // Обе координаты в процентах ширины — обычное евклидово расстояние корректно.
-    return Math.hypot(point.x - task.mapTargetX, point.y - task.mapTargetY) <= task.mapRadius;
+    return (
+      Math.hypot(point.x - task.mapTargetX, point.y - task.mapTargetY) <=
+      task.mapRadius
+    );
   }
 
   return null;
@@ -130,9 +157,18 @@ export function autoCheckAnswer(task: AutoCheckableTask, answer: string): boolea
  * Полный балл достижим только при точном совпадении множеств; из-за округления
  * неполный ответ никогда не получает maxScore (кап maxScore − 1).
  */
-export function scoreMultipleChoice(answer: string, correctAnswer: string, maxScore: number) {
+export function scoreMultipleChoice(
+  answer: string,
+  correctAnswer: string,
+  maxScore: number,
+) {
   const toSet = (value: string) =>
-    new Set(value.split(";").map((part) => part.trim()).filter(Boolean));
+    new Set(
+      value
+        .split(";")
+        .map((part) => part.trim())
+        .filter(Boolean),
+    );
   const given = toSet(answer);
   const correct = toSet(correctAnswer);
 
@@ -158,7 +194,11 @@ export function scoreMultipleChoice(answer: string, correctAnswer: string, maxSc
  * Сравнение ответа ученика с правильным. Для MULTIPLE_CHOICE обе стороны
  * нормализуются как множества (сортировка, обрезка пробелов) — порядок не важен.
  */
-export function isAnswerCorrect(type: TaskType, answer: string, correctAnswer: string) {
+export function isAnswerCorrect(
+  type: TaskType,
+  answer: string,
+  correctAnswer: string,
+) {
   if (type === TaskType.MULTIPLE_CHOICE) {
     return (
       normalizeMultipleChoiceAnswer(answer.split(";")) ===
@@ -177,7 +217,10 @@ export function isAnswerCorrect(type: TaskType, answer: string, correctAnswer: s
  * Результат проверки правильного ответа. Возвращаем код ошибки (не готовый текст),
  * чтобы сообщение перевести в роуте через t() — см. i18n этап C.
  */
-export type CorrectAnswerError = { code: "required" } | { code: "mismatch"; missing: string[] };
+export type CorrectAnswerError =
+  | { code: "required" }
+  | { code: "options" }
+  | { code: "mismatch"; missing: string[] };
 
 export function validateChoiceCorrectAnswer(
   type: TaskType,
@@ -188,13 +231,22 @@ export function validateChoiceCorrectAnswer(
     return null;
   }
 
+  if (
+    new Set(options).size !== options.length ||
+    options.some((option) => option.includes(";"))
+  )
+    return { code: "options" };
+
   if (!correctAnswer.trim()) {
     return { code: "required" };
   }
 
   const answers =
     type === TaskType.MULTIPLE_CHOICE
-      ? correctAnswer.split(";").map((value) => value.trim()).filter(Boolean)
+      ? correctAnswer
+          .split(";")
+          .map((value) => value.trim())
+          .filter(Boolean)
       : [correctAnswer.trim()];
   const missing = answers.filter((value) => !options.includes(value));
 

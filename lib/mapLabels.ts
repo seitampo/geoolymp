@@ -33,8 +33,14 @@ export function mapAnswerLabels(t: TFunction): MapAnswerLabels {
  * `imageLabel` разный у создания и редактирования: «Изображение к условию» против
  * «Новое изображение».
  */
-export function taskFieldsLabels(t: TFunction, imageLabel: string): TaskFieldsLabels {
+export function taskFieldsLabels(
+  t: TFunction,
+  imageLabel: string,
+): TaskFieldsLabels {
   return {
+    addOption: t("ui.addOption"),
+    removeOption: t("ui.removeOption"),
+    selectCorrect: t("ui.selectCorrect"),
     type: t("taskForm.typeLabel"),
     typeOptions: taskTypes.map((type) => ({
       value: type.value,

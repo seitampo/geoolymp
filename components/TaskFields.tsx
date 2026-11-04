@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { FileInput, TextArea, TextInput, inputClasses, labelClasses } from "@/components/FormFields";
+import { useId, useState } from "react";
+import {
+  FileInput,
+  TextArea,
+  TextInput,
+  inputClasses,
+  labelClasses,
+} from "@/components/FormFields";
 import { MapPointEditor, type MapEditorLabels } from "@/components/MapPoint";
 
 /**
@@ -13,6 +19,9 @@ import { MapPointEditor, type MapEditorLabels } from "@/components/MapPoint";
  */
 
 export type TaskFieldsLabels = {
+  addOption: string;
+  removeOption: string;
+  selectCorrect: string;
   type: string;
   typeOptions: { value: string; label: string }[];
   options: string;
@@ -48,6 +57,26 @@ export function TaskFields({
   defaults?: TaskFieldsDefaults;
 }) {
   const [type, setType] = useState(defaults.type ?? "TEXT");
+  const choiceName = useId();
+  const [choices, setChoices] = useState(() => {
+    const values = (defaults.options ?? "").split("\n").filter(Boolean);
+    return values.length ? values : ["", ""];
+  });
+  const [selected, setSelected] = useState<number[]>(() =>
+    (defaults.options ?? "")
+      .split("\n")
+      .reduce<number[]>((result, option, index) => {
+        if (
+          option.trim() &&
+          (defaults.correctAnswer ?? "")
+            .split(";")
+            .map((value) => value.trim())
+            .includes(option.trim())
+        )
+          result.push(index);
+        return result;
+      }, []),
+  );
   const isChoice = CHOICE_TYPES.has(type);
   const isMap = type === "MAP_POINT";
 
@@ -70,22 +99,82 @@ export function TaskFields({
       </label>
 
       {isChoice && (
-        <>
-          <TextArea
-            label={labels.options}
+        <fieldset className="grid gap-3 rounded-lg border border-line p-4">
+          <legend className="px-1 text-sm font-medium">{labels.options}</legend>
+          <p className="text-xs text-ink-mute">{labels.selectCorrect}</p>
+          {choices.map((option, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                className="h-5 w-5 shrink-0 accent-navy"
+                name={choiceName}
+                type={type === "MULTIPLE_CHOICE" ? "checkbox" : "radio"}
+                checked={(type === "SINGLE_CHOICE"
+                  ? selected.slice(0, 1)
+                  : selected
+                ).includes(index)}
+                aria-label={`${labels.correctAnswer}: ${index + 1}`}
+                onChange={(event) =>
+                  setSelected(
+                    type === "SINGLE_CHOICE"
+                      ? [index]
+                      : event.target.checked
+                        ? [...selected, index]
+                        : selected.filter((value) => value !== index),
+                  )
+                }
+              />
+              <input
+                className={`min-w-0 flex-1 ${inputClasses}`}
+                value={option}
+                required
+                aria-label={`${labels.options}: ${index + 1}`}
+                onChange={(event) =>
+                  setChoices(
+                    choices.map((value, i) =>
+                      i === index ? event.target.value : value,
+                    ),
+                  )
+                }
+              />
+              <button
+                type="button"
+                className="h-11 w-11 shrink-0 rounded-lg border border-line text-lg disabled:opacity-30"
+                disabled={choices.length <= 2}
+                aria-label={`${labels.removeOption}: ${index + 1}`}
+                onClick={() => {
+                  setChoices(choices.filter((_, i) => i !== index));
+                  setSelected(
+                    selected
+                      .filter((value) => value !== index)
+                      .map((value) => (value > index ? value - 1 : value)),
+                  );
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <input
+            type="hidden"
             name="options"
-            required={false}
-            placeholder={labels.optionsPlaceholder}
-            defaultValue={defaults.options}
+            value={choices.map((option) => option.trim()).join("\n")}
           />
-          <TextInput
-            label={labels.correctAnswer}
+          <input
+            type="hidden"
             name="correctAnswer"
-            required={false}
-            placeholder={labels.correctAnswerPlaceholder}
-            defaultValue={defaults.correctAnswer}
+            value={(type === "SINGLE_CHOICE" ? selected.slice(0, 1) : selected)
+              .map((index) => choices[index]?.trim())
+              .filter(Boolean)
+              .join("; ")}
           />
-        </>
+          <button
+            type="button"
+            className="min-h-11 w-fit text-sm font-medium text-navy underline"
+            onClick={() => setChoices([...choices, ""])}
+          >
+            + {labels.addOption}
+          </button>
+        </fieldset>
       )}
 
       <TextInput

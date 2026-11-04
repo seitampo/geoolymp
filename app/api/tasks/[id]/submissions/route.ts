@@ -28,7 +28,10 @@ import {
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
@@ -50,7 +53,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const formData = await request.formData();
   // Форма из подборки передаёт returnTo (куда вернуться) и once=1 (контест: один ответ).
-  const backTo = safeReturnTo(String(formData.get("returnTo") ?? ""), task.groupId);
+  const backTo = safeReturnTo(
+    String(formData.get("returnTo") ?? ""),
+    task.groupId,
+  );
   const submitOnce = String(formData.get("once") ?? "") === "1";
 
   // Тренировочные задачи решаются только внутри попытки (/api/training/*):
@@ -59,7 +65,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, t("err.taskOnlyTraining"));
   }
 
-  const selectedAnswers = formData.getAll("answer").map((value) => String(value));
+  const selectedAnswers = formData
+    .getAll("answer")
+    .map((value) => String(value));
   const answer =
     task.type === "MULTIPLE_CHOICE"
       ? normalizeMultipleChoiceAnswer(selectedAnswers)
@@ -86,7 +94,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           ? [answer]
           : [];
 
-    if (givenAnswers.length === 0 || givenAnswers.some((value) => !options.includes(value))) {
+    if (
+      givenAnswers.length === 0 ||
+      givenAnswers.some((value) => !options.includes(value))
+    ) {
       return redirectWithError(request, backTo, t("err.selectAnswerOption"));
     }
   }
@@ -96,7 +107,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (file instanceof File && isUploadTooLarge(file.size)) {
-    return redirectWithError(request, backTo, `${t("err.fileTooBig")} ${maxUploadLabel()}.`);
+    return redirectWithError(
+      request,
+      backTo,
+      `${t("err.fileTooBig")} ${maxUploadLabel()}.`,
+    );
   }
 
   if (
@@ -108,7 +123,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, t("err.imageFormat"));
   }
 
-  if (file instanceof File && file.size > 0 && !(await hasStorageRoom(file.size))) {
+  if (
+    file instanceof File &&
+    file.size > 0 &&
+    !(await hasStorageRoom(file.size))
+  ) {
     return redirectWithError(
       request,
       backTo,
@@ -116,7 +135,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
-  const savedFile = file instanceof File && file.size > 0 ? await saveUploadedFile(file, "submissions") : null;
+  if (
+    (task.type === "IMAGE_UPLOAD" || task.type === "FILE_UPLOAD") &&
+    !(file instanceof File && file.size > 0) &&
+    !oldSubmission?.filePath
+  ) {
+    return redirectWithError(request, backTo, t("err.answerContent"));
+  }
+
+  const savedFile =
+    file instanceof File && file.size > 0
+      ? await saveUploadedFile(file, "submissions")
+      : null;
 
   if (!answer && !savedFile && !oldSubmission?.filePath) {
     return redirectWithError(request, backTo, t("err.answerContent"));
@@ -131,10 +161,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (verdict !== null) {
     if (verdict) {
-      autoReview = { score: task.maxScore, feedback: t("feedback.autoCorrect") };
+      autoReview = {
+        score: task.maxScore,
+        feedback: t("feedback.autoCorrect"),
+      };
     } else if (task.type === "MULTIPLE_CHOICE" && task.correctAnswer) {
-      const partial = scoreMultipleChoice(answer, task.correctAnswer, task.maxScore);
-      const extraNote = partial.extra > 0 ? `, ${t("feedback.autoPartialExtra")} ${partial.extra}` : "";
+      const partial = scoreMultipleChoice(
+        answer,
+        task.correctAnswer,
+        task.maxScore,
+      );
+      const extraNote =
+        partial.extra > 0
+          ? `, ${t("feedback.autoPartialExtra")} ${partial.extra}`
+          : "";
       autoReview = {
         score: partial.score,
         feedback: `${t("feedback.autoPartialPre")} ${partial.hit}/${partial.total}${extraNote}.`,
@@ -147,7 +187,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Если ученик отправляет ответ повторно, старая проверка больше не актуальна.
   await prisma.$transaction(async (transaction) => {
     if (oldSubmission) {
-      await transaction.review.deleteMany({ where: { submissionId: oldSubmission.id } });
+      await transaction.review.deleteMany({
+        where: { submissionId: oldSubmission.id },
+      });
     }
 
     const submission = await transaction.submission.upsert({
@@ -156,7 +198,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         answer,
         status: autoReview ? "REVIEWED" : "PENDING",
         filePath: savedFile?.filePath ?? oldSubmission?.filePath,
-        originalFileName: savedFile?.originalFileName ?? oldSubmission?.originalFileName,
+        originalFileName:
+          savedFile?.originalFileName ?? oldSubmission?.originalFileName,
       },
       create: {
         taskId,
@@ -179,6 +222,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   });
 
+  if (request.headers.get("accept")?.includes("application/json"))
+    return NextResponse.json({
+      ok: true,
+      review: autoReview,
+      maxScore: task.maxScore,
+    });
   return redirectWithSuccess(request, backTo, t("ok.answerSubmitted"));
 }
 
@@ -187,7 +236,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
  * (страница подборки или вкладка задач) — защита от open redirect.
  */
 function safeReturnTo(value: string, groupId: number): string {
-  if (value.startsWith("/groups/") && !value.startsWith("//") && !value.includes("://")) {
+  if (
+    value.startsWith("/groups/" + groupId + "?") ||
+    value === "/groups/" + groupId ||
+    value.startsWith("/groups/" + groupId + "/sets/")
+  ) {
     return value;
   }
   return `/groups/${groupId}?tab=tasks`;

@@ -1,6 +1,7 @@
 import { SubmissionStatus } from "@prisma/client";
 import type { ReactNode } from "react";
-import { getT } from "@/lib/i18n";
+import { getT, type TranslationKey } from "@/lib/i18n";
+import { studentTaskStatus, type StudentTaskStatus } from "@/lib/taskStatus";
 
 type BadgeTone = "gray" | "emerald" | "green" | "amber" | "red";
 
@@ -13,7 +14,13 @@ const toneClasses: Record<BadgeTone, string> = {
   red: "bg-red-100 text-red-800",
 };
 
-export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children: ReactNode }) {
+export function Badge({
+  tone = "gray",
+  children,
+}: {
+  tone?: BadgeTone;
+  children: ReactNode;
+}) {
   return (
     <span
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ${toneClasses[tone]}`}
@@ -24,7 +31,11 @@ export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children:
 }
 
 /** Единый бейдж статуса решения — используется и у ученика, и у учителя. */
-export async function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) {
+export async function SubmissionStatusBadge({
+  status,
+}: {
+  status: SubmissionStatus;
+}) {
   const t = await getT();
   return status === SubmissionStatus.REVIEWED ? (
     <Badge tone="green">{t("status.REVIEWED")}</Badge>
@@ -48,23 +59,23 @@ export async function TaskStatusBadge({
   maxScore?: number | null;
 }) {
   const t = await getT();
-
-  if (status === SubmissionStatus.REVIEWED) {
-    if (score !== null && maxScore !== null && maxScore > 0) {
-      if (score >= maxScore) {
-        return <Badge tone="green">{t("taskStatus.solved")}</Badge>;
-      }
-      if (score > 0) {
-        return <Badge tone="emerald">{t("taskStatus.partial")}</Badge>;
-      }
-      return <Badge tone="red">{t("taskStatus.wrong")}</Badge>;
-    }
-    return <Badge tone="green">{t("taskStatus.solved")}</Badge>;
-  }
-
-  if (status === SubmissionStatus.PENDING) {
-    return <Badge tone="amber">{t("taskStatus.pending")}</Badge>;
-  }
-
-  return <Badge tone="gray">{t("taskStatus.notSubmitted")}</Badge>;
+  const state = studentTaskStatus(
+    status ? { status, review: score === null ? null : { score } } : null,
+    maxScore ?? 0,
+  );
+  const labels: Record<StudentTaskStatus, TranslationKey> = {
+    solved: "taskStatus.solved",
+    partial: "taskStatus.partial",
+    wrong: "taskStatus.wrong",
+    pending: "taskStatus.pending",
+    "not-submitted": "taskStatus.notSubmitted",
+  };
+  const tones: Record<StudentTaskStatus, BadgeTone> = {
+    solved: "green",
+    partial: "emerald",
+    wrong: "red",
+    pending: "amber",
+    "not-submitted": "gray",
+  };
+  return <Badge tone={tones[state]}>{t(labels[state])}</Badge>;
 }
