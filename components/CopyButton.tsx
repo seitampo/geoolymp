@@ -3,7 +3,15 @@
 import { useState } from "react";
 
 /** Кнопка «скопировать в буфер» — для кода приглашения группы. */
-export function CopyButton({ value, label = "Скопировать" }: { value: string; label?: string }) {
+export function CopyButton({
+  value,
+  label = "Скопировать",
+  copiedLabel = "Скопировано ✓",
+}: {
+  value: string;
+  label?: string;
+  copiedLabel?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -32,7 +40,7 @@ export function CopyButton({ value, label = "Скопировать" }: { value:
         }
       }}
     >
-      {copied ? "Скопировано ✓" : label}
+      {copied ? copiedLabel : label}
     </button>
   );
 }

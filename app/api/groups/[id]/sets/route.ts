@@ -1,14 +1,21 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import {
+  redirectAfterPost,
+  redirectWithError,
+  redirectWithSuccess,
+} from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 import { parseTrainingMinutes } from "@/lib/training";
 
 /** Создание подборки задач в группе. */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
@@ -31,9 +38,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const formData = await request.formData();
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const trainingMinutes = parseTrainingMinutes(String(formData.get("trainingMinutes") ?? ""));
+  const trainingMinutes = parseTrainingMinutes(
+    String(formData.get("trainingMinutes") ?? ""),
+  );
 
-  if (!title || !description) {
+  if (!title || title.length > 200) {
     return redirectWithError(request, backTo, t("err.setFields"));
   }
 
@@ -41,7 +50,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return redirectWithError(request, backTo, t("err.trainingLimit"));
   }
 
-  const set = await prisma.taskSet.create({ data: { groupId, title, description, trainingMinutes } });
+  const set = await prisma.taskSet.create({
+    data: { groupId, title, description, trainingMinutes, isPublished: false },
+  });
 
-  return redirectWithSuccess(request, `/groups/${groupId}/sets/${set.id}`, t("ok.setCreated"));
+  return redirectWithSuccess(
+    request,
+    `/groups/${groupId}/sets/${set.id}?step=content`,
+    t("ok.setCreated"),
+  );
 }

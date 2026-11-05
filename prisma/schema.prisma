@@ -45,21 +45,21 @@ enum OlympiadLevel {
 }
 
 model User {
-  id               Int               @id @default(autoincrement())
-  name             String
-  email            String            @unique
-  password         String
-  role             Role
+  id                Int                     @id @default(autoincrement())
+  name              String
+  email             String                  @unique
+  password          String
+  role              Role
   // Подтверждён ли адрес кодом из письма. Новые аккаунты создаются неподтверждёнными
   // и не пускаются дальше формы ввода кода; всем существующим миграция ставит true.
-  emailVerified    Boolean           @default(false)
-  groups           Group[]           @relation("TeacherGroups")
-  memberships      Membership[]
-  submissions      Submission[]
-  materialViews    MaterialView[]
-  trainingAttempts TrainingAttempt[]
-  earnedBadges     EarnedBadge[]
-  resetTokens      PasswordResetToken[]
+  emailVerified     Boolean                 @default(false)
+  groups            Group[]                 @relation("TeacherGroups")
+  memberships       Membership[]
+  submissions       Submission[]
+  materialViews     MaterialView[]
+  trainingAttempts  TrainingAttempt[]
+  earnedBadges      EarnedBadge[]
+  resetTokens       PasswordResetToken[]
   verificationCodes EmailVerificationCode[]
 }
 
@@ -112,8 +112,10 @@ model Material {
   filePath         String?
   originalFileName String?
   uploadedAt       DateTime       @default(now())
+  isPublished      Boolean        @default(true)
   group            Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   views            MaterialView[]
+  lessons          TaskSet[]      @relation("LessonMaterials")
 
   @@index([groupId])
 }
@@ -133,26 +135,27 @@ model MaterialView {
 }
 
 model Task {
-  id                Int          @id @default(autoincrement())
-  groupId           Int
-  title             String
-  description       String
-  maxScore          Int
-  type              TaskType     @default(TEXT)
-  options           String?
-  correctAnswer     String?
-  imagePath         String?
-  originalImageName String?
-  opensAt           DateTime?
-  dueAt             DateTime?
+  id                  Int              @id @default(autoincrement())
+  groupId             Int
+  title               String
+  description         String
+  maxScore            Int
+  type                TaskType         @default(TEXT)
+  options             String?
+  correctAnswer       String?
+  imagePath           String?
+  originalImageName   String?
+  opensAt             DateTime?
+  dueAt               DateTime?
   // Черновики: ученики видят задачу, только когда isPublished = true либо
   // наступило запланированное время публикации publishAt (проверка на сервере).
-  isPublished       Boolean      @default(true)
-  publishAt         DateTime?
+  isPublished         Boolean          @default(true)
+  isLibraryItem       Boolean          @default(true)
+  publishAt           DateTime?
   // Классификация задачи для библиотеки и фильтров.
-  grade             Int? // класс, 7–11
-  olympiadLevel     OlympiadLevel? // уровень олимпиады как характеристика задачи
-  difficulty        Int? // сложность, 1–5
+  grade               Int? // класс, 7–11
+  olympiadLevel       OlympiadLevel? // уровень олимпиады как характеристика задачи
+  difficulty          Int? // сложность, 1–5
   // Разбор решения: текст и/или файл (PDF/картинка). Ученик видит после проверки
   // своего решения (submissions/[id] REVIEWED), доступ контролируется на сервере.
   explanationText     String?
@@ -164,26 +167,30 @@ model Task {
   mapTargetX          Float?
   mapTargetY          Float?
   mapRadius           Float?
-  group             Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  submissions       Submission[]
-  setItems          TaskSetItem[]
-  trainingAnswers   TrainingAnswer[]
+  group               Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  submissions         Submission[]
+  setItems            TaskSetItem[]
+  trainingAnswers     TrainingAnswer[]
 
   @@index([groupId])
 }
 
 // Тематическая подборка задач группы («Климат — 20 задач»).
 model TaskSet {
-  id          Int           @id @default(autoincrement())
-  groupId     Int
-  title       String
-  description String
+  id              Int               @id @default(autoincrement())
+  groupId         Int
+  title           String
+  description     String
   // Режим тренировки: лимит времени в минутах. null — обычная подборка.
   // У тренировочной подборки ученик не видит задачи заранее — только через попытку.
   trainingMinutes Int?
-  group       Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  items       TaskSetItem[]
-  attempts    TrainingAttempt[]
+  // Existing lessons remain issued; new lessons are explicitly created as drafts.
+  isPublished     Boolean           @default(true)
+  assignedAt      DateTime?
+  group           Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  items           TaskSetItem[]
+  attempts        TrainingAttempt[]
+  materials       Material[]        @relation("LessonMaterials")
 
   @@index([groupId])
 }

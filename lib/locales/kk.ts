@@ -124,12 +124,12 @@ export const kk: Dictionary = {
   "field.description": "Сипаттама",
 
   // Типы задач
-  "taskType.TEXT": "Мәтіндік жауап",
-  "taskType.SINGLE_CHOICE": "Бір нұсқа",
-  "taskType.MULTIPLE_CHOICE": "Бірнеше нұсқа",
+  "taskType.TEXT": "Мәтінмен жауап",
+  "taskType.SINGLE_CHOICE": "Бір дұрыс нұсқа",
+  "taskType.MULTIPLE_CHOICE": "Бірнеше дұрыс нұсқа",
   "taskType.IMAGE_UPLOAD": "Сурет жүктеу",
-  "taskType.FILE_UPLOAD": "Файл жүктеу",
-  "taskType.MAP_POINT": "Картадағы нүкте",
+  "taskType.FILE_UPLOAD": "Файл тіркеу",
+  "taskType.MAP_POINT": "Картада белгілеу",
   // Типы материалов
   "materialType.TEXT": "Тек мәтін (файлсыз және сілтемесіз)",
   "materialType.TEXT_badge": "Мәтін",
@@ -151,9 +151,9 @@ export const kk: Dictionary = {
   "group.navAria": "Топ бөлімдері",
   "group.tabMaterials": "Материалдар",
   "group.tabTasks": "Тапсырмалар",
-  "group.tabSets": "Жинақтар",
-  "group.tabSubmissions": "Шешімдер",
-  "group.tabMembers": "Қатысушылар",
+  "group.tabSets": "Сабақтар",
+  "group.tabSubmissions": "Тексеруге",
+  "group.tabMembers": "Оқушылар",
   "group.newResultDot": "Жаңа нәтиже бар",
 
   // Прогресс ученика
@@ -205,7 +205,7 @@ export const kk: Dictionary = {
     "Сіздің басқа топтарыңыздағы тапсырмалар. «Қосу» осы топта тәуелсіз көшірме жасайды.",
   "task.libraryEmpty": "Басқа топтарыңызда әзірге тапсырма жоқ.",
   "task.create": "+ Тапсырма құру",
-  "task.condition": "Шарты",
+  "task.condition": "Шарт не сұрақ",
   "task.options": "Жауап нұсқалары",
   "task.optionsPlaceholder": "Әр нұсқа жаңа жолдан",
   "task.correctAnswer": "Дұрыс жауап",
@@ -227,13 +227,13 @@ export const kk: Dictionary = {
   "set.titlePlaceholder": "Мысалы: Климат — 20 тапсырма",
   "set.descPlaceholder": "Қай тақырып және не үшін шешу",
   "set.trainingMinutes": "Олимпиадаға уақыт, минут",
-  "set.mode": "Жинақ режимі",
-  "set.modeCollection": "Жинақ",
-  "set.modeOlympiad": "Сынақ олимпиада",
+  "set.mode": "Оқушылар қалай жұмыс істейді",
+  "set.modeCollection": "Жаттығу",
+  "set.modeOlympiad": "Уақытпен олимпиада",
   "set.modeCollectionHint":
-    "Тақырыптық тапсырмалар тізімі. Бірден көрінеді, қалағанша шешуге болады.",
+    "Оқушылар өз қарқынымен шешіп, жауаптарын түзете алады.",
   "set.modeOlympiadHint":
-    "Таймер және бір мүмкіндік. Тапсырмалар тек басталғаннан кейін ашылады, қайта шешу керек — бұрынғы шешімдер есептелмейді.",
+    "Таймері бар бір талпыныс. Сұрақтар басталған соң ашылады, жауаптар автоматты сақталады.",
   "set.createButton": "Жинақ құру",
   "set.trainingBadge": "Олимпиада",
   "set.minShort": "мин",
@@ -397,7 +397,7 @@ export const kk: Dictionary = {
   "setChip.wrong": "қате",
   "setChip.pending": "тексеруде",
   "setChip.none": "шешілмеді",
-  "setPage.backToSets": "Топ жинақтарына",
+  "setPage.backToSets": "Топ сабақтарына",
   "setPage.tasksCount": "Тапсырма:",
   "setPage.trainingBadgePre": "Олимпиада ·",
   "setPage.orderHint":
@@ -437,11 +437,11 @@ export const kk: Dictionary = {
   "setPage.emptyTitle": "Жинақта әзірге тапсырма жоқ",
   "setPage.emptyTeacher": "Топ тапсырмаларын жоғарыдағы форма арқылы қосыңыз.",
   "setPage.emptyStudent": "Мұғалім бұл жинаққа әлі тапсырма қоспаған.",
-  "setPage.taskWord": "Тапсырма",
+  "setPage.taskWord": "Сұрақ",
   "setPage.removeFromSet": "Жинақтан алып тастау",
 
   // Жаттығу беті
-  "training.backToSet": "Жинаққа",
+  "training.backToSet": "Сабаққа",
   "training.answeredPre": "Жауап берілді:",
   "training.finish": "Аяқтау",
   "training.warning":
@@ -508,7 +508,7 @@ export const kk: Dictionary = {
   "err.mapPointTeacher": "Картада дұрыс нүктені белгілеп, рұқсатты орнатыңыз.",
   "err.mapPointStudent": "Картада нүктені белгілеңіз.",
   "err.mapCoords": "Карта тапсырмасы мақсатының координаттары қате.",
-  "err.setFields": "Жинақтың атауы мен сипаттамасын толтырыңыз.",
+  "err.setFields": "Сабақ атауын енгізіңіз (200 таңбаға дейін).",
   "err.trainingLimit":
     "Жаттығу лимиті — 1-ден 600-ге дейінгі бүтін минут саны.",
   "err.taskNotFound": "Тапсырма табылмады.",
@@ -573,8 +573,8 @@ export const kk: Dictionary = {
   "ok.groupCreated": "Топ құрылды. Оқушыларға шақыру кодын жіберіңіз.",
   "ok.materialAdded": "Материал қосылды.",
   "ok.materialDeleted": "Материал жойылды.",
-  "ok.setCreated": "Жинақ құрылды — оған тапсырмалар қосыңыз.",
-  "ok.setDeleted": "Жинақ жойылды.",
+  "ok.setCreated": "Сабақ жобасы жасалды. Сұрақтар мен материалдар қосыңыз.",
+  "ok.setDeleted": "Сабақ жойылды.",
   "ok.taskCreated": "Тапсырма құрылды.",
   "ok.taskDeleted": "Тапсырма жойылды.",
   "ok.reviewSaved": "Баға сақталды.",
@@ -655,4 +655,10 @@ export const kk: Dictionary = {
   "ui.openSets": "Сабақтарды ашу",
   "ui.readOnly": "Тек қарау",
   "ui.changesSaved": "Өзгерістер сақталды.",
+  "lesson.notFound": "Сабақ табылмады.",
+  "lesson.emptyIssue": "Бермес бұрын кемінде бір сұрақ не материал қосыңыз.",
+  "lesson.unsupportedTimed":
+    "Олимпиадада мәтін, жауап нұсқалары не картадағы белгіні қолданыңыз. Файл жүктеуді жаттығуға қалдырыңыз.",
+  "lesson.issuedSuccess": "Сабақ топқа берілді.",
+  "lesson.chooseMaterials": "Осы топтың материалдарын таңдаңыз.",
 };

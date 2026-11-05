@@ -11,8 +11,10 @@ const baseClasses =
 // второстепенная — чернильный контур, опасная — красный контур.
 const variantClasses: Record<ButtonVariant, string> = {
   primary: "bg-navy text-white hover:bg-navy-deep active:bg-navy-deep",
-  secondary: "border border-ink/25 bg-white text-ink hover:border-ink/50 hover:bg-paper",
-  danger: "border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50",
+  secondary:
+    "border border-ink/25 bg-white text-ink hover:border-ink/50 hover:bg-paper",
+  danger:
+    "border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -30,15 +32,21 @@ export function Button({
   type = "submit",
   className = "",
   children,
+  disabled = false,
 }: {
   variant?: ButtonVariant;
   size?: ButtonSize;
   type?: "submit" | "button";
   className?: string;
   children: ReactNode;
+  disabled?: boolean;
 }) {
   return (
-    <button className={`${buttonClasses(variant, size)} ${className}`} type={type}>
+    <button
+      className={`${buttonClasses(variant, size)} ${className}`}
+      type={type}
+      disabled={disabled}
+    >
       {children}
     </button>
   );
@@ -59,7 +67,10 @@ export function LinkButton({
   children: ReactNode;
 }) {
   return (
-    <Link className={`${buttonClasses(variant, size)} ${className}`} href={href}>
+    <Link
+      className={`${buttonClasses(variant, size)} ${className}`}
+      href={href}
+    >
       {children}
     </Link>
   );

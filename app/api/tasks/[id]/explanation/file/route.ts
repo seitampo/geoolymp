@@ -1,3 +1,4 @@
+import { isTaskIssued } from "@/lib/lessonAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
@@ -12,7 +13,10 @@ export const runtime = "nodejs";
  * как его собственное решение этой задачи проверено (разбор не должен
  * подсказывать до сдачи).
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const taskId = parseEntityId(id);
@@ -25,8 +29,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Разбор не найден." }, { status: 404 });
   }
 
-  const task = await prisma.task.findUnique({ where: { id: taskId }, include: { group: true } });
-  if (!task || !task.explanationFilePath || !(await canOpenGroup(user.id, task.groupId))) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { group: true },
+  });
+  if (
+    !task ||
+    (user.role === "STUDENT" && !(await isTaskIssued(taskId))) ||
+    !task.explanationFilePath ||
+    !(await canOpenGroup(user.id, task.groupId))
+  ) {
     return NextResponse.json({ error: "Разбор не найден." }, { status: 404 });
   }
 
@@ -48,7 +60,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(file, {
     headers: {
       "Content-Type": getExplanationContentType(task.explanationFileName ?? ""),
-      "Content-Disposition": contentDisposition("inline", task.explanationFileName ?? "explanation"),
+      "Content-Disposition": contentDisposition(
+        "inline",
+        task.explanationFileName ?? "explanation",
+      ),
       "X-Content-Type-Options": "nosniff",
     },
   });
@@ -60,7 +75,8 @@ function getExplanationContentType(fileName: string) {
   if (lowerName.endsWith(".pdf")) return "application/pdf";
   if (lowerName.endsWith(".png")) return "image/png";
   if (lowerName.endsWith(".webp")) return "image/webp";
-  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg"))
+    return "image/jpeg";
 
   return "application/octet-stream";
 }

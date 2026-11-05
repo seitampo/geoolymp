@@ -11,7 +11,10 @@ import { prisma } from "@/lib/prisma";
  * Явная отметка «изучено» для текстовых материалов: у них нет файла и ссылки,
  * поэтому открытие/скачивание, по которым отмечаются остальные типы, не происходит.
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const materialId = parseEntityId(id);
@@ -24,12 +27,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
-  const material = await prisma.material.findUnique({ where: { id: materialId } });
-  if (!material || !(await canOpenGroup(user.id, material.groupId))) {
+  const material = await prisma.material.findUnique({
+    where: { id: materialId },
+  });
+  if (
+    !material ||
+    (user.role === "STUDENT" && !material.isPublished) ||
+    !(await canOpenGroup(user.id, material.groupId))
+  ) {
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
   await recordMaterialView(material.id, user.id);
 
-  return redirectAfterPost(request, `/groups/${material.groupId}?tab=materials`);
+  return redirectAfterPost(
+    request,
+    `/groups/${material.groupId}?tab=materials`,
+  );
 }

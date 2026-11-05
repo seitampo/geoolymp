@@ -18,7 +18,7 @@ import { isAutoGradedTask, isMapTask, parseTaskOptions } from "@/lib/tasks";
 export type TaskWithStudentSubmission = Task & {
   submissions: (Submission & {
     review: Review | null;
-    student: User;
+    student?: User;
   })[];
 };
 
@@ -313,7 +313,7 @@ async function StudentSubmissionBlock({
   submissionContext,
 }: {
   task: Task;
-  submission: Submission & { review: Review | null; student: User };
+  submission: Submission & { review: Review | null; student?: User };
   options: string[];
   canResubmit: boolean;
   submissionContext?: SubmissionContext;

@@ -38,7 +38,7 @@ export async function POST(
     );
   }
 
-  const backTo = `/groups/${set.groupId}/sets/${set.id}`;
+  const backTo = `/groups/${set.groupId}/sets/${set.id}?step=content`;
   if (await prisma.trainingAttempt.count({ where: { setId } }))
     return redirectWithError(request, backTo, t("ui.lockedSet"));
   const formData = await request.formData();
@@ -51,7 +51,20 @@ export async function POST(
   const changed = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "TaskSet" WHERE id = ${setId} FOR UPDATE`;
     if (await tx.trainingAttempt.count({ where: { setId } })) return false;
-    await tx.taskSetItem.deleteMany({ where: { setId, taskId } });
+    const removed = await tx.taskSetItem.deleteMany({
+      where: { setId, taskId },
+    });
+    if (removed.count > 0 && (set.assignedAt || !set.isPublished)) {
+      if (
+        !(await tx.taskSetItem.count({
+          where: { taskId, set: { isPublished: true } },
+        }))
+      )
+        await tx.task.update({
+          where: { id: taskId },
+          data: { isPublished: false },
+        });
+    }
     return true;
   });
   if (!changed) return redirectWithError(request, backTo, t("ui.lockedSet"));

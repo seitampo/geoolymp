@@ -35,7 +35,7 @@ export async function POST(
     include: { items: { include: { task: true } } },
   });
 
-  if (!set || !(await canOpenGroup(user.id, set.groupId))) {
+  if (!set || !set.isPublished || !(await canOpenGroup(user.id, set.groupId))) {
     return NextResponse.json(
       { error: "Подборка не найдена." },
       { status: 404 },
@@ -65,7 +65,8 @@ export async function POST(
         include: { items: { include: { task: true } } },
       });
       if (
-        !current?.trainingMinutes ||
+        !current?.isPublished ||
+        !current.trainingMinutes ||
         !current.items.some((item) =>
           isTrainingSupportedTaskType(item.task.type),
         )

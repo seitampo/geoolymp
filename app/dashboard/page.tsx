@@ -1,3 +1,5 @@
+import { publishedTaskWhere } from "@/lib/lessonAccess";
+import { getLessonText } from "@/lib/lessonText";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/Badge";
@@ -28,17 +30,30 @@ export default async function DashboardPage({
   const { error, ok } = await searchParams;
   const t = await getT();
   const teacher = user.role === "TEACHER";
+  const lessonText = await getLessonText();
   const groups = await prisma.group.findMany({
     where: teacher
       ? { teacherId: user.id }
       : { memberships: { some: { userId: user.id } } },
     orderBy: { id: "desc" },
     include: {
-      _count: { select: { tasks: true, taskSets: true, memberships: true } },
+      _count: {
+        select: {
+          tasks: teacher ? true : { where: publishedTaskWhere() },
+          taskSets: teacher ? true : { where: { isPublished: true } },
+          memberships: true,
+        },
+      },
       tasks: {
-        where: notInTrainingSetFilter,
+        where: teacher
+          ? notInTrainingSetFilter
+          : { AND: [notInTrainingSetFilter, publishedTaskWhere()] },
         orderBy: { id: "asc" },
         include: {
+          setItems: {
+            where: { set: { isPublished: true, trainingMinutes: null } },
+            select: { setId: true },
+          },
           submissions: {
             where: { studentId: user.id },
             include: { review: true },
@@ -55,10 +70,26 @@ export default async function DashboardPage({
           seenByStudentAt: null,
           submission: {
             studentId: user.id,
-            task: { groupId: { in: groupIds } },
+            task: {
+              groupId: { in: groupIds },
+              AND: [publishedTaskWhere(), notInTrainingSetFilter],
+            },
           },
         },
-        include: { submission: { include: { task: true } } },
+        include: {
+          submission: {
+            include: {
+              task: {
+                include: {
+                  setItems: {
+                    where: { set: { isPublished: true } },
+                    select: { setId: true },
+                  },
+                },
+              },
+            },
+          },
+        },
         orderBy: { id: "desc" },
         take: 5,
       });
@@ -68,7 +99,7 @@ export default async function DashboardPage({
         where: {
           studentId: user.id,
           finishedAt: null,
-          set: { groupId: { in: groupIds } },
+          set: { groupId: { in: groupIds }, isPublished: true },
         },
         include: { set: true },
         orderBy: { startedAt: "desc" },
@@ -96,7 +127,13 @@ export default async function DashboardPage({
   const resumeHref = ongoing
     ? "/groups/" + ongoing.set.groupId + "/sets/" + ongoing.setId + "/training"
     : nextTask
-      ? "/groups/" + nextGroup.id + "?tab=tasks#task-" + nextTask.id
+      ? "/groups/" +
+        nextGroup.id +
+        (nextTask.setItems[0]
+          ? "/sets/" + nextTask.setItems[0].setId
+          : "?tab=tasks") +
+        "#task-" +
+        nextTask.id
       : nextGroup
         ? "/groups/" + nextGroup.id + "?tab=sets"
         : null;
@@ -148,7 +185,10 @@ export default async function DashboardPage({
                   href={
                     "/groups/" +
                     review.submission.task.groupId +
-                    "?tab=tasks#task-" +
+                    (review.submission.task.setItems[0]
+                      ? "/sets/" + review.submission.task.setItems[0].setId
+                      : "?tab=tasks") +
+                    "#task-" +
                     review.submission.taskId
                   }
                   className="flex items-center justify-between gap-3 py-3 text-sm hover:text-navy"
@@ -187,30 +227,18 @@ export default async function DashboardPage({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <LinkButton
-                      href={
-                        "/groups/" +
-                        group.id +
-                        (group._count.taskSets && !teacher
-                          ? "?tab=sets"
-                          : "?tab=tasks")
-                      }
+                      href={"/groups/" + group.id + "?tab=sets"}
                       variant="primary"
                       className="min-h-11"
                     >
-                      {t(
-                        teacher
-                          ? "group.tabTasks"
-                          : group._count.taskSets
-                            ? "ui.openSets"
-                            : "ui.openTasks",
-                      )}
+                      {lessonText.lessons} →
                     </LinkButton>
                     {teacher && (
                       <LinkButton
-                        href={"/groups/" + group.id + "?tab=sets"}
+                        href={"/groups/" + group.id + "/lessons/new"}
                         className="min-h-11"
                       >
-                        {t("group.tabSets")}
+                        + {lessonText.createLesson}
                       </LinkButton>
                     )}
                     {teacher && (

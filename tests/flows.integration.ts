@@ -495,6 +495,378 @@ test("teacher and student workflows against an isolated local database", async (
         assert.equal(result.answers[0].score, 0);
       },
     );
+
+    await t.test(
+      "draft, preview, reuse, materials and issuing work as one lesson flow",
+      async () => {
+        const lessonTitle = "Lesson draft " + suffix;
+        const created = await post(
+          "/api/groups/" + group.id + "/sets",
+          teacher.cookie,
+          form({ title: lessonTitle }),
+        );
+        assert.equal(created.status, 200);
+        const draft = await prisma.taskSet.findFirstOrThrow({
+          where: { groupId: group.id, title: lessonTitle },
+        });
+        assert.equal(draft.isPublished, false);
+        const basePath = "/groups/" + group.id + "/sets/" + draft.id;
+        assert.equal(
+          (await post("/api/sets/" + draft.id + "/assign", teacher.cookie))
+            .status,
+          400,
+        );
+        const hiddenPage = await fetch(base + basePath, {
+          headers: { Cookie: student.cookie },
+        });
+        const hiddenHtml = await hiddenPage.text();
+        assert.ok(
+          hiddenPage.status === 404 ||
+            hiddenHtml.includes("NEXT_HTTP_ERROR_FALLBACK;404"),
+        );
+        assert.ok(!hiddenHtml.includes(lessonTitle));
+        const studentList = await (
+          await fetch(base + "/groups/" + group.id, {
+            headers: { Cookie: student.cookie },
+          })
+        ).text();
+        assert.ok(!studentList.includes(lessonTitle));
+        assert.equal(
+          (
+            await post(
+              "/api/groups/" + group.id + "/tasks",
+              teacher.cookie,
+              form({
+                setId: String(draft.id),
+                title: "Draft question " + suffix,
+                description: "Explain the climate",
+                type: "TEXT",
+                maxScore: "10",
+                correctAnswer: "PRIVATE-CORRECT-" + suffix,
+                explanationText: "PRIVATE-EXPLANATION-" + suffix,
+              }),
+            )
+          ).status,
+          200,
+        );
+        const original = await prisma.task.findFirstOrThrow({
+          where: { setItems: { some: { setId: draft.id } } },
+        });
+        assert.equal(original.isPublished, false);
+        assert.equal(
+          (
+            await post(
+              "/api/tasks/" + original.id + "/submissions",
+              student.cookie,
+              form({ answer: "Answer" }),
+            )
+          ).status,
+          404,
+        );
+        assert.equal(
+          (
+            await fetch(base + "/api/tasks/" + original.id + "/image", {
+              headers: { Cookie: student.cookie },
+            })
+          ).status,
+          404,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + draft.id + "/tasks",
+              teacher.cookie,
+              form({ mode: "copy", taskId: String(single.id) }),
+            )
+          ).status,
+          200,
+        );
+        const copy = await prisma.task.findFirstOrThrow({
+          where: {
+            setItems: { some: { setId: draft.id } },
+            title: single.title,
+          },
+        });
+        assert.notEqual(copy.id, single.id);
+        assert.equal(copy.isLibraryItem, false);
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + draft.id + "/tasks/remove",
+              teacher.cookie,
+              form({ taskId: String(single.id) }),
+            )
+          ).status,
+          200,
+        );
+        assert.equal(
+          (await prisma.task.findUniqueOrThrow({ where: { id: single.id } }))
+            .isPublished,
+          true,
+        );
+
+        assert.equal(
+          await prisma.submission.count({ where: { taskId: copy.id } }),
+          0,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + draft.id + "/tasks",
+              teacher.cookie,
+              form({ mode: "copy", taskId: String(single.id) }),
+            )
+          ).status,
+          200,
+        );
+        assert.equal(
+          await prisma.taskSetItem.count({ where: { setId: draft.id } }),
+          2,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/groups/" + group.id + "/materials",
+              teacher.cookie,
+              form({
+                setId: String(draft.id),
+                title: "Draft notes " + suffix,
+                type: "TEXT",
+                description: "Read the map",
+              }),
+            )
+          ).status,
+          200,
+        );
+        const material = await prisma.material.findFirstOrThrow({
+          where: { lessons: { some: { id: draft.id } } },
+        });
+        assert.equal(material.isPublished, false);
+        assert.equal(
+          (
+            await post(
+              "/api/materials/" + material.id + "/viewed",
+              student.cookie,
+            )
+          ).status,
+          404,
+        );
+        assert.equal(
+          (
+            await fetch(base + "/api/materials/" + material.id + "/download", {
+              headers: { Cookie: student.cookie },
+            })
+          ).status,
+          404,
+        );
+        const materialPage = await (
+          await fetch(base + "/groups/" + group.id + "?tab=materials", {
+            headers: { Cookie: student.cookie },
+          })
+        ).text();
+        assert.ok(!materialPage.includes(material.title));
+        const countBefore = await prisma.submission.count({
+          where: { task: { groupId: group.id } },
+        });
+        const preview = await fetch(base + basePath + "/preview", {
+          headers: { Cookie: teacher.cookie },
+        });
+        assert.equal(preview.status, 200);
+        const previewHtml = await preview.text();
+        assert.ok(previewHtml.includes(original.title));
+        assert.ok(!previewHtml.includes("PRIVATE-CORRECT-" + suffix));
+        assert.ok(!previewHtml.includes("PRIVATE-EXPLANATION-" + suffix));
+        const deniedPreview = await fetch(base + basePath + "/preview", {
+          headers: { Cookie: student.cookie },
+        });
+        const deniedPreviewHtml = await deniedPreview.text();
+        assert.ok(
+          deniedPreview.status === 404 ||
+            deniedPreviewHtml.includes("NEXT_HTTP_ERROR_FALLBACK;404"),
+        );
+        assert.ok(!deniedPreviewHtml.includes(original.title));
+        assert.equal(
+          await prisma.submission.count({
+            where: { task: { groupId: group.id } },
+          }),
+          countBefore,
+        );
+        assert.equal(
+          await prisma.trainingAttempt.count({ where: { setId: draft.id } }),
+          0,
+        );
+        assert.equal(
+          (await post("/api/sets/" + draft.id + "/assign", student.cookie))
+            .status,
+          403,
+        );
+        assert.equal(
+          (await post("/api/sets/" + draft.id + "/assign", teacher.cookie))
+            .status,
+          200,
+        );
+        assert.equal(
+          (await prisma.taskSet.findUniqueOrThrow({ where: { id: draft.id } }))
+            .isPublished,
+          true,
+        );
+        assert.equal(
+          (
+            await prisma.material.findUniqueOrThrow({
+              where: { id: material.id },
+            })
+          ).isPublished,
+          true,
+        );
+        assert.equal(
+          (
+            await fetch(base + basePath, {
+              headers: { Cookie: student.cookie },
+            })
+          ).status,
+          200,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/tasks/" + original.id + "/submissions",
+              student.cookie,
+              form({ answer: "Geography answer" }),
+            )
+          ).status,
+          200,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/materials/" + material.id + "/viewed",
+              student.cookie,
+            )
+          ).status,
+          200,
+        );
+        const attached = await post(
+          "/api/sets/" + draft.id + "/materials",
+          teacher.cookie,
+          form({ materialId: String(material.id), mode: "remove" }),
+        );
+        assert.equal(attached.status, 200);
+        assert.equal(
+          await prisma.material.count({
+            where: { lessons: { some: { id: draft.id } } },
+          }),
+          0,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + draft.id + "/materials",
+              teacher.cookie,
+              form({ materialId: String(material.id) }),
+            )
+          ).status,
+          200,
+        );
+        const results = await fetch(
+          base + basePath + "?step=results&student=" + student.user.id,
+          { headers: { Cookie: teacher.cookie } },
+        );
+        assert.equal(results.status, 200);
+        assert.ok((await results.text()).includes("Geography answer"));
+        const timedDraft = await post(
+          "/api/groups/" + group.id + "/sets",
+          teacher.cookie,
+          form({ title: "Timed draft " + suffix, trainingMinutes: "15" }),
+        );
+        assert.equal(timedDraft.status, 200);
+        const pendingTimed = await prisma.taskSet.findFirstOrThrow({
+          where: { groupId: group.id, title: "Timed draft " + suffix },
+        });
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + pendingTimed.id + "/training/start",
+              student.cookie,
+            )
+          ).status,
+          404,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + pendingTimed.id + "/tasks",
+              teacher.cookie,
+              form({ mode: "copy", taskId: String(single.id) }),
+            )
+          ).status,
+          200,
+        );
+        const timedPreview = await fetch(
+          base +
+            "/groups/" +
+            group.id +
+            "/sets/" +
+            pendingTimed.id +
+            "/preview",
+          { headers: { Cookie: teacher.cookie } },
+        );
+        assert.equal(timedPreview.status, 200);
+        assert.equal(
+          await prisma.trainingAttempt.count({
+            where: { setId: pendingTimed.id },
+          }),
+          0,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + pendingTimed.id + "/assign",
+              teacher.cookie,
+            )
+          ).status,
+          200,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/sets/" + pendingTimed.id + "/training/start",
+              student.cookie,
+            )
+          ).status,
+          200,
+        );
+        assert.equal(
+          await prisma.trainingAttempt.count({
+            where: { setId: pendingTimed.id },
+          }),
+          1,
+        );
+        assert.equal(
+          (await post("/api/sets/" + draft.id + "/delete", teacher.cookie))
+            .status,
+          200,
+        );
+        assert.equal(
+          (await prisma.task.findUniqueOrThrow({ where: { id: original.id } }))
+            .isPublished,
+          false,
+        );
+        assert.equal(
+          await prisma.submission.count({ where: { taskId: original.id } }),
+          1,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/tasks/" + original.id + "/submissions",
+              student.cookie,
+              form({ answer: "Again" }),
+            )
+          ).status,
+          404,
+        );
+      },
+    );
   } finally {
     await prisma.$disconnect();
   }

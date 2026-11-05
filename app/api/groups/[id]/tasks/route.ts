@@ -195,6 +195,7 @@ export async function POST(
     const created = await tx.task.create({
       data: {
         groupId,
+        isPublished: targetSet?.isPublished ?? false,
         title,
         description,
         maxScore,
@@ -234,7 +235,7 @@ export async function POST(
   }
   return redirectWithSuccess(
     request,
-    backTo + "#task-" + createdInSet,
+    (targetSet ? backTo + "?step=content" : backTo) + "#task-" + createdInSet,
     t("ok.taskCreated"),
   );
 }

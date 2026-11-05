@@ -8,7 +8,10 @@ import { contentDisposition, readUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const materialId = parseEntityId(id);
@@ -21,8 +24,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
-  const material = await prisma.material.findUnique({ where: { id: materialId } });
-  if (!material || !(await canOpenGroup(user.id, material.groupId))) {
+  const material = await prisma.material.findUnique({
+    where: { id: materialId },
+  });
+  if (
+    !material ||
+    (user.role === "STUDENT" && !material.isPublished) ||
+    !(await canOpenGroup(user.id, material.groupId))
+  ) {
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
@@ -47,7 +56,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(file, {
     headers: {
       "Content-Type": "application/octet-stream",
-      "Content-Disposition": contentDisposition("attachment", material.originalFileName ?? "material"),
+      "Content-Disposition": contentDisposition(
+        "attachment",
+        material.originalFileName ?? "material",
+      ),
       "X-Content-Type-Options": "nosniff",
     },
   });

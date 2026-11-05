@@ -35,20 +35,39 @@ export function SetModeFields({
 
   return (
     <>
-      <label className="block">
-        <span className={labelClasses}>{labels.mode}</span>
-        <select
-          className={inputClasses}
-          value={isOlympiad ? "olympiad" : "collection"}
-          onChange={(event) => setIsOlympiad(event.target.value === "olympiad")}
-        >
-          <option value="collection">{labels.collection}</option>
-          <option value="olympiad">{labels.olympiad}</option>
-        </select>
-        <span className="mt-1 block text-xs text-ink-mute">
-          {isOlympiad ? labels.olympiadHint : labels.collectionHint}
-        </span>
-      </label>
+      <fieldset>
+        <legend className={labelClasses}>{labels.mode}</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[false, true].map((timed) => (
+            <label
+              key={String(timed)}
+              className={[
+                "flex cursor-pointer items-start gap-3 rounded-xl border p-4",
+                isOlympiad === timed
+                  ? "border-navy bg-navy-soft ring-1 ring-navy"
+                  : "border-line bg-white",
+              ].join(" ")}
+            >
+              <input
+                type="radio"
+                name="lessonMode"
+                value={timed ? "timed" : "practice"}
+                checked={isOlympiad === timed}
+                onChange={() => setIsOlympiad(timed)}
+                className="mt-1 h-4 w-4 shrink-0 accent-navy"
+              />
+              <span>
+                <span className="block text-sm font-semibold">
+                  {timed ? labels.olympiad : labels.collection}
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+                  {timed ? labels.olympiadHint : labels.collectionHint}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {isOlympiad && (
         <TextInput

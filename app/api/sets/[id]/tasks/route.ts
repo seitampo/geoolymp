@@ -4,6 +4,7 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
+import { addLessonCopies } from "@/lib/addLessonCopies";
 import { isTrainingSupportedTaskType } from "@/lib/training";
 
 export async function POST(
@@ -31,6 +32,20 @@ export async function POST(
   )
     return NextResponse.json({ error: t("err.selectTask") }, { status: 400 });
   const taskIds = ids as number[];
+  if (form.get("mode") === "copy") {
+    try {
+      const copied = await addLessonCopies(setId, user.id, taskIds);
+      if (copied.error)
+        return redirectWithError(request, "/dashboard", t(copied.error));
+      return redirectAfterPost(
+        request,
+        "/groups/" + copied.groupId + "/sets/" + setId + "?step=content",
+      );
+    } catch {
+      return redirectWithError(request, "/dashboard", t("ui.genericError"));
+    }
+  }
+
   const result = await prisma.$transaction(
     async (tx) => {
       await tx.$queryRaw`SELECT id FROM "TaskSet" WHERE id = ${setId} FOR UPDATE`;
@@ -90,5 +105,8 @@ export async function POST(
   );
   if (result.error)
     return redirectWithError(request, "/dashboard", result.error);
-  return redirectAfterPost(request, result.backTo ?? "/dashboard");
+  return redirectAfterPost(
+    request,
+    (result.backTo ?? "/dashboard") + "?step=content",
+  );
 }
