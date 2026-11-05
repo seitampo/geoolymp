@@ -3,13 +3,17 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isTaskIssued } from "@/lib/lessonAccess";
 
 import { hasTrainingAttemptForTask, isTaskInTrainingSet } from "@/lib/training";
 import { readUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const taskId = parseEntityId(id);
@@ -19,16 +23,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   if (taskId === null) {
-    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Изображение не найдено." },
+      { status: 404 },
+    );
   }
 
-  const task = await prisma.task.findUnique({ where: { id: taskId }, include: { group: true } });
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { group: true },
+  });
+  if (user.role === "STUDENT" && !(await isTaskIssued(taskId)))
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!task || !task.imagePath) {
-    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Изображение не найдено." },
+      { status: 404 },
+    );
   }
 
   if (!(await canOpenGroup(user.id, task.groupId))) {
-    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Изображение не найдено." },
+      { status: 404 },
+    );
   }
 
   // Картинку тренировочной задачи ученик видит только начав тренировку —
@@ -38,12 +56,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     (await isTaskInTrainingSet(task.id)) &&
     !(await hasTrainingAttemptForTask(user.id, task.id))
   ) {
-    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Изображение не найдено." },
+      { status: 404 },
+    );
   }
 
   const image = await readUploadedFile(task.imagePath);
   if (!image) {
-    return NextResponse.json({ error: "Изображение не найдено." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Изображение не найдено." },
+      { status: 404 },
+    );
   }
 
   return new NextResponse(image, {

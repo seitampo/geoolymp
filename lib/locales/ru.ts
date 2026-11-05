@@ -124,12 +124,12 @@ export const ru = {
   "field.description": "Описание",
 
   // Типы задач
-  "taskType.TEXT": "Текстовый ответ",
-  "taskType.SINGLE_CHOICE": "Один вариант",
-  "taskType.MULTIPLE_CHOICE": "Несколько вариантов",
-  "taskType.IMAGE_UPLOAD": "Загрузка изображения",
-  "taskType.FILE_UPLOAD": "Загрузка файла",
-  "taskType.MAP_POINT": "Точка на карте",
+  "taskType.TEXT": "Ответ текстом",
+  "taskType.SINGLE_CHOICE": "Один верный вариант",
+  "taskType.MULTIPLE_CHOICE": "Несколько верных вариантов",
+  "taskType.IMAGE_UPLOAD": "Загрузить изображение",
+  "taskType.FILE_UPLOAD": "Прикрепить файл",
+  "taskType.MAP_POINT": "Отметить на карте",
   // Типы материалов
   "materialType.TEXT": "Только текст (без файла и ссылки)",
   "materialType.TEXT_badge": "Текст",
@@ -151,9 +151,9 @@ export const ru = {
   "group.navAria": "Разделы группы",
   "group.tabMaterials": "Материалы",
   "group.tabTasks": "Задачи",
-  "group.tabSets": "Подборки",
-  "group.tabSubmissions": "Решения",
-  "group.tabMembers": "Участники",
+  "group.tabSets": "Занятия",
+  "group.tabSubmissions": "На проверку",
+  "group.tabMembers": "Ученики",
   "group.newResultDot": "Есть новый результат",
 
   // Прогресс ученика
@@ -205,7 +205,7 @@ export const ru = {
     "Задачи из ваших других групп. «Добавить» создаёт независимую копию в этой группе.",
   "task.libraryEmpty": "В других ваших группах задач пока нет.",
   "task.create": "+ Создать задачу",
-  "task.condition": "Условие",
+  "task.condition": "Условие или вопрос",
   "task.options": "Варианты ответов",
   "task.optionsPlaceholder": "Каждый вариант с новой строки",
   "task.correctAnswer": "Правильный ответ",
@@ -227,13 +227,13 @@ export const ru = {
   "set.titlePlaceholder": "Например: Климат — 20 задач",
   "set.descPlaceholder": "Какая тема и зачем решать",
   "set.trainingMinutes": "Время на олимпиаду, минут",
-  "set.mode": "Режим подборки",
-  "set.modeCollection": "Сборник",
-  "set.modeOlympiad": "Пробная олимпиада",
+  "set.mode": "Как будут заниматься ученики",
+  "set.modeCollection": "Практика",
+  "set.modeOlympiad": "Олимпиада на время",
   "set.modeCollectionHint":
-    "Тематический список задач. Видны сразу, решать можно сколько угодно раз.",
+    "Ученики решают в своём темпе и могут исправлять ответы.",
   "set.modeOlympiadHint":
-    "Таймер и одна попытка. Задачи открываются только после старта, решать нужно заново — прошлые решения не засчитываются.",
+    "Одна попытка с таймером. Вопросы откроются после старта, ответы сохраняются автоматически.",
   "set.createButton": "Создать подборку",
   "set.trainingBadge": "Олимпиада",
   "set.minShort": "мин",
@@ -397,7 +397,7 @@ export const ru = {
   "setChip.wrong": "неверно",
   "setChip.pending": "на проверке",
   "setChip.none": "не решалось",
-  "setPage.backToSets": "К подборкам группы",
+  "setPage.backToSets": "К занятиям группы",
   "setPage.tasksCount": "Задач:",
   "setPage.trainingBadgePre": "Олимпиада ·",
   "setPage.orderHint":
@@ -437,11 +437,11 @@ export const ru = {
   "setPage.emptyTitle": "В подборке пока нет задач",
   "setPage.emptyTeacher": "Добавьте задачи группы через форму выше.",
   "setPage.emptyStudent": "Учитель ещё не добавил задачи в эту подборку.",
-  "setPage.taskWord": "Задача",
+  "setPage.taskWord": "Вопрос",
   "setPage.removeFromSet": "Убрать из подборки",
 
   // Страница тренировки
-  "training.backToSet": "К подборке",
+  "training.backToSet": "К занятию",
   "training.answeredPre": "Отвечено:",
   "training.finish": "Завершить",
   "training.warning":
@@ -507,7 +507,7 @@ export const ru = {
   "err.mapPointTeacher": "Отметьте правильную точку на карте и задайте допуск.",
   "err.mapPointStudent": "Отметьте точку на карте.",
   "err.mapCoords": "Неверные координаты цели картозадачи.",
-  "err.setFields": "Заполните название и описание подборки.",
+  "err.setFields": "Укажите название занятия (до 200 символов).",
   "err.trainingLimit": "Лимит тренировки — целое число минут от 1 до 600.",
   "err.taskNotFound": "Задача не найдена.",
   "err.taskNotInGroup": "Задача не найдена в этой группе.",
@@ -570,8 +570,8 @@ export const ru = {
   "ok.groupCreated": "Группа создана. Отправьте ученикам код приглашения.",
   "ok.materialAdded": "Материал добавлен.",
   "ok.materialDeleted": "Материал удалён.",
-  "ok.setCreated": "Подборка создана — добавьте в неё задачи.",
-  "ok.setDeleted": "Подборка удалена.",
+  "ok.setCreated": "Черновик занятия создан. Добавьте вопросы и материалы.",
+  "ok.setDeleted": "Занятие удалено.",
   "ok.taskCreated": "Задача создана.",
   "ok.taskDeleted": "Задача удалена.",
   "ok.reviewSaved": "Оценка сохранена.",
@@ -654,6 +654,13 @@ export const ru = {
   "ui.openSets": "Открыть занятия",
   "ui.readOnly": "Только просмотр",
   "ui.changesSaved": "Изменения сохранены.",
+  "lesson.notFound": "Занятие не найдено.",
+  "lesson.emptyIssue":
+    "Добавьте хотя бы один вопрос или материал перед выдачей.",
+  "lesson.unsupportedTimed":
+    "Для олимпиады используйте текст, варианты ответа или отметку на карте. Загрузку файлов оставьте для практики.",
+  "lesson.issuedSuccess": "Занятие выдано группе.",
+  "lesson.chooseMaterials": "Выберите материалы этой группы.",
 } as const;
 
 export type Dictionary = Record<keyof typeof ru, string>;

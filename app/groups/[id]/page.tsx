@@ -1,3 +1,8 @@
+import { LessonList } from "@/components/lessons/LessonList";
+import { getLessonText } from "@/lib/lessonText";
+import { lessonInclude } from "@/lib/lessonData";
+import { summarizeLesson } from "@/lib/lessonSummary";
+import { publishedTaskWhere } from "@/lib/lessonAccess";
 import {
   Material,
   Membership,
@@ -163,7 +168,7 @@ export default async function GroupPage({
   const t = await getT();
   const searchQuery = (q ?? "").trim();
   const statusFilter = getStatusFilter(status);
-  const reviewFilter: ReviewFilter = filter === "pending" ? "pending" : "all";
+  const reviewFilter: ReviewFilter = filter === "all" ? "all" : "pending";
   const afterId = after ? parseEntityId(after) : null;
   const submissionSort = getSubmissionSort(sort);
   const groupId = parseEntityId(id);
@@ -172,16 +177,31 @@ export default async function GroupPage({
     notFound();
   }
 
+  if (user.role === "TEACHER" && tab === "tasks")
+    redirect("/tasks?groupId=" + groupId);
   const activeTab = getActiveTab(tab, user.role);
   const group = await prisma.group.findUnique({
     where: { id: groupId },
     include: {
-      materials: { orderBy: { uploadedAt: "desc" } },
+      materials: {
+        where: user.role === "STUDENT" ? { isPublished: true } : undefined,
+        orderBy: { uploadedAt: "desc" },
+      },
       tasks: {
         orderBy: { id: "asc" },
         // Тренировочные задачи для ученика существуют только внутри тренировки.
         where:
-          user.role === "STUDENT" ? { ...notInTrainingSetFilter } : undefined,
+          user.role === "STUDENT"
+            ? {
+                AND: [
+                  notInTrainingSetFilter,
+                  publishedTaskWhere(),
+                  ...(activeTab === "tasks"
+                    ? [{ setItems: { none: {} } }]
+                    : []),
+                ],
+              }
+            : undefined,
         include: {
           submissions: {
             where: user.role === "STUDENT" ? { studentId: user.id } : undefined,
@@ -190,6 +210,7 @@ export default async function GroupPage({
         },
       },
       taskSets: {
+        where: user.role === "STUDENT" ? { isPublished: true } : undefined,
         orderBy: { id: "asc" },
         include: { _count: { select: { items: true } } },
       },
@@ -212,6 +233,42 @@ export default async function GroupPage({
     notFound();
   }
 
+  const lessonText = await getLessonText();
+  const lessons = await prisma.taskSet.findMany({
+    where: {
+      groupId,
+      ...(user.role === "STUDENT" ? { isPublished: true } : {}),
+    },
+    include: lessonInclude,
+    orderBy: { id: "desc" },
+  });
+  const summaries = lessons.map((lesson) =>
+    summarizeLesson(
+      lesson,
+      group.memberships.map((member) => member.userId),
+      user.id,
+    ),
+  );
+  const timedPending = lessons.flatMap((lesson) =>
+    lesson.attempts
+      .filter(
+        (attempt) =>
+          attempt.finishedAt &&
+          attempt.answers.some((answer) => answer.isCorrect === null),
+      )
+      .map((attempt) => ({ lesson, attempt })),
+  );
+  const inboxCount =
+    timedPending.reduce(
+      (sum, row) =>
+        sum +
+        row.attempt.answers.filter((answer) => answer.isCorrect === null)
+          .length,
+      0,
+    ) +
+    (await prisma.submission.count({
+      where: { task: { groupId }, status: "PENDING" },
+    }));
   // Полный список решений нужен только на вкладке «Решения» у учителя — не грузим его зря.
   const allSubmissions =
     user.role === "TEACHER" && activeTab === "submissions"
@@ -296,70 +353,49 @@ export default async function GroupPage({
                     {t("group.inviteCode")}:{" "}
                     <span className="font-mono">{group.inviteCode}</span>
                   </Badge>
-                  <CopyButton value={group.inviteCode} />
+                  <CopyButton
+                    value={group.inviteCode}
+                    label={lessonText.copy}
+                    copiedLabel={lessonText.copied}
+                  />
                 </div>
               )}
             </div>
-            {isTeacher && (
-              <form
-                className="shrink-0"
-                action={`/api/groups/${group.id}/delete`}
-                method="post"
-                data-confirm={t("task.groupDeleteConfirm")}
-              >
-                <Button variant="danger" size="sm">
-                  {t("group.deleteGroup")}
-                </Button>
-              </form>
-            )}
           </div>
         </div>
 
-        {!isTeacher && (
-          <StudentProgress
-            group={group}
-            viewedMaterialIds={viewedMaterialIds}
-            t={t}
-          />
-        )}
-
         <nav
-          className="mb-6 flex gap-2 overflow-x-auto pb-1"
+          className={
+            "mb-6 grid gap-2 border-b border-line pb-3 sm:flex " +
+            (isTeacher ? "grid-cols-2" : "grid-cols-3")
+          }
           aria-label={t("group.navAria")}
         >
           <TabLink
             groupId={group.id}
-            tab="materials"
-            activeTab={activeTab}
-            label={t("group.tabMaterials")}
-          />
-          <TabLink
-            groupId={group.id}
-            tab="tasks"
-            activeTab={activeTab}
-            label={t("group.tabTasks")}
-            showDot={hasUnseenResults && activeTab !== "tasks"}
-            dotTitle={t("group.newResultDot")}
-          />
-          <TabLink
-            groupId={group.id}
             tab="sets"
             activeTab={activeTab}
-            label={t("group.tabSets")}
+            label={lessonText.lessons}
           />
           {isTeacher && (
             <TabLink
               groupId={group.id}
               tab="submissions"
               activeTab={activeTab}
-              label={t("group.tabSubmissions")}
+              label={lessonText.inbox + (inboxCount ? " · " + inboxCount : "")}
             />
           )}
           <TabLink
             groupId={group.id}
             tab="members"
             activeTab={activeTab}
-            label={t("group.tabMembers")}
+            label={lessonText.students}
+          />
+          <TabLink
+            groupId={group.id}
+            tab="materials"
+            activeTab={activeTab}
+            label={lessonText.materials}
           />
         </nav>
 
@@ -387,17 +423,89 @@ export default async function GroupPage({
           />
         )}
         {activeTab === "sets" && (
-          <SetsTab group={group} isTeacher={isTeacher} t={t} />
+          <>
+            <LessonList
+              groupId={group.id}
+              teacher={isTeacher}
+              lessons={summaries}
+              text={lessonText}
+            />
+            {!isTeacher &&
+              group.tasks.some(
+                (task) =>
+                  !lessons.some((lesson) =>
+                    lesson.items.some((item) => item.taskId === task.id),
+                  ),
+              ) && (
+                <div className="mt-6 rounded-xl border border-line bg-white p-5">
+                  <Link
+                    href={"/groups/" + group.id + "?tab=tasks"}
+                    className="inline-flex min-h-10 items-center text-sm font-medium text-navy"
+                  >
+                    {lessonText.legacyPractice} →
+                  </Link>
+                  <p className="mt-1 text-xs text-ink-mute">
+                    {lessonText.legacyHint}
+                  </p>
+                </div>
+              )}
+          </>
         )}
         {activeTab === "submissions" && isTeacher && (
-          <SubmissionsTab
-            submissions={sortedSubmissions}
-            sort={submissionSort}
-            groupId={group.id}
-            reviewFilter={reviewFilter}
-            afterId={afterId}
-            t={t}
-          />
+          <>
+            <section className="mb-5">
+              <h2 className="mb-3 text-lg font-semibold">{lessonText.inbox}</h2>
+              {timedPending.length > 0 && (
+                <div className="mb-4 divide-y divide-line rounded-xl border border-line bg-white">
+                  {timedPending.map(({ lesson, attempt }) => (
+                    <Link
+                      key={attempt.id}
+                      href={
+                        "/groups/" +
+                        group.id +
+                        "/sets/" +
+                        lesson.id +
+                        "?step=results&student=" +
+                        attempt.studentId +
+                        "#answers"
+                      }
+                      className="flex min-h-14 flex-wrap items-center justify-between gap-2 px-5 py-4 text-sm"
+                    >
+                      <span>
+                        <span className="font-medium">
+                          {
+                            group.memberships.find(
+                              (member) => member.userId === attempt.studentId,
+                            )?.user.name
+                          }
+                        </span>
+                        <span className="mt-1 block text-xs text-ink-mute">
+                          {lesson.title} · {lessonText.timed}
+                        </span>
+                      </span>
+                      <span className="font-medium text-amber-900">
+                        {lessonText.review}{" "}
+                        {
+                          attempt.answers.filter(
+                            (answer) => answer.isCorrect === null,
+                          ).length
+                        }{" "}
+                        →
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+            <SubmissionsTab
+              submissions={sortedSubmissions}
+              sort={submissionSort}
+              groupId={group.id}
+              reviewFilter={reviewFilter}
+              afterId={afterId}
+              t={t}
+            />
+          </>
         )}
         {activeTab === "members" && (
           <MembersTab
@@ -406,6 +514,23 @@ export default async function GroupPage({
             groupId={group.id}
             t={t}
           />
+        )}
+        {isTeacher && (
+          <details className="mt-10 text-sm text-ink-mute">
+            <summary className="cursor-pointer">
+              {t("group.deleteGroup")}
+            </summary>
+            <form
+              className="mt-3"
+              action={"/api/groups/" + group.id + "/delete"}
+              method="post"
+              data-confirm={t("task.groupDeleteConfirm")}
+            >
+              <Button variant="danger" size="sm">
+                {t("group.deleteGroup")}
+              </Button>
+            </form>
+          </details>
         )}
       </main>
     </>
@@ -503,7 +628,7 @@ function getActiveTab(tab: string | undefined, role: Role): Tab {
     return "submissions";
   }
 
-  return role === "STUDENT" ? "sets" : "tasks";
+  return "sets";
 }
 
 function getStatusFilter(value: string | undefined): TaskFilter {

@@ -62,7 +62,12 @@ export default async function TrainingPage({
     },
   });
 
-  if (!set || set.groupId !== groupId || !set.trainingMinutes) {
+  if (
+    !set ||
+    set.groupId !== groupId ||
+    !set.trainingMinutes ||
+    !set.isPublished
+  ) {
     notFound();
   }
 

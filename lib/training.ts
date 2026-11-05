@@ -21,13 +21,18 @@ export function isTrainingSupportedTaskType(type: TaskType) {
  * иначе автопроверка на вкладке задач раскрыла бы правильные ответы до тренировки.
  */
 export const notInTrainingSetFilter = {
-  setItems: { none: { set: { trainingMinutes: { not: null } } } },
+  setItems: {
+    none: { set: { trainingMinutes: { not: null }, isPublished: true } },
+  },
 } as const;
 
 /** Входит ли задача хотя бы в одну тренировочную подборку. */
 export async function isTaskInTrainingSet(taskId: number) {
   const item = await prisma.taskSetItem.findFirst({
-    where: { taskId, set: { trainingMinutes: { not: null } } },
+    where: {
+      taskId,
+      set: { trainingMinutes: { not: null }, isPublished: true },
+    },
     select: { id: true },
   });
   return item !== null;
@@ -36,7 +41,9 @@ export async function isTaskInTrainingSet(taskId: number) {
 /** id всех задач группы, занятых в тренировочных подборках. */
 export async function getTrainingTaskIds(groupId: number) {
   const items = await prisma.taskSetItem.findMany({
-    where: { set: { groupId, trainingMinutes: { not: null } } },
+    where: {
+      set: { groupId, trainingMinutes: { not: null }, isPublished: true },
+    },
     select: { taskId: true },
   });
   return new Set(items.map((item) => item.taskId));
@@ -50,7 +57,11 @@ export async function hasTrainingAttemptForTask(
   const attempt = await prisma.trainingAttempt.findFirst({
     where: {
       studentId,
-      set: { trainingMinutes: { not: null }, items: { some: { taskId } } },
+      set: {
+        trainingMinutes: { not: null },
+        isPublished: true,
+        items: { some: { taskId } },
+      },
     },
     select: { id: true },
   });

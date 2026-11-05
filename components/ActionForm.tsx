@@ -10,6 +10,7 @@ export function ActionForm({
   savingLabel,
   successLabel,
   resetOnSuccess = false,
+  stayOnPage = false,
 }: {
   action: string;
   children: ReactNode;
@@ -17,6 +18,7 @@ export function ActionForm({
   savingLabel: string;
   successLabel: string;
   resetOnSuccess?: boolean;
+  stayOnPage?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -43,7 +45,7 @@ export function ActionForm({
       if (!response.ok || !data.ok) throw new Error(data.error || errorLabel);
       setSuccess(data.message || successLabel);
       if (resetOnSuccess) setVersion((value) => value + 1);
-      if (data.redirectTo) router.push(data.redirectTo);
+      if (data.redirectTo && !stayOnPage) router.push(data.redirectTo);
       router.refresh();
     } catch (error) {
       setError(error instanceof Error ? error.message : errorLabel);

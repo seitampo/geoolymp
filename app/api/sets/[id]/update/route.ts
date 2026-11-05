@@ -48,13 +48,25 @@ export async function POST(
     String(formData.get("trainingMinutes") ?? ""),
   );
 
-  if (!title || !description) {
+  if (!title || title.length > 200) {
     return redirectWithError(request, backTo, t("err.setFields"));
   }
 
   if (trainingMinutes === undefined) {
     return redirectWithError(request, backTo, t("err.trainingLimit"));
   }
+
+  if (
+    trainingMinutes !== null &&
+    (await prisma.taskSetItem.count({
+      where: { setId, task: { type: { in: ["IMAGE_UPLOAD", "FILE_UPLOAD"] } } },
+    }))
+  )
+    return redirectWithError(
+      request,
+      backTo + "?step=settings",
+      t("lesson.unsupportedTimed"),
+    );
 
   const changed = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "TaskSet" WHERE id = ${setId} FOR UPDATE`;
@@ -67,5 +79,5 @@ export async function POST(
   });
   if (!changed) return redirectWithError(request, backTo, t("ui.lockedSet"));
 
-  return redirectAfterPost(request, backTo);
+  return redirectAfterPost(request, backTo + "?step=content");
 }

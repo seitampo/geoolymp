@@ -6,6 +6,7 @@ import { getT } from "@/lib/i18n";
 import { parseEntityId } from "@/lib/params";
 import { canOpenGroup } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isTaskIssued } from "@/lib/lessonAccess";
 import {
   autoCheckAnswer,
   isAutoGradedTask,
@@ -46,6 +47,8 @@ export async function POST(
   }
 
   const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (user.role === "STUDENT" && !(await isTaskIssued(taskId)))
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   // Задача из чужой группы для ученика не существует.
   if (!task || !(await canOpenGroup(user.id, task.groupId))) {
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });

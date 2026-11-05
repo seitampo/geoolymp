@@ -54,10 +54,12 @@ export async function POST(
     return NextResponse.json({ error: "Задача не найдена." }, { status: 404 });
   }
 
-  let backTo = `/groups/${task.groupId}?tab=tasks`;
+  let backTo = `/tasks?groupId=${task.groupId}`;
   const formData = await request.formData();
   const requestedReturn = String(formData.get("returnTo") ?? "");
-  const match = requestedReturn.match(/^\/groups\/\d+\/sets\/(\d+)$/);
+  const match = requestedReturn.match(
+    /^\/groups\/\d+\/sets\/(\d+)(?:\?step=content)?$/,
+  );
   if (match) {
     const parent = await prisma.taskSet.findFirst({
       where: { id: Number(match[1]), groupId: task.groupId },
@@ -189,6 +191,7 @@ export async function POST(
       data: {
         title,
         description,
+        isLibraryItem: true,
         maxScore,
         type,
         options: options || null,

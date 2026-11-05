@@ -8,7 +8,10 @@ import { contentDisposition, readUploadedFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
   const materialId = parseEntityId(id);
@@ -21,14 +24,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
-  const material = await prisma.material.findUnique({ where: { id: materialId } });
-  if (!material || !(await canOpenGroup(user.id, material.groupId))) {
+  const material = await prisma.material.findUnique({
+    where: { id: materialId },
+  });
+  if (
+    !material ||
+    (user.role === "STUDENT" && !material.isPublished) ||
+    !(await canOpenGroup(user.id, material.groupId))
+  ) {
     return NextResponse.json({ error: "Материал не найден." }, { status: 404 });
   }
 
   // Прогресс отмечаем только по явному клику «Открыть» (?open=1): этот же роут
   // используется для миниатюр PDF/изображений, которые грузятся сами при рендере вкладки.
-  if (user.role === "STUDENT" && request.nextUrl.searchParams.get("open") === "1") {
+  if (
+    user.role === "STUDENT" &&
+    request.nextUrl.searchParams.get("open") === "1"
+  ) {
     await recordMaterialView(material.id, user.id);
   }
 
@@ -48,7 +60,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(file, {
     headers: {
       "Content-Type": getContentType(material.originalFileName ?? ""),
-      "Content-Disposition": contentDisposition("inline", material.originalFileName ?? "material"),
+      "Content-Disposition": contentDisposition(
+        "inline",
+        material.originalFileName ?? "material",
+      ),
       "X-Content-Type-Options": "nosniff",
     },
   });
@@ -59,7 +74,8 @@ function getContentType(fileName: string) {
 
   if (lowerName.endsWith(".pdf")) return "application/pdf";
   if (lowerName.endsWith(".png")) return "image/png";
-  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg"))
+    return "image/jpeg";
   if (lowerName.endsWith(".webp")) return "image/webp";
   if (lowerName.endsWith(".docx")) {
     return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
