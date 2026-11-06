@@ -12,6 +12,7 @@ export function TextInput({
   placeholder,
   min,
   max,
+  step,
 }: {
   label: string;
   name: string;
@@ -21,6 +22,7 @@ export function TextInput({
   placeholder?: string;
   min?: number;
   max?: number;
+  step?: number;
 }) {
   return (
     <label className="block">
@@ -34,6 +36,7 @@ export function TextInput({
         placeholder={placeholder}
         min={min}
         max={max}
+        step={step}
       />
     </label>
   );
@@ -83,7 +86,12 @@ export function SelectField({
   return (
     <label className="block">
       {label && <span className={labelClasses}>{label}</span>}
-      <select className={inputClasses} name={name} defaultValue={defaultValue} required={required}>
+      <select
+        className={inputClasses}
+        name={name}
+        defaultValue={defaultValue}
+        required={required}
+      >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -117,7 +125,9 @@ export function FileInput({
         accept={accept}
         required={required}
       />
-      {hint && <span className="mt-1 block text-xs text-ink-mute/80">{hint}</span>}
+      {hint && (
+        <span className="mt-1 block text-xs text-ink-mute/80">{hint}</span>
+      )}
     </label>
   );
 }

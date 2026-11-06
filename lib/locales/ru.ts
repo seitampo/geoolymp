@@ -38,6 +38,8 @@ export const ru = {
 
   // Вход
   "login.title": "Вход",
+  "login.identifier": "Email или логин",
+  "login.identifierPlaceholder": "Ваш email или логин",
   "login.subtitle": "С возвращением в Olympic Meridian",
   "login.forgot": "Забыли пароль?",
   "login.noAccount": "Нет аккаунта?",
@@ -124,6 +126,8 @@ export const ru = {
   "field.description": "Описание",
 
   // Типы задач
+  "task.manualReview": "Ключа нет — ответ проверяет учитель",
+  "task.openIllustration": "Открыть изображение целиком",
   "taskType.TEXT": "Ответ текстом",
   "taskType.SINGLE_CHOICE": "Один верный вариант",
   "taskType.MULTIPLE_CHOICE": "Несколько верных вариантов",
@@ -538,8 +542,8 @@ export const ru = {
   "err.imageTooBig": "Изображение слишком большое. Максимум —",
   "err.pwdLenPre": "Пароль должен быть не короче",
   "err.pwdLenPost": " символов.",
-  "err.scoreRangePre": "Балл должен быть целым числом от 0 до",
-  "err.scoreRangePost": ".",
+  "err.scoreRangePre": "Балл должен быть от 0 до",
+  "err.scoreRangePost": ", с шагом 0,5.",
   "err.rateLimitLoginPre": "Слишком много попыток входа. Попробуйте через",
   "err.rateLimitVerifyPre":
     "Слишком много попыток ввода кода. Попробуйте через",

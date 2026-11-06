@@ -74,7 +74,10 @@ export async function POST(
   const maxScore = Number(formData.get("maxScore"));
   const type = validateTaskType(String(formData.get("type") ?? "TEXT"));
   const options = String(formData.get("options") ?? "").trim();
-  const correctAnswer = String(formData.get("correctAnswer") ?? "").trim();
+  const manualReview = formData.get("manualReview") === "1";
+  const correctAnswer = manualReview
+    ? ""
+    : String(formData.get("correctAnswer") ?? "").trim();
   const image = formData.get("image");
   // Картозадача: цель в процентах ширины (y может превышать 100 у вертикальных карт).
   const mapTargetX = parseMapNumber(
@@ -96,7 +99,7 @@ export async function POST(
   if (
     !title ||
     !description ||
-    !Number.isInteger(maxScore) ||
+    !Number.isInteger(maxScore * 2) ||
     maxScore <= 0 ||
     !type
   ) {
@@ -112,7 +115,11 @@ export async function POST(
 
   const parsedOptions = parseTaskOptions(options);
 
-  if (requiresOptions(type) && parsedOptions.length < 2) {
+  if (
+    requiresOptions(type) &&
+    (parsedOptions.length < 2 ||
+      new Set(parsedOptions).size !== parsedOptions.length)
+  ) {
     return redirectWithError(request, backTo, t("err.taskOptions"));
   }
 
@@ -121,7 +128,7 @@ export async function POST(
     parsedOptions,
     correctAnswer,
   );
-  if (correctAnswerError) {
+  if (correctAnswerError && !(manualReview && requiresOptions(type))) {
     const message =
       correctAnswerError.code === "options"
         ? t("err.taskOptions")

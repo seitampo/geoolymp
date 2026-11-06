@@ -1,13 +1,20 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth";
-import { redirectAfterPost, redirectWithError, redirectWithSuccess } from "@/lib/formResponse";
+import {
+  redirectAfterPost,
+  redirectWithError,
+  redirectWithSuccess,
+} from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { notifyStudentAboutReview } from "@/lib/notifications";
 import { parseEntityId } from "@/lib/params";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const t = await getT();
   const user = await getCurrentUserFromRequest(request);
   const { id } = await params;
@@ -38,7 +45,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const score = Number(formData.get("score"));
   const feedback = String(formData.get("feedback") ?? "").trim();
 
-  if (!Number.isInteger(score) || score < 0 || score > submission.task.maxScore) {
+  if (
+    !Number.isInteger(score * 2) ||
+    score < 0 ||
+    score > submission.task.maxScore
+  ) {
     return redirectWithError(
       request,
       backTo,

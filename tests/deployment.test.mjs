@@ -45,7 +45,7 @@ test("Vercel uses an explicit migration build even without exposed VERCEL variab
   assert.equal(config.buildCommand, "npm run build:deploy");
   assert.equal(
     pkg.scripts["build:deploy"],
-    "node scripts/prepare-build.mjs --deploy && next build",
+    "node scripts/prepare-build.mjs --deploy && node scripts/provision-aliya.mjs && next build",
   );
   const { calls, options } = fixture();
   await prepareBuild(options);

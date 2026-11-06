@@ -32,6 +32,7 @@ export type TaskFieldsLabels = {
   image: string;
   imageHint: string;
   mapImage: string;
+  manualReview: string;
 };
 
 export type TaskFieldsDefaults = {
@@ -43,6 +44,7 @@ export type TaskFieldsDefaults = {
   mapTargetX?: number;
   mapTargetY?: number;
   mapRadius?: number;
+  manualReview?: boolean;
 };
 
 const CHOICE_TYPES = new Set(["SINGLE_CHOICE", "MULTIPLE_CHOICE"]);
@@ -57,6 +59,14 @@ export function TaskFields({
   defaults?: TaskFieldsDefaults;
 }) {
   const [type, setType] = useState(defaults.type ?? "TEXT");
+  const [manualReview, setManualReview] = useState(
+    defaults.manualReview ??
+      Boolean(
+        CHOICE_TYPES.has(defaults.type ?? "") &&
+          defaults.options &&
+          !defaults.correctAnswer,
+      ),
+  );
   const choiceName = useId();
   const [choices, setChoices] = useState(() => {
     const values = (defaults.options ?? "").split("\n").filter(Boolean);
@@ -101,12 +111,29 @@ export function TaskFields({
       {isChoice && (
         <fieldset className="grid gap-3 rounded-lg border border-line p-4">
           <legend className="px-1 text-sm font-medium">{labels.options}</legend>
-          <p className="text-xs text-ink-mute">{labels.selectCorrect}</p>
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={manualReview}
+              onChange={(event) => setManualReview(event.target.checked)}
+              className="h-4 w-4 accent-navy"
+            />
+            {labels.manualReview}
+          </label>
+          <input
+            type="hidden"
+            name="manualReview"
+            value={manualReview ? "1" : "0"}
+          />
+          {!manualReview && (
+            <p className="text-xs text-ink-mute">{labels.selectCorrect}</p>
+          )}
           {choices.map((option, index) => (
             <div key={index} className="flex items-center gap-2">
               <input
                 className="h-5 w-5 shrink-0 accent-navy"
                 name={choiceName}
+                disabled={manualReview}
                 type={type === "MULTIPLE_CHOICE" ? "checkbox" : "radio"}
                 checked={(type === "SINGLE_CHOICE"
                   ? selected.slice(0, 1)
@@ -162,10 +189,14 @@ export function TaskFields({
           <input
             type="hidden"
             name="correctAnswer"
-            value={(type === "SINGLE_CHOICE" ? selected.slice(0, 1) : selected)
-              .map((index) => choices[index]?.trim())
-              .filter(Boolean)
-              .join("; ")}
+            value={
+              manualReview
+                ? ""
+                : (type === "SINGLE_CHOICE" ? selected.slice(0, 1) : selected)
+                    .map((index) => choices[index]?.trim())
+                    .filter(Boolean)
+                    .join("; ")
+            }
           />
           <button
             type="button"
@@ -180,8 +211,9 @@ export function TaskFields({
       <TextInput
         label={labels.maxScore}
         name="maxScore"
+        step={0.5}
         type="number"
-        min={1}
+        min={0.5}
         defaultValue={defaults.maxScore}
       />
 

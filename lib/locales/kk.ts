@@ -39,6 +39,8 @@ export const kk: Dictionary = {
 
   // Вход
   "login.title": "Кіру",
+  "login.identifier": "Email немесе логин",
+  "login.identifierPlaceholder": "Email немесе логиніңіз",
   "login.subtitle": "Olympic Meridian-ге қайта қош келдіңіз",
   "login.forgot": "Құпиясөзді ұмыттыңыз ба?",
   "login.noAccount": "Аккаунт жоқ па?",
@@ -124,6 +126,8 @@ export const kk: Dictionary = {
   "field.description": "Сипаттама",
 
   // Типы задач
+  "task.manualReview": "Жауап кілті жоқ — мұғалім тексереді",
+  "task.openIllustration": "Суретті толық ашу",
   "taskType.TEXT": "Мәтінмен жауап",
   "taskType.SINGLE_CHOICE": "Бір дұрыс нұсқа",
   "taskType.MULTIPLE_CHOICE": "Бірнеше дұрыс нұсқа",
@@ -541,7 +545,7 @@ export const kk: Dictionary = {
   "err.pwdLenPre": "Құпия сөз",
   "err.pwdLenPost": " таңбадан қысқа болмауы керек.",
   "err.scoreRangePre": "Балл — 0-ден",
-  "err.scoreRangePost": "-ге дейінгі бүтін сан болуы керек.",
+  "err.scoreRangePost": "-ге дейін, 0,5 қадамымен болуы керек.",
   "err.rateLimitLoginPre":
     "Кіру әрекеті тым көп. Мына уақыттан кейін қайталаңыз:",
   "err.rateLimitVerifyPre":

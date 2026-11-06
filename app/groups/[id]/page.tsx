@@ -1445,6 +1445,7 @@ function SubmissionsTab({
             <TextInput
               label={`${t("sub.scoreOfPrefix")} ${submission.task.maxScore}`}
               name="score"
+              step={0.5}
               type="number"
               min={0}
               max={submission.task.maxScore}
@@ -1616,6 +1617,7 @@ function ReviewQueue({
           <TextInput
             label={`${t("sub.scoreOfPrefix")} ${current.task.maxScore}`}
             name="score"
+            step={0.5}
             type="number"
             min={0}
             max={current.task.maxScore}

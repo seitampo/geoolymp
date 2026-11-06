@@ -247,6 +247,7 @@ export async function LessonResults({
                           <TextInput
                             label={`${text.score} (0–${item.task.maxScore})`}
                             name="score"
+                            step={0.5}
                             type="number"
                             min={0}
                             max={item.task.maxScore}

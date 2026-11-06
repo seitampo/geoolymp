@@ -32,14 +32,21 @@ export default async function LoginPage({
       </div>
       <div className="mb-6 text-center">
         <Compass className="mx-auto mb-3 h-16 w-16" />
-        <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">{t("login.title")}</h1>
+        <h1 className="font-heading text-xl font-semibold tracking-tight text-ink">
+          {t("login.title")}
+        </h1>
         <p className="mt-1 text-sm text-ink-mute">{t("login.subtitle")}</p>
       </div>
       <Card>
         <ErrorBanner message={error} />
         <SuccessBanner message={ok} />
         <form className="space-y-4" action="/api/auth/login" method="post">
-          <TextInput label={t("common.email")} name="email" type="email" placeholder={t("common.emailPlaceholder")} />
+          <TextInput
+            label={t("login.identifier")}
+            name="email"
+            type="text"
+            placeholder={t("login.identifierPlaceholder")}
+          />
           <PasswordInput
             label={t("common.password")}
             showLabel={t("password.show")}
@@ -48,7 +55,10 @@ export default async function LoginPage({
             hideAria={t("password.hideAria")}
           />
           <div className="text-right">
-            <Link className="text-sm font-medium text-navy hover:underline" href="/forgot-password">
+            <Link
+              className="text-sm font-medium text-navy hover:underline"
+              href="/forgot-password"
+            >
               {t("login.forgot")}
             </Link>
           </div>
@@ -57,7 +67,10 @@ export default async function LoginPage({
       </Card>
       <p className="mt-4 text-center text-sm text-ink-soft">
         {t("login.noAccount")}{" "}
-        <Link className="font-medium text-navy hover:underline" href="/register">
+        <Link
+          className="font-medium text-navy hover:underline"
+          href="/register"
+        >
           {t("common.register")}
         </Link>
       </p>

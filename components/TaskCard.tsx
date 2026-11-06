@@ -214,12 +214,22 @@ export async function TaskCard({
         {task.description}
       </p>
       {task.imagePath && !isMapTask(task.type) && (
-        <img
-          className="mt-3 max-h-80 rounded-lg border border-line object-contain"
-          src={`/api/tasks/${task.id}/image`}
-          alt={task.title}
-          loading="lazy"
-        />
+        <a
+          href={`/api/tasks/${task.id}/image`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 block w-fit text-sm text-navy"
+        >
+          <img
+            className="max-h-80 rounded-lg border border-line object-contain"
+            src={`/api/tasks/${task.id}/image`}
+            alt={task.title}
+            loading="lazy"
+          />
+          <span className="mt-2 inline-block underline">
+            {t("task.openIllustration")}
+          </span>
+        </a>
       )}
       {isTeacher &&
         isMapTask(task.type) &&

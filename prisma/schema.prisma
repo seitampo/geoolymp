@@ -139,7 +139,7 @@ model Task {
   groupId             Int
   title               String
   description         String
-  maxScore            Int
+  maxScore            Float
   type                TaskType         @default(TEXT)
   options             String?
   correctAnswer       String?
@@ -219,7 +219,7 @@ model TrainingAnswer {
   answer    String
   // Заполняются при завершении попытки: null — тип без автопроверки (текстовый).
   isCorrect Boolean?
-  score     Int             @default(0)
+  score     Float           @default(0)
   attempt   TrainingAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   task      Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
@@ -263,7 +263,7 @@ model Submission {
 model Review {
   id              Int        @id @default(autoincrement())
   submissionId    Int        @unique
-  score           Int
+  score           Float
   feedback        String
   // Когда ученик увидел результат. null — показываем пометку «Новый результат»;
   // при изменении оценки учителем сбрасывается, чтобы пометка появилась снова.

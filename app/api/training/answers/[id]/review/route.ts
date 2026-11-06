@@ -51,7 +51,11 @@ export async function POST(
   const formData = await request.formData();
   const score = Number(formData.get("score"));
 
-  if (!Number.isInteger(score) || score < 0 || score > answer.task.maxScore) {
+  if (
+    !Number.isInteger(score * 2) ||
+    score < 0 ||
+    score > answer.task.maxScore
+  ) {
     return redirectWithError(
       request,
       backTo,
