@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { StudentTaskStatus } from "@/lib/taskStatus";
 
 export type WorkspaceLabels = {
@@ -38,6 +38,18 @@ export function TaskWorkspace({
     tasks.find((task) => task.status !== "solved")?.id ?? tasks[0]?.id,
   );
   const [restored, setRestored] = useState(false);
+  const navigationRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = navigationRef.current;
+    const selected = list?.querySelector<HTMLButtonElement>(
+      '[aria-current="step"]',
+    );
+    if (list && selected)
+      list.scrollTop = Math.max(
+        0,
+        selected.offsetTop - (list.clientHeight - selected.clientHeight) / 2,
+      );
+  }, [activeId]);
   useEffect(() => {
     const id = Number(window.location.hash.replace("#task-", ""));
     if (tasks.some((task) => task.id === id)) setActiveId(id);
@@ -72,7 +84,10 @@ export function TaskWorkspace({
             {tasks.length} {labels.solved}
           </span>
         </div>
-        <div className="flex flex-wrap gap-2 lg:grid lg:grid-cols-1">
+        <div
+          ref={navigationRef}
+          className="relative flex max-h-36 flex-wrap gap-2 overflow-y-auto overscroll-contain p-1 lg:grid lg:max-h-[calc(100dvh-12rem)] lg:grid-cols-1"
+        >
           {tasks.map((task, i) => (
             <button
               key={task.id}
