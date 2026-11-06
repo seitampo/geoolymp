@@ -51,6 +51,7 @@ export function taskFieldsLabels(
     correctAnswer: t("task.correctAnswer"),
     correctAnswerPlaceholder: t("task.correctAnswerPlaceholder"),
     maxScore: t("task.maxScore"),
+    manualReview: t("task.manualReview"),
     image: imageLabel,
     imageHint: `${t("task.imageHintPrefix")} ${maxUploadLabel()}`,
     mapImage: t("task.mapImage"),

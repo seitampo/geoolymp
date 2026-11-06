@@ -497,6 +497,78 @@ test("teacher and student workflows against an isolated local database", async (
     );
 
     await t.test(
+      "questions without a key wait for teacher review and preserve half-point grades",
+      async () => {
+        const manualSet = await prisma.taskSet.create({
+          data: {
+            groupId: group.id,
+            title: "Manual half-point practice",
+            description: "QA",
+          },
+        });
+        const created = await post(
+          "/api/groups/" + group.id + "/tasks",
+          teacher.cookie,
+          form({
+            setId: String(manualSet.id),
+            title: "Manual choice",
+            description: "Select an option",
+            type: "SINGLE_CHOICE",
+            options: "A\nB\nC\nD",
+            manualReview: "1",
+            maxScore: "3.5",
+          }),
+        );
+        assert.equal(created.status, 200);
+        const question = await prisma.task.findFirstOrThrow({
+          where: { setItems: { some: { setId: manualSet.id } } },
+        });
+        assert.equal(question.maxScore, 3.5);
+        assert.equal(question.correctAnswer, null);
+        const sent = await post(
+          "/api/tasks/" + question.id + "/submissions",
+          student.cookie,
+          form({ answer: "B" }),
+        );
+        assert.equal(sent.status, 200);
+        const submission = await prisma.submission.findUniqueOrThrow({
+          where: {
+            taskId_studentId: {
+              taskId: question.id,
+              studentId: student.user.id,
+            },
+          },
+          include: { review: true },
+        });
+        assert.equal(submission.status, "PENDING");
+        assert.equal(submission.review, null);
+        const graded = await post(
+          "/api/submissions/" + submission.id + "/review",
+          teacher.cookie,
+          form({ score: "2.5", feedback: "Half-point criteria" }),
+        );
+        assert.equal(graded.status, 200);
+        assert.equal(
+          (
+            await prisma.review.findUniqueOrThrow({
+              where: { submissionId: submission.id },
+            })
+          ).score,
+          2.5,
+        );
+        assert.equal(
+          (
+            await post(
+              "/api/submissions/" + submission.id + "/review",
+              teacher.cookie,
+              form({ score: "3.25" }),
+            )
+          ).status,
+          400,
+        );
+      },
+    );
+    await t.test(
       "draft, preview, reuse, materials and issuing work as one lesson flow",
       async () => {
         const lessonTitle = "Lesson draft " + suffix;

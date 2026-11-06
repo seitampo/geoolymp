@@ -15,6 +15,7 @@ prisma/dev.db-journal
 uploads/
 work/
 outputs/
+public/aliya-workspace-20261106.json
 
 *.log
 npm-debug.log*

@@ -4,7 +4,14 @@ import { redirectAfterPost, redirectWithError } from "@/lib/formResponse";
 import { getT } from "@/lib/i18n";
 import { verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
-import { clearAttempts, getClientKey, isRateLimited, rateLimitWindowMinutes, recordAttempt } from "@/lib/rateLimit";
+import { normalizeLoginIdentifier } from "@/lib/loginIdentifier";
+import {
+  clearAttempts,
+  getClientKey,
+  isRateLimited,
+  rateLimitWindowMinutes,
+  recordAttempt,
+} from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   const t = await getT();
@@ -20,7 +27,7 @@ export async function POST(request: NextRequest) {
   }
 
   const formData = await request.formData();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = normalizeLoginIdentifier(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
 
   const user = await prisma.user.findUnique({ where: { email } });
@@ -37,7 +44,10 @@ export async function POST(request: NextRequest) {
   // Новый код здесь не шлём: иначе чужой ящик можно было бы заваливать письмами,
   // просто раз за разом вводя правильный пароль. Отправка — по кнопке на странице.
   if (!user.emailVerified) {
-    return redirectAfterPost(request, `/verify?email=${encodeURIComponent(user.email)}`);
+    return redirectAfterPost(
+      request,
+      `/verify?email=${encodeURIComponent(user.email)}`,
+    );
   }
 
   const response = redirectAfterPost(request, "/dashboard");
