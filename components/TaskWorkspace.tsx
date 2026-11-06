@@ -72,7 +72,7 @@ export function TaskWorkspace({
             {tasks.length} {labels.solved}
           </span>
         </div>
-        <div className="flex flex-wrap gap-2 lg:grid lg:grid-cols-1">
+        <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto overscroll-contain p-1 lg:grid lg:max-h-[calc(100dvh-12rem)] lg:grid-cols-1">
           {tasks.map((task, i) => (
             <button
               key={task.id}
